@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apartment Messenger</title>
+  <style>
+    * { box-sizing: border-box; }
+    
+    body {
+      width: 380px;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #83F1DC 0%, #5ce0c8 100%);
+      color: #1a1a1a;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .header-title {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header h1 {
+      font-size: 16px;
+      margin: 0;
+      font-weight: 600;
+    }
+    
+    .header .subtitle {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+    
+    .status-badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+    
+    .status-badge.active {
+      background: rgba(255,255,255,0.5);
+      color: #1a1a1a;
+    }
+    
+    .status-badge.inactive {
+      background: rgba(0,0,0,0.15);
+      color: #333;
+    }
+    
+    /* Toggle Button */
+    .toggle-btn {
+      width: calc(100% - 40px);
+      margin: 16px 20px;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .toggle-btn.start {
+      background: #83F1DC;
+      color: #1a1a1a;
+    }
+    
+    .toggle-btn.start:hover {
+      background: #6de8d0;
+    }
+    
+    .toggle-btn.stop {
+      background: #333;
+      color: white;
+    }
+    
+    .toggle-btn.stop:hover {
+      background: #222;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 12px 8px;
+      border: none;
+      background: none;
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .tab:hover {
+      color: #5ce0c8;
+      background: #f0fdfb;
+    }
+    
+    .tab.active {
+      color: #3dbda8;
+      border-bottom-color: #83F1DC;
+      background: white;
+    }
+    
+    /* Tab Content */
+    .tab-content {
+      display: none;
+      padding: 16px 20px;
+      background: white;
+      min-height: 280px;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Form Elements */
+    .field {
+      margin-bottom: 14px;
+    }
+    
+    .field:last-child {
+      margin-bottom: 0;
+    }
+    
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #555;
+      margin-bottom: 4px;
+    }
+    
+    input[type="text"],
+    input[type="url"],
+    input[type="number"],
+    input[type="tel"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #83F1DC;
+    }
+    
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    
+    .hint {
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+    }
+    
+    /* Grid for form fields */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+    
+    .btn-test {
+      background: #83F1DC;
+      color: #1a1a1a;
+    }
+    
+    .btn-test:hover {
+      background: #6de8d0;
+    }
+    
+    .btn-danger {
+      background: none;
+      color: #dc3545;
+      font-size: 12px;
+    }
+    
+    .btn-danger:hover {
+      background: #fff5f5;
+    }
+    
+    /* Test Result */
+    #testResult {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border: 1px solid #dee2e6;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    #testResultContent {
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+    
+    /* Section titles in tabs */
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 16px 0 10px 0;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
+    
+    .section-title:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header with Status -->
+  <div class="header">
+    <div class="header-title">
+      <h1>🏠 Apartment Messenger</h1>
+      <span class="subtitle">ImmoScout24 Edition</span>
+    </div>
+    <span id="statusBadge" class="status-badge inactive">Stopped</span>
+  </div>
+  
+  <!-- Main Toggle Button -->
+  <button id="toggleBtn" class="toggle-btn start">
+    <span id="toggleIcon">▶</span>
+    <span id="toggleText">Start Monitoring</span>
+  </button>
+  
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="main">Settings</button>
+    <button class="tab" data-tab="form">Form</button>
+    <button class="tab" data-tab="advanced">Advanced</button>
+    <button class="tab" data-tab="test">Test</button>
+  </div>
+  
+  <!-- Main Settings Tab -->
+  <div id="tab-main" class="tab-content active">
+    <div class="field">
+      <label for="searchUrl">Search URL</label>
+      <input type="url" id="searchUrl" placeholder="https://www.immobilienscout24.de/Suche/...">
+      <div class="hint">Your ImmoScout24 search results page URL</div>
+    </div>
+    
+    <div class="field">
+      <label for="messageTemplate">Message to Landlords</label>
+      <textarea id="messageTemplate" placeholder="Your message..."></textarea>
+      <div class="hint">"Sehr geehrte Frau/Herr [Name]" is added automatically</div>
+    </div>
+    
+    <div class="field">
+      <label for="autoSendMode">Send Mode</label>
+      <select id="autoSendMode">
+        <option value="auto" selected>Auto-send message</option>
+        <option value="manual">Fill form, send manually</option>
+      </select>
+      <div class="hint">In manual mode, the form is filled but not submitted</div>
+    </div>
+  </div>
+  
+  <!-- Form Auto-Fill Tab -->
+  <div id="tab-form" class="tab-content">
+    <div class="section-title">Persönliche Daten</div>
+    
+    <div class="grid-2">
+      <div class="field">
+        <label for="formSalutation">Anrede</label>
+        <select id="formSalutation">
+          <option value="Frau" selected>Frau</option>
+          <option value="Herr">Herr</option>
+          <option value="Divers">Divers</option>
+          <option value="Firma">Firma</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="formPhone">Telefonnummer</label>
+        <input type="tel" id="formPhone" placeholder="+49...">
+      </div>
+    </div>
+    
+    <div class="section-title">Haushalt</div>
+    
+    <div class="grid-2">
+      <div class="field">
+        <label for="formAdults">Erwachsene</label>
+        <input type="number" id="formAdults" min="1" max="10" value="1">
+      </div>
+      <div class="field">
+        <label for="formChildren">Kinder</label>
+        <input type="number" id="formChildren" min="0" max="10" value="0">
+      </div>
+    </div>
+    
+    <div class="grid-2">
+      <div class="field">
+        <label for="formHouseholdSize">Haushaltsgröße</label>
+        <select id="formHouseholdSize">
+          <option value="Einpersonenhaushalt" selected>Einpersonenhaushalt</option>
+          <option value="Zwei Erwachsene">Zwei Erwachsene</option>
+          <option value="Familie">Familie</option>
+          <option value="Wohngemeinschaft">Wohngemeinschaft</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="formPets">Haustiere (außer Kleintiere)</label>
+        <select id="formPets">
+          <option value="Nein" selected>Nein</option>
+          <option value="Ja">Ja</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="grid-2">
+      <div class="field">
+        <label for="formSmoker">Raucher:in</label>
+        <select id="formSmoker">
+          <option value="Nein" selected>Nein</option>
+          <option value="Ja">Ja</option>
+        </select>
+      </div>
+      <div class="field"></div>
+    </div>
+    
+    <div class="section-title">Beschäftigung & Einkommen</div>
+    
+    <div class="grid-2">
+      <div class="field">
+        <label for="formEmployment">Beschäftigungsart</label>
+        <select id="formEmployment">
+          <option value="Angestellte:r" selected>Angestellte:r</option>
+          <option value="Arbeiter:in">Arbeiter:in</option>
+          <option value="Selbstständige:r">Selbstständige:r</option>
+          <option value="Beamter:Beamtin">Beamter:Beamtin</option>
+          <option value="Auszubildende:r">Auszubildende:r</option>
+          <option value="Student:in">Student:in</option>
+          <option value="Doktorand:in">Doktorand:in</option>
+          <option value="Hausfrau:Hausmann">Hausfrau:Hausmann</option>
+          <option value="Arbeitssuchende:r">Arbeitssuchende:r</option>
+          <option value="Rentner:in">Rentner:in</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="formIncomeRange">Einkommensbereich (netto)</label>
+        <select id="formIncomeRange">
+          <option value="< 500">< 500 €</option>
+          <option value="500 - 1.000">500 - 1.000 €</option>
+          <option value="1.000 - 1.500">1.000 - 1.500 €</option>
+          <option value="1.500 - 2.000" selected>1.500 - 2.000 €</option>
+          <option value="2.000 - 3.000">2.000 - 3.000 €</option>
+          <option value="3.000 - 4.000">3.000 - 4.000 €</option>
+          <option value="4.000 - 5.000">4.000 - 5.000 €</option>
+          <option value="> 5.000">> 5.000 €</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="grid-2">
+      <div class="field">
+        <label for="formIncome">Monatliches netto Haushaltseinkommen (€)</label>
+        <input type="number" id="formIncome" min="0" max="50000" value="2000" step="100">
+      </div>
+      <div class="field">
+        <label for="formDocuments">Bewerbungsunterlagen</label>
+        <select id="formDocuments">
+          <option value="Vorhanden" selected>Vorhanden</option>
+          <option value="Nicht vorhanden">Nicht vorhanden</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Advanced Settings Tab -->
+  <div id="tab-advanced" class="tab-content">
+    <div class="field">
+      <label for="checkInterval">Check Interval (seconds)</label>
+      <input type="number" id="checkInterval" min="60" max="3600" value="60" step="30">
+      <div class="hint">How often to check for new listings</div>
+    </div>
+    
+    <div class="grid-2">
+      <div class="field">
+        <label for="rateLimit">Max Messages/Hour</label>
+        <input type="number" id="rateLimit" min="1" max="50" value="10">
+      </div>
+      <div class="field">
+        <label for="minDelay">Min Delay (sec)</label>
+        <input type="number" id="minDelay" min="10" max="300" value="30">
+      </div>
+    </div>
+    <div class="hint">Rate limiting prevents you from being blocked</div>
+  </div>
+  
+  <!-- Test Tab -->
+  <div id="tab-test" class="tab-content">
+    <div class="hint" style="margin-bottom: 12px;">
+      First open a listing on ImmoScout24, then test sending a message here.
+    </div>
+    
+    <button id="sendCurrentBtn" class="btn btn-test">📨 Send to Current Listing</button>
+    
+    <div id="testResult">
+      <div id="testResultContent"></div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

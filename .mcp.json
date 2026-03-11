@@ -1,27 +1,37 @@
 {
-    "mcpServers": {
-        "context7": {
-            "type": "stdio",
-            "command": "npx",
-            "args": [
-                "-y",
-                "@upstash/context7-mcp@latest"
-            ]
-        },
-        "chrome-devtools": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "chrome-devtools-mcp@latest"
-            ]
-        },
-        "chrome-devtools-isolated": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "chrome-devtools-mcp@latest",
-                "--isolated"
-            ]
-        }
+  "mcpServers": {
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ]
+    },
+    "chrome-devtools-isolated": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--isolated"
+      ]
+    },
+    "memelord": {
+      "command": "node",
+      "args": [
+        "/Users/ignacioguri/.volta/tools/image/packages/memelord/bin/memelord",
+        "serve"
+      ],
+      "env": {
+        "MEMELORD_DIR": "/Users/ignacioguri/Documents/Repos/reloader-immoscout/.memelord"
+      }
     }
+  }
 }

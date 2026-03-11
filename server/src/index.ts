@@ -300,7 +300,7 @@ REGELN:
 
 // Reply generation endpoint
 app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Response) => {
-  const { conversationHistory, userProfile, landlordInfo, listingTitle, apiKey, profile } = req.body;
+  const { conversationHistory, userProfile, landlordInfo, listingTitle, apiKey, profile, appointmentAction } = req.body;
 
   if (!conversationHistory || !conversationHistory.length) {
     return res.status(400).json({ error: 'conversationHistory is required and must not be empty' });
@@ -319,7 +319,26 @@ app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Resp
       })
       .join('\n\n');
 
-    const prompt = `${listingTitle ? `WOHNUNG: ${listingTitle}\n\n` : ''}GESPRÄCHSVERLAUF:\n\n${conversationText}\n\nSchreibe die nächste Antwort des Bewerbers.`;
+    let appointmentContext = '';
+    if (appointmentAction) {
+      const actionLabels: Record<string, string> = {
+        accept: 'ZUSAGE (Termin annehmen)',
+        reject: 'ABSAGE (Termin ablehnen)',
+        alternative: 'ALTERNATIVVORSCHLAG (anderen Termin anfragen)',
+      };
+      const parts = [
+        `\nTERMINEINLADUNG:`,
+        appointmentAction.date ? `Datum: ${appointmentAction.date}` : null,
+        appointmentAction.time ? `Zeit: ${appointmentAction.time}` : null,
+        appointmentAction.location ? `Ort: ${appointmentAction.location}` : null,
+        `GEWÜNSCHTE AKTION: ${actionLabels[appointmentAction.type] || appointmentAction.type}`,
+        appointmentAction.userContext ? `ZUSÄTZLICHER KONTEXT VOM NUTZER: ${appointmentAction.userContext}` : null,
+        `Schreibe eine passende kurze Antwort (30-60 Wörter). Berücksichtige den Kontext des Nutzers falls vorhanden.`,
+      ].filter(Boolean).join('\n');
+      appointmentContext = parts;
+    }
+
+    const prompt = `${listingTitle ? `WOHNUNG: ${listingTitle}\n\n` : ''}GESPRÄCHSVERLAUF:\n\n${conversationText}\n\n${appointmentContext ? appointmentContext : 'Schreibe die nächste Antwort des Bewerbers.'}`;
 
     const { text, usage: replyUsage } = await generateText({
       model,

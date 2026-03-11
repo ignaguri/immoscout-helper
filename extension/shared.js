@@ -59,9 +59,10 @@ const PROFILE_MAX_WARMMIETE_KEY = 'profileMaxWarmmiete';
 // Sync keys
 const SYNCED_CONTACTED_KEY = 'syncedContactedCount';
 
-// Manual queue keys
+// Queue keys
 const QUEUE_KEY = 'manualQueue';
 const QUEUE_PROCESSING_KEY = 'isQueueProcessing';
+const QUEUE_MAX_RETRIES = 3;
 
 // Activity log
 const ACTIVITY_LOG_KEY = 'activityLog';

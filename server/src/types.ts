@@ -98,6 +98,14 @@ export interface ConversationMessage {
   timestamp?: string;
 }
 
+export interface AppointmentAction {
+  type: 'accept' | 'reject' | 'alternative';
+  date?: string;
+  time?: string;
+  location?: string;
+  userContext?: string;
+}
+
 export interface ReplyRequestBody {
   conversationHistory: ConversationMessage[];
   userProfile?: UserProfile;
@@ -105,6 +113,7 @@ export interface ReplyRequestBody {
   listingTitle?: string;
   apiKey?: string;
   profile?: Profile;
+  appointmentAction?: AppointmentAction;
 }
 
 export interface ScoreResult {

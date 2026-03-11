@@ -1062,6 +1062,124 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch(error => sendResponse({ success: false, error: error.message }));
       return true;
 
+    case 'handleAppointment':
+      // Click appointment button and fill courtesy message on messenger page
+      (async () => {
+        try {
+          if (!location.href.includes('/messenger/')) {
+            sendResponse({ success: false, error: 'Not on a messenger page' });
+            return;
+          }
+
+          const { response: apptResponse, courtesyMessage } = request;
+
+          // Ensure the conversation detail panel is open.
+          // The messenger is a React SPA — navigating to /conversations/{id} loads the
+          // list but the detail panel may not slide in automatically. We need to check
+          // for the messages section and, if missing, click the conversation in the list.
+          let messagesSection = document.querySelector('[data-testid="messages-section"], [data-testid="messages"]');
+          if (!messagesSection) {
+            console.log('[IS24] Messages panel not visible, looking for conversation in sidebar list...');
+
+            // Wait for the conversation list to render
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Try to find and click the conversation item in the sidebar.
+            // The conversation ID is in the URL — find a matching link or list item.
+            const convId = location.pathname.split('/conversations/')[1]?.split('/')[0]?.split('?')[0];
+            let clicked = false;
+            if (convId) {
+              // Look for links containing the conversation ID
+              const convLinks = document.querySelectorAll(`a[href*="${convId}"], [data-testid*="conversation"]`);
+              for (const link of convLinks) {
+                if (link.href?.includes(convId) || link.closest(`a[href*="${convId}"]`)) {
+                  link.click();
+                  console.log(`[IS24] Clicked conversation link for ${convId}`);
+                  clicked = true;
+                  break;
+                }
+              }
+            }
+
+            // If no link found, try clicking the first/active conversation item
+            if (!clicked) {
+              const convItems = document.querySelectorAll('[data-testid^="conversation-list-item"], [class*="conversationList"] a, [class*="ConversationList"] a');
+              for (const item of convItems) {
+                if (item.href?.includes(convId) || item.querySelector(`[href*="${convId}"]`)) {
+                  item.click();
+                  console.log('[IS24] Clicked conversation list item');
+                  clicked = true;
+                  break;
+                }
+              }
+            }
+
+            // Wait for the detail panel to slide in
+            if (clicked) {
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+          }
+
+          // Wait for the appointment invitation to render
+          let invitationWrapper = null;
+          for (let attempt = 0; attempt < 10; attempt++) {
+            invitationWrapper = document.querySelector('[data-testid^="invitation-msg-id-"]');
+            if (invitationWrapper) break;
+            console.log(`[IS24] Waiting for appointment invitation to render... (attempt ${attempt + 1})`);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+          if (!invitationWrapper) {
+            sendResponse({ success: false, error: 'No appointment invitation found on page' });
+            return;
+          }
+
+          // Find the correct button based on response type
+          const buttonTextMap = {
+            accept: 'Zusagen',
+            reject: 'Absagen',
+            alternative: 'Alternativen Termin'
+          };
+          const targetText = buttonTextMap[apptResponse];
+          if (!targetText) {
+            sendResponse({ success: false, error: `Unknown response type: ${apptResponse}` });
+            return;
+          }
+
+          const buttons = invitationWrapper.querySelectorAll('button');
+          let targetBtn = null;
+          for (const btn of buttons) {
+            if (btn.textContent.includes(targetText)) {
+              targetBtn = btn;
+              break;
+            }
+          }
+
+          if (!targetBtn) {
+            sendResponse({ success: false, error: `Button "${targetText}" not found in appointment card` });
+            return;
+          }
+
+          // Click the appointment action button
+          targetBtn.click();
+          console.log(`[IS24] Clicked appointment button: ${targetText}`);
+
+          // Wait for UI to process the button click (may trigger modal, state change, etc.)
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          // Fill the courtesy message if provided
+          let filled = false;
+          if (courtesyMessage) {
+            const fillResult = await fillConversationReply(courtesyMessage);
+            filled = fillResult?.success || false;
+          }
+
+          sendResponse({ success: true, buttonClicked: targetText, messageFilled: filled });
+        } catch (error) {
+          sendResponse({ success: false, error: error.message });
+        }
+      })();
+      return true;
+
     case 'checkMessageSent':
       // Check if the current page shows a "message sent" confirmation
       {

@@ -319,7 +319,6 @@ function updateStatus(monitoring) {
 // ============================================================================
 
 let nextAlarmTime = null;
-let queueNextActionTime = null;
 
 async function updateStats() {
   try {
@@ -346,15 +345,15 @@ async function updateStats() {
 
 function updateCountdown() {
   if (!statsNextCheck) return;
-  // Use queue next action time if queue is processing, otherwise alarm time
-  const targetTime = isQueueProcessing ? queueNextActionTime : (isMonitoring ? nextAlarmTime : null);
+  // Use alarm time for next check countdown
+  const targetTime = isMonitoring ? nextAlarmTime : null;
   if (!targetTime) {
-    statsNextCheck.textContent = '--';
+    statsNextCheck.textContent = isQueueProcessing ? 'processing' : '--';
     return;
   }
   const remaining = Math.max(0, Math.round((targetTime - Date.now()) / 1000));
   if (remaining <= 0) {
-    statsNextCheck.textContent = isQueueProcessing ? 'processing' : 'now';
+    statsNextCheck.textContent = 'now';
   } else if (remaining < 60) {
     statsNextCheck.textContent = `${remaining}s`;
   } else {
@@ -574,44 +573,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     appendToResult(request.message);
   } else if (request.action === 'activityLog') {
     renderActivityEntry(request);
+    // Refresh queue list when items are processed (success/fail/skip changes queue)
+    if (request.lastResult || request.message?.includes('Queue empty')) {
+      chrome.storage.local.get([QUEUE_KEY]).then(stored => renderQueue(stored[QUEUE_KEY] || []));
+    }
   } else if (request.action === 'conversationUpdate') {
     loadConversations();
-  } else if (request.action === 'queueProgress') {
-    if (request.nextActionTime) {
-      queueNextActionTime = request.nextActionTime;
-    }
-    if (request.done) {
-      appendQueueProgress('Queue processing complete.', 'header');
-      updateQueueButtons(false);
-      queueNextActionTime = null;
-      chrome.storage.local.get([QUEUE_KEY]).then(stored => renderQueue(stored[QUEUE_KEY] || []));
-    } else if (request.current) {
-      const id = request.current.id;
-      const title = request.current.title || id;
-      const url = request.current.url || `https://www.immobilienscout24.de/expose/${id}`;
-      const link = `<a href="${url}" target="_blank" style="color:#888; text-decoration:none;">(${id})</a>`;
-      appendQueueProgressHtml(`▸ ${link} ${escapeHtml(title)} (${request.remaining} remaining)`, 'header');
-    }
-    if (request.message) {
-      const isAnalysis = request.message.includes('AI Score:') || request.message.includes('Reason:') || request.message.includes('Summary:');
-      const isWait = request.message.includes('Rate limit') || request.message.includes('waiting');
-      appendQueueProgress(request.message, isAnalysis ? 'analysis' : isWait ? 'wait' : 'info');
-    }
-    if (request.lastResult) {
-      let icon, type, label;
-      if (request.lastResult === 'success') {
-        icon = '\u2713'; type = 'result-success'; label = 'Sent';
-      } else if (request.lastResult === 'skipped') {
-        icon = '\u2192'; type = 'wait'; label = 'Skipped';
-      } else {
-        icon = '\u2717'; type = 'result-failed'; label = 'Failed';
-      }
-      const lid = request.lastId;
-      const lurl = `https://www.immobilienscout24.de/expose/${lid}`;
-      const llink = `<a href="${lurl}" target="_blank" style="color:inherit; text-decoration:none;">(${lid})</a>`;
-      appendQueueProgressHtml(`${icon} ${label}: ${llink} ${escapeHtml(request.lastTitle || '')}`, type);
-      chrome.storage.local.get([QUEUE_KEY]).then(stored => renderQueue(stored[QUEUE_KEY] || []));
-    }
+  } else if (request.action === 'queueDone') {
+    appendQueueProgress('Queue processing complete.', 'header');
+    updateQueueButtons(false);
+    chrome.storage.local.get([QUEUE_KEY]).then(stored => renderQueue(stored[QUEUE_KEY] || []));
   }
 });
 
@@ -1101,9 +1072,6 @@ function renderQueue(queue) {
 
 function updateQueueButtons(processing) {
   isQueueProcessing = processing;
-  if (!processing) {
-    queueNextActionTime = null;
-  }
   if (processing) {
     processBtn.textContent = '\u23F9 Stop Processing';
     processBtn.className = 'btn btn-secondary';
@@ -1392,7 +1360,10 @@ async function loadConversations() {
   }
 
   // Filter to conversations with messages or unread replies
-  const relevant = conversations.filter(c => c.hasUnreadReply || c.messages.length > 0 || c.draftReply);
+  const relevant = conversations.filter(c =>
+    c.hasUnreadReply || c.messages.length > 0 || c.draftReply ||
+    (c.appointment && !['accepted', 'rejected'].includes(c.appointmentStatus))
+  );
 
   if (relevant.length === 0) {
     convEmptyState.style.display = 'block';
@@ -1436,15 +1407,26 @@ function renderConversationCard(conv) {
   header.addEventListener('click', () => {
     const body = card.querySelector('.conv-body');
     if (body) {
-      body.style.display = body.style.display === 'none' ? 'block' : 'none';
-    }
-    // Mark as read when expanding
-    if (conv.hasUnreadReply) {
-      chrome.runtime.sendMessage({ action: 'markConversationRead', conversationId: conv.conversationId });
-      conv.hasUnreadReply = false;
-      card.style.borderLeftColor = '#dee2e6';
-      card.style.borderLeftWidth = '1px';
-      loadConversations(); // refresh badge
+      const isExpanding = body.style.display === 'none';
+      body.style.display = isExpanding ? 'block' : 'none';
+
+      // Only mark as read when expanding, and don't rebuild the list
+      if (isExpanding && conv.hasUnreadReply) {
+        chrome.runtime.sendMessage({ action: 'markConversationRead', conversationId: conv.conversationId });
+        conv.hasUnreadReply = false;
+        card.style.borderLeftColor = '#dee2e6';
+        card.style.borderLeftWidth = '1px';
+        // Remove the unread dot
+        const dot = header.querySelector('span[style*="border-radius:50%"]');
+        if (dot) dot.remove();
+        // Update badge count without rebuilding the list
+        const currentBadge = parseInt(convBadge.textContent || '0', 10);
+        if (currentBadge > 1) {
+          convBadge.textContent = currentBadge - 1;
+        } else {
+          convBadge.style.display = 'none';
+        }
+      }
     }
   });
 
@@ -1503,6 +1485,99 @@ function renderConversationCard(conv) {
     body.appendChild(thread);
   }
 
+  // Appointment section
+  if (conv.appointment && conv.appointmentStatus === 'pending') {
+    const apptSection = document.createElement('div');
+    apptSection.style.cssText = 'margin-top: 8px; padding: 10px; background: #f8f9ff; border: 1px solid #d0d5ff; border-radius: 8px;';
+
+    // Parse appointment details
+    const appt = conv.appointment;
+    const apptDate = appt.date || appt.startDate || '';
+    const apptTime = appt.time || appt.startTime || '';
+    const apptDuration = appt.duration || '';
+    const apptLocation = appt.location || appt.address || '';
+
+    const apptHeader = document.createElement('div');
+    apptHeader.style.cssText = 'font-size: 11px; font-weight: 600; color: #333; margin-bottom: 6px;';
+    apptHeader.textContent = 'Besichtigungstermin';
+    apptSection.appendChild(apptHeader);
+
+    const apptDetails = document.createElement('div');
+    apptDetails.style.cssText = 'font-size: 11px; color: #555; margin-bottom: 8px; line-height: 1.5;';
+    const detailParts = [
+      apptDate ? `Datum: ${apptDate}` : null,
+      apptTime ? `Zeit: ${apptTime}${apptDuration ? ` (${apptDuration})` : ''}` : null,
+      apptLocation ? `Ort: ${apptLocation}` : null,
+    ].filter(Boolean).join('<br>');
+    apptDetails.innerHTML = detailParts || 'Termindetails nicht verfügbar';
+    apptSection.appendChild(apptDetails);
+
+    // User context textarea
+    const apptContext = document.createElement('textarea');
+    apptContext.style.cssText = 'width: 100%; min-height: 40px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 11px; font-family: inherit; resize: vertical; margin-bottom: 8px;';
+    apptContext.placeholder = 'Optional: Add context for the AI, e.g. "reject because move-in is too soon"';
+    apptSection.appendChild(apptContext);
+
+    // Action buttons
+    const apptBtnRow = document.createElement('div');
+    apptBtnRow.style.cssText = 'display: flex; gap: 6px;';
+
+    const makeApptBtn = (label, color, bgColor, response) => {
+      const btn = document.createElement('button');
+      btn.style.cssText = `flex: 1; padding: 8px 6px; background: ${bgColor}; color: ${color}; border: none; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer;`;
+      btn.textContent = label;
+      btn.addEventListener('click', async () => {
+        // Disable all buttons
+        apptBtnRow.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.opacity = '0.6'; });
+        btn.textContent = 'Processing...';
+        try {
+          const result = await chrome.runtime.sendMessage({
+            action: 'respondToAppointment',
+            conversationId: conv.conversationId,
+            response,
+            userContext: apptContext.value.trim(),
+            appointment: { date: apptDate, time: apptTime, location: apptLocation },
+          });
+          if (result.success) {
+            btn.textContent = 'Tab opened - review & send';
+            btn.style.background = '#e6fff5';
+            btn.style.color = '#1a1a1a';
+          } else {
+            btn.textContent = 'Failed: ' + (result.error || 'unknown');
+            btn.style.background = '#fff5f5';
+            btn.style.color = '#c00';
+          }
+        } catch (e) {
+          btn.textContent = 'Error: ' + e.message;
+          btn.style.background = '#fff5f5';
+          btn.style.color = '#c00';
+        }
+        setTimeout(() => {
+          apptBtnRow.querySelectorAll('button').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+          btn.textContent = label;
+          btn.style.background = bgColor;
+          btn.style.color = color;
+        }, 5000);
+      });
+      return btn;
+    };
+
+    apptBtnRow.appendChild(makeApptBtn('Accept', '#1a5c2a', '#d4edda', 'accept'));
+    apptBtnRow.appendChild(makeApptBtn('Reject', '#721c24', '#f8d7da', 'reject'));
+    apptBtnRow.appendChild(makeApptBtn('Alternative', '#333', '#f0f0f0', 'alternative'));
+    apptSection.appendChild(apptBtnRow);
+
+    body.appendChild(apptSection);
+  } else if (conv.appointment && conv.appointmentStatus && conv.appointmentStatus !== 'pending') {
+    // Show status for already-handled appointments
+    const apptStatus = document.createElement('div');
+    const statusLabels = { accepted: 'Accepted', rejected: 'Rejected', alternative_requested: 'Alternative requested' };
+    const statusColors = { accepted: '#d4edda', rejected: '#f8d7da', alternative_requested: '#fff3cd' };
+    apptStatus.style.cssText = `margin-top: 8px; padding: 8px 10px; background: ${statusColors[conv.appointmentStatus] || '#f0f0f0'}; border-radius: 8px; font-size: 11px; color: #555;`;
+    apptStatus.textContent = `Appointment: ${statusLabels[conv.appointmentStatus] || conv.appointmentStatus}`;
+    body.appendChild(apptStatus);
+  }
+
   // Draft reply section
   const draftSection = document.createElement('div');
   draftSection.style.cssText = 'margin-top: 8px;';
@@ -1518,7 +1593,7 @@ function renderConversationCard(conv) {
     const draftTextarea = document.createElement('textarea');
     draftTextarea.style.cssText = 'width:100%; min-height:80px; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:11px; font-family:inherit; resize:vertical;';
     draftTextarea.value = conv.draftReply || '';
-    draftTextarea.placeholder = 'Type your reply or wait for AI draft...';
+    draftTextarea.placeholder = conv.draftReply ? 'Edit the draft or send as-is...' : 'Type your reply or click Generate for an AI draft...';
     draftSection.appendChild(draftTextarea);
 
     const btnRow = document.createElement('div');
@@ -1561,7 +1636,8 @@ function renderConversationCard(conv) {
     // Regenerate button
     const regenBtn = document.createElement('button');
     regenBtn.style.cssText = 'padding:8px 12px; background:#f0f0f0; color:#333; border:none; border-radius:6px; font-size:11px; cursor:pointer;';
-    regenBtn.textContent = 'Regenerate';
+    const regenLabel = conv.draftReply ? 'Regenerate' : 'Generate';
+    regenBtn.textContent = regenLabel;
     regenBtn.addEventListener('click', async () => {
       regenBtn.disabled = true;
       regenBtn.textContent = 'Generating...';
@@ -1575,7 +1651,7 @@ function renderConversationCard(conv) {
       }
       setTimeout(() => {
         regenBtn.disabled = false;
-        regenBtn.textContent = 'Regenerate';
+        regenBtn.textContent = regenLabel;
       }, 3000);
     });
     btnRow.appendChild(regenBtn);

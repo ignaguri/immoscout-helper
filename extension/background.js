@@ -15,14 +15,10 @@ let lastMessageTime = 0;
 let messageCount = 0;
 let messageCountResetTime = Date.now() + 3600000;
 
-// Track listings that failed to process — skip them for a cooldown period
-// Map<listingId, { count: number, lastAttempt: number }>
-const failedListings = new Map();
-const FAILED_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
-
-// Manual queue processing state
-let isQueueProcessing = false;
+// Unified queue processing state
+let isProcessingQueue = false;
 let queueAbortRequested = false;
+let userTriggeredProcessing = false;
 
 
 // ============================================================================
@@ -76,7 +72,7 @@ async function restoreMonitoringState() {
 
   // Clear stale queue processing flag (SW was killed mid-run)
   if (stored[QUEUE_PROCESSING_KEY]) {
-    isQueueProcessing = false;
+    isProcessingQueue = false;
     await chrome.storage.local.set({ [QUEUE_PROCESSING_KEY]: false });
     console.log('[Queue] Cleared stale processing flag from previous SW session');
   }
@@ -534,6 +530,9 @@ async function checkForNewReplies() {
       // Check if this conversation has a new update
       const hasNewUpdate = !stored || stored.lastUpdateDateTime !== lastUpdate;
 
+      // Determine appointment status — preserve user's action if already set
+      const appointmentStatus = stored?.appointmentStatus || (appointment ? 'pending' : null);
+
       // Build conversation entry
       const convEntry = {
         conversationId,
@@ -547,6 +546,7 @@ async function checkForNewReplies() {
         imageUrl,
         shortDetails,
         appointment,
+        appointmentStatus,
         messages: stored?.messages || [],
         draftReply: stored?.draftReply || null,
         draftStatus: stored?.draftStatus || 'none'
@@ -578,19 +578,6 @@ async function checkForNewReplies() {
               priority: 2
             });
           } catch (e) { /* notifications may fail */ }
-
-          // Auto-generate draft reply if AI is enabled
-          try {
-            const { [AI_ENABLED_KEY]: aiEnabled, [AI_SERVER_URL_KEY]: serverUrl, [AI_API_KEY_KEY]: apiKey } =
-              await chrome.storage.local.get([AI_ENABLED_KEY, AI_SERVER_URL_KEY, AI_API_KEY_KEY]);
-            if (aiEnabled && serverUrl && convEntry.messages.length > 0) {
-              convEntry.draftStatus = 'generating';
-              // Don't await — generate in background
-              generateDraftReply(convEntry, serverUrl, apiKey).catch(e =>
-                console.error(`[Conversations] Draft generation failed for ${conversationId}:`, e)
-              );
-            }
-          } catch (e) { /* AI config error */ }
 
           // Log to activity
           await sendActivityLog({
@@ -772,6 +759,24 @@ async function updateConversationDraft(conversationId, draftReply, draftStatus) 
   await chrome.storage.local.set({ [CONVERSATIONS_KEY]: updated });
 }
 
+// Update a single conversation's appointment status in storage
+async function updateAppointmentStatus(conversationId, appointmentStatus) {
+  const { [CONVERSATIONS_KEY]: conversations } = await chrome.storage.local.get([CONVERSATIONS_KEY]);
+  if (!conversations) return;
+
+  const updated = conversations.map(c => {
+    if (c.conversationId === conversationId) {
+      return { ...c, appointmentStatus };
+    }
+    return c;
+  });
+
+  await chrome.storage.local.set({ [CONVERSATIONS_KEY]: updated });
+  try {
+    await chrome.runtime.sendMessage({ action: 'conversationUpdate' });
+  } catch (e) { /* popup closed */ }
+}
+
 // ============================================================================
 // LISTING DETECTION
 // ============================================================================
@@ -938,7 +943,24 @@ async function checkForNewListings() {
         console.log(`[Pagination] Total: ${allListings.length} listings from ${maxPages} pages`);
       }
 
-      await processNewListings(allListings, false);
+      // Summary log
+      const { [STORAGE_KEY]: seenListings } = await chrome.storage.local.get([STORAGE_KEY]);
+      const seenSet = new Set((seenListings || []).map(id => String(id).toLowerCase().trim()));
+      const dedupMap = new Map();
+      for (const listing of allListings) {
+        const id = String(listing.id || '').toLowerCase().trim();
+        if (id && listing.url && !dedupMap.has(id)) dedupMap.set(id, listing);
+      }
+      const newCount = [...dedupMap.keys()].filter(id => !seenSet.has(id)).length;
+      if (newCount > 0) {
+        await sendActivityLog({ message: `Found ${dedupMap.size} listings, ${newCount} new` });
+      } else {
+        await sendActivityLog({ message: `Found ${dedupMap.size} listings, none new` });
+      }
+
+      // Enqueue new listings, then process the queue
+      await enqueueListings(allListings, 'auto');
+      await processQueue();
     } catch (error) {
       console.error('Error extracting listings:', error);
       searchTabId = null;
@@ -950,15 +972,14 @@ async function checkForNewListings() {
 }
 
 // ============================================================================
-// LISTING PROCESSING
+// UNIFIED QUEUE: ENQUEUE + PROCESS
 // ============================================================================
 
-async function processNewListings(listings, ignoreSeen = false) {
-  if (!listings || listings.length === 0) {
-    return 0;
-  }
+// Enqueue listings into the shared queue (used by both auto-discovery and manual capture)
+async function enqueueListings(listings, source) {
+  if (!listings || listings.length === 0) return 0;
 
-  // Deduplicate listings by ID — extractListings() can return the same ID multiple times
+  // Deduplicate input by ID
   const dedupMap = new Map();
   for (const listing of listings) {
     const id = String(listing.id || '').toLowerCase().trim();
@@ -966,270 +987,172 @@ async function processNewListings(listings, ignoreSeen = false) {
       dedupMap.set(id, listing);
     }
   }
-  const uniqueListings = Array.from(dedupMap.values());
 
-  const { [STORAGE_KEY]: seenListings } = await chrome.storage.local.get([STORAGE_KEY]);
-  const seenList = seenListings || [];
-  const seenSet = new Set(seenList.map(id => String(id).toLowerCase().trim()));
+  const { [STORAGE_KEY]: seenListings, [QUEUE_KEY]: currentQueue } =
+    await chrome.storage.local.get([STORAGE_KEY, QUEUE_KEY]);
 
-  // Summary log
-  const seenIds = [...dedupMap.keys()].filter(id => seenSet.has(id));
-  const newIds = [...dedupMap.keys()].filter(id => !seenSet.has(id));
-  console.log('='.repeat(60));
-  console.log(`LISTING CHECK: ${uniqueListings.length} unique listings (${listings.length} raw), ${seenIds.length} already messaged, ${newIds.length} to process`);
-  if (seenIds.length > 0) console.log(`  Already messaged: ${seenIds.join(', ')}`);
-  if (newIds.length > 0) console.log(`  New to process: ${newIds.join(', ')}`);
-  console.log('='.repeat(60));
+  const seenSet = new Set((seenListings || []).map(id => String(id).toLowerCase().trim()));
+  const queueSet = new Set((currentQueue || []).map(item => String(item.id).toLowerCase().trim()));
 
-  if (!isQueueProcessing) {
-    if (newIds.length > 0) {
-      await sendActivityLog({ message: `Found ${uniqueListings.length} listings, ${newIds.length} new` });
-    } else {
-      await sendActivityLog({ message: `Found ${uniqueListings.length} listings, none new` });
+  const addedAt = Date.now();
+  const newItems = [];
+  for (const [id, listing] of dedupMap) {
+    if (!seenSet.has(id) && !queueSet.has(id)) {
+      newItems.push({
+        id,
+        url: listing.url,
+        title: listing.title || '',
+        source,
+        addedAt,
+        retries: 0
+      });
     }
   }
 
-  // Purge expired cooldowns and sort failed listings to the end
-  const now = Date.now();
-  for (const [id, info] of failedListings) {
-    if (now - info.lastAttempt >= FAILED_COOLDOWN_MS) failedListings.delete(id);
+  if (newItems.length === 0) {
+    console.log(`[Queue] No new items to enqueue (${dedupMap.size} input, all seen or already queued)`);
+    return 0;
   }
 
-  // Sort: non-failed first, failed-but-cooldown-expired at end
-  const sortedListings = [...uniqueListings].sort((a, b) => {
-    const aFailed = failedListings.has(String(a.id).toLowerCase().trim());
-    const bFailed = failedListings.has(String(b.id).toLowerCase().trim());
-    if (aFailed === bFailed) return 0;
-    return aFailed ? 1 : -1;
-  });
+  const updatedQueue = [...(currentQueue || []), ...newItems];
+  await chrome.storage.local.set({ [QUEUE_KEY]: updatedQueue });
 
-  for (const listing of sortedListings) {
-    if (!isMonitoring && !isQueueProcessing) break;
-    if (isQueueProcessing && queueAbortRequested) break;
+  console.log(`[Queue] Enqueued ${newItems.length} ${source} items (${dedupMap.size - newItems.length} filtered as seen/duplicate)`);
+  await sendActivityLog({ message: `Enqueued ${newItems.length} ${source} listing${newItems.length !== 1 ? 's' : ''} (${updatedQueue.length} total in queue)` });
 
-    const normalizedId = String(listing.id).toLowerCase().trim();
-
-    if (!ignoreSeen) {
-      if (seenSet.has(normalizedId)) {
-        continue;
-      }
-
-      // Double-check with fresh seen list (in case of race condition)
-      const freshSeen = await chrome.storage.local.get([STORAGE_KEY]);
-      const freshSet = new Set((freshSeen[STORAGE_KEY] || []).map(id => String(id).toLowerCase().trim()));
-      if (freshSet.has(normalizedId)) {
-        continue;
-      }
-    }
-
-    // Skip listings on cooldown from recent failures
-    const failInfo = failedListings.get(normalizedId);
-    if (failInfo && (now - failInfo.lastAttempt < FAILED_COOLDOWN_MS)) {
-      console.log(`[Process] Skipping ${normalizedId} — failed ${failInfo.count}x, cooldown ${Math.round((FAILED_COOLDOWN_MS - (now - failInfo.lastAttempt)) / 60000)}min left`);
-      continue;
-    }
-
-    console.log(`[Process] ${normalizedId} — ${listing.title || 'untitled'}`);
-
-    if (!isQueueProcessing) {
-      await sendActivityLog({ current: { id: normalizedId, title: listing.title || 'untitled', url: listing.url } });
-    }
-
-    const listingToProcess = { ...listing, id: normalizedId };
-
-    // Check rate limit
-    const rateLimitCheck = await checkRateLimit();
-    if (!rateLimitCheck.allowed) {
-      const waitSec = Math.round(rateLimitCheck.waitTime / 1000);
-      if (!isQueueProcessing) {
-        await sendActivityLog({ message: `Rate limit — waiting ${waitSec}s...`, type: 'wait' });
-      }
-      await new Promise(resolve => setTimeout(resolve, rateLimitCheck.waitTime));
-      const recheck = await checkRateLimit();
-      if (!recheck.allowed) return 0;
-    }
-
-    try {
-      const result = await handleNewListing(listingToProcess);
-
-      if (result && result.success) {
-        // Clear from failed map on success
-        failedListings.delete(normalizedId);
-
-        if (!ignoreSeen) {
-          const currentSeen = await chrome.storage.local.get([STORAGE_KEY]);
-          const currentSeenList = currentSeen[STORAGE_KEY] || [];
-
-          const currentSet = new Set(currentSeenList.map(id => String(id).toLowerCase().trim()));
-          if (!currentSet.has(normalizedId)) {
-            const updatedSeen = capSeenListings([...currentSeenList, normalizedId]);
-            await chrome.storage.local.set({ [STORAGE_KEY]: updatedSeen });
-            console.log(`Marked listing as seen: ${normalizedId}`);
-          }
-        }
-        return 1;
-      } else {
-        // Failed — add to cooldown and try next listing
-        const prev = failedListings.get(normalizedId);
-        failedListings.set(normalizedId, { count: (prev?.count || 0) + 1, lastAttempt: Date.now() });
-        console.log(`[Process] ${normalizedId} failed (${(prev?.count || 0) + 1}x) — moving to back of queue, will retry in 30min`);
-        continue;
-      }
-    } catch (error) {
-      console.error('Error processing listing:', error);
-      const prev = failedListings.get(normalizedId);
-      failedListings.set(normalizedId, { count: (prev?.count || 0) + 1, lastAttempt: Date.now() });
-      console.log(`[Process] ${normalizedId} errored (${(prev?.count || 0) + 1}x) — moving to back of queue, will retry in 30min`);
-      continue;
-    }
-  }
-
-  console.log('No new listings to process');
-  return 0;
+  return newItems.length;
 }
 
-// ============================================================================
-// MANUAL QUEUE PROCESSING
-// ============================================================================
+// Unified queue processor — drains the shared queue (FIFO)
+async function processQueue() {
+  if (isProcessingQueue) {
+    console.log('[Queue] Already processing — skipping');
+    return;
+  }
 
-async function processQueueListings() {
-  console.log('[Queue] Starting queue processing');
-  isQueueProcessing = true;
+  // Guard: only process when monitoring or user triggered
+  if (!isMonitoring && !userTriggeredProcessing) {
+    console.log('[Queue] Not monitoring and no user trigger — skipping');
+    return;
+  }
+
+  isProcessingQueue = true;
   queueAbortRequested = false;
   await chrome.storage.local.set({ [QUEUE_PROCESSING_KEY]: true });
 
-  // Sync conversations before processing to avoid messaging already-contacted landlords
-  try {
-    await syncContactedListings();
-  } catch (e) {
-    console.warn('[Queue] Conversation sync failed, continuing anyway:', e.message);
-  }
+  console.log('[Queue] Starting unified queue processing');
 
   try {
     while (!queueAbortRequested) {
+      if (!isMonitoring && !userTriggeredProcessing) break;
+
       const stored = await chrome.storage.local.get([QUEUE_KEY]);
       const queue = stored[QUEUE_KEY] || [];
 
       if (queue.length === 0) {
         console.log('[Queue] Queue empty — processing complete');
+        await sendActivityLog({ message: 'Queue empty — processing complete' });
         break;
       }
 
-      const listing = queue[0];
+      const item = queue[0];
       const remaining = queue.slice(1);
-      const normalizedId = String(listing.id).toLowerCase().trim();
+      const normalizedId = String(item.id).toLowerCase().trim();
 
-      // Notify popup
-      try {
-        await chrome.runtime.sendMessage({
-          action: 'queueProgress',
-          current: listing,
-          remaining: remaining.length
-        });
-      } catch (e) { /* popup closed */ }
-
-      // Skip if already in seen list (already contacted or processed)
+      // Skip if already in seen list
       const { [STORAGE_KEY]: seenListings } = await chrome.storage.local.get([STORAGE_KEY]);
       const seenSet = new Set((seenListings || []).map(id => String(id).toLowerCase().trim()));
       if (seenSet.has(normalizedId)) {
-        console.log(`[Queue] ${listing.id} already in seen list — skipping`);
+        console.log(`[Queue] ${normalizedId} already seen — removing from queue`);
         await chrome.storage.local.set({ [QUEUE_KEY]: remaining });
-        try {
-          await chrome.runtime.sendMessage({
-            action: 'queueProgress',
-            message: `Skipped ${listing.title || listing.id} (already contacted)`,
-            remaining: remaining.length
-          });
-        } catch (e) { /* popup closed */ }
-        chrome.storage.local.get([QUEUE_KEY]).then(() => {}); // trigger UI update
+        await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (already contacted)` });
         continue;
       }
+
+      // Skip if max retries exceeded
+      if (item.retries >= QUEUE_MAX_RETRIES) {
+        console.log(`[Queue] ${normalizedId} exceeded max retries (${item.retries}) — dropping`);
+        await chrome.storage.local.set({ [QUEUE_KEY]: remaining });
+        await sendActivityLog({ message: `Dropped ${item.title || normalizedId} (failed ${item.retries}x)`, type: 'wait' });
+        continue;
+      }
+
+      await sendActivityLog({ current: { id: normalizedId, title: item.title || 'untitled', url: item.url } });
 
       // Check rate limit
       const rateLimitCheck = await checkRateLimit();
       if (!rateLimitCheck.allowed) {
         const waitSec = Math.round(rateLimitCheck.waitTime / 1000);
         console.log(`[Queue] Rate limit — waiting ${waitSec}s`);
-        try {
-          await chrome.runtime.sendMessage({
-            action: 'queueProgress',
-            message: `Rate limit — waiting ${waitSec}s...`,
-            nextActionTime: Date.now() + rateLimitCheck.waitTime
-          });
-        } catch (e) { /* popup closed */ }
+        await sendActivityLog({ message: `Rate limit — waiting ${waitSec}s...`, type: 'wait' });
         await new Promise(resolve => setTimeout(resolve, rateLimitCheck.waitTime));
         if (queueAbortRequested) break;
         const recheck = await checkRateLimit();
         if (!recheck.allowed) {
-          console.log('[Queue] Rate limit still exceeded — stopping');
+          console.log('[Queue] Rate limit still exceeded — pausing');
           break;
         }
       }
 
-      // Run the same pipeline as automatic mode
-      const result = await handleNewListing(listing);
+      // Process the listing
+      try {
+        const result = await handleNewListing(item);
 
-      if (result && result.success) {
-        // Remove from queue, mark as seen
-        const { [STORAGE_KEY]: seenListings } = await chrome.storage.local.get([STORAGE_KEY]);
-        const seenList = seenListings || [];
-        const seenSet = new Set(seenList.map(id => String(id).toLowerCase().trim()));
+        if (result && result.success) {
+          // Success: remove from queue, mark as seen
+          const freshSeen = await chrome.storage.local.get([STORAGE_KEY]);
+          const freshList = freshSeen[STORAGE_KEY] || [];
+          const freshSet = new Set(freshList.map(id => String(id).toLowerCase().trim()));
 
-        if (!seenSet.has(normalizedId)) {
-          const updated = capSeenListings([...seenList, normalizedId]);
-          await chrome.storage.local.set({ [STORAGE_KEY]: updated, [QUEUE_KEY]: remaining });
-        } else {
-          await chrome.storage.local.set({ [QUEUE_KEY]: remaining });
-        }
+          if (!freshSet.has(normalizedId)) {
+            const updatedSeen = capSeenListings([...freshList, normalizedId]);
+            await chrome.storage.local.set({ [STORAGE_KEY]: updatedSeen, [QUEUE_KEY]: remaining });
+          } else {
+            await chrome.storage.local.set({ [QUEUE_KEY]: remaining });
+          }
 
-        failedListings.delete(normalizedId);
-        console.log(`[Queue] Processed ${normalizedId} — ${remaining.length} remaining`);
-
-        try {
-          await chrome.runtime.sendMessage({
-            action: 'queueProgress',
+          console.log(`[Queue] Processed ${normalizedId} — ${remaining.length} remaining`);
+          await sendActivityLog({
             lastResult: result.skipped ? 'skipped' : 'success',
-            lastId: listing.id,
-            lastTitle: listing.title,
-            remaining: remaining.length
+            lastId: item.id,
+            lastTitle: item.title || ''
           });
-        } catch (e) { /* popup closed */ }
-      } else {
-        // Failed — move to end of queue
-        await chrome.storage.local.set({ [QUEUE_KEY]: [...remaining, listing] });
-        const prev = failedListings.get(normalizedId);
-        failedListings.set(normalizedId, { count: (prev?.count || 0) + 1, lastAttempt: Date.now() });
-        console.log(`[Queue] ${listing.id} failed — moved to end of queue`);
-
-        try {
-          await chrome.runtime.sendMessage({
-            action: 'queueProgress',
+        } else {
+          // Failure: increment retries, move to end
+          const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
+          await chrome.storage.local.set({ [QUEUE_KEY]: [...remaining, updatedItem] });
+          console.log(`[Queue] ${normalizedId} failed (attempt ${updatedItem.retries}/${QUEUE_MAX_RETRIES}) — moved to end`);
+          await sendActivityLog({
             lastResult: 'failed',
-            lastId: listing.id,
-            lastTitle: listing.title,
-            remaining: remaining.length + 1,
+            lastId: item.id,
+            lastTitle: item.title || '',
             error: result?.error
           });
-        } catch (e) { /* popup closed */ }
+        }
+      } catch (error) {
+        console.error('[Queue] Error processing listing:', error);
+        const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
+        await chrome.storage.local.set({ [QUEUE_KEY]: [...remaining, updatedItem] });
+        await sendActivityLog({
+          lastResult: 'failed',
+          lastId: item.id,
+          lastTitle: item.title || '',
+          error: error.message
+        });
       }
 
-      // Delay between listings
+      // Human delay between listings
       const delay = humanDelay(2000, 1000);
-      try {
-        await chrome.runtime.sendMessage({
-          action: 'queueProgress',
-          nextActionTime: Date.now() + delay
-        });
-      } catch (e) { /* popup closed */ }
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   } finally {
-    isQueueProcessing = false;
+    isProcessingQueue = false;
     queueAbortRequested = false;
+    userTriggeredProcessing = false;
     await chrome.storage.local.set({ [QUEUE_PROCESSING_KEY]: false });
     console.log('[Queue] Processing loop exited');
     try {
-      await chrome.runtime.sendMessage({ action: 'queueProgress', done: true });
+      await chrome.runtime.sendMessage({ action: 'queueDone' });
     } catch (e) { /* popup closed */ }
   }
 }
@@ -1526,7 +1449,7 @@ async function handleNewListing(listing) {
   // Wait for page load via event instead of fixed delay
   await waitForTabLoad(currentListingTabId, 10000);
 
-  if (!isMonitoring && !isQueueProcessing) {
+  if (!isMonitoring && !isProcessingQueue) {
     console.log('Monitoring/queue stopped, skipping message sending');
     return { success: false, listing };
   }
@@ -1552,7 +1475,7 @@ async function handleNewListing(listing) {
 
     await new Promise(resolve => setTimeout(resolve, humanDelay(1000, 500)));
 
-    if (!isMonitoring && !isQueueProcessing) {
+    if (!isMonitoring && !isProcessingQueue) {
       console.log('Monitoring/queue stopped during processing, aborting');
       return { success: false, listing };
     }
@@ -1564,9 +1487,7 @@ async function handleNewListing(listing) {
       isTenantNetwork = listingType?.isTenantNetwork || false;
       if (isTenantNetwork && !listingType?.hasContactForm) {
         console.log(`[Skip] ${listing.id} is a tenant-network listing with no contact form — marking as seen`);
-        if (!isQueueProcessing) {
-          await sendActivityLog({ message: `Skipped ${listing.id} (tenant-network, no contact form)`, type: 'wait' });
-        }
+        await sendActivityLog({ message: `Skipped ${listing.id} (tenant-network, no contact form)`, type: 'wait' });
         try { await chrome.tabs.remove(currentListingTabId); } catch (e) { /* ignore */ }
         return { success: true, listing, skipped: true };
       }
@@ -1627,19 +1548,13 @@ async function handleNewListing(listing) {
       if (aiResult.summary) lines.push(`  Summary: ${aiResult.summary}`);
       if (aiResult.flags?.length) lines.push(`  Flags: ${aiResult.flags.join(', ')}`);
       const analysisMsg = lines.join('\n');
-      if (isQueueProcessing) {
-        try { await chrome.runtime.sendMessage({ action: 'queueProgress', message: analysisMsg }); } catch (e) { /* popup closed */ }
-      } else {
-        await sendActivityLog({ message: analysisMsg, type: 'analysis' });
-      }
+      await sendActivityLog({ message: analysisMsg, type: 'analysis' });
     }
 
     // If AI says skip, notify and close tab
     if (aiResult?.skip) {
       console.log(`[AI] Skipping listing (score ${aiResult.score}/10): ${aiResult.reason}`);
-      if (!isQueueProcessing) {
-        await sendActivityLog({ lastResult: 'skipped', lastId: listing.id, lastTitle: listing.title || '' });
-      }
+      await sendActivityLog({ lastResult: 'skipped', lastId: listing.id, lastTitle: listing.title || '' });
       await logActivity({
         listingId: listing.id,
         title: listing.title,
@@ -1743,9 +1658,7 @@ async function handleNewListing(listing) {
 
     // Check for captcha after form submission
     if (sendResult && !sendResult.success && sendResult.error) {
-      if (!isQueueProcessing) {
-        await sendActivityLog({ message: 'Captcha detected, solving...', type: 'wait' });
-      }
+      await sendActivityLog({ message: 'Captcha detected, solving...', type: 'wait' });
       const aiSettings = await chrome.storage.local.get([AI_ENABLED_KEY, AI_API_KEY_KEY, AI_SERVER_URL_KEY]);
       if (aiSettings[AI_ENABLED_KEY]) {
         const serverUrl = aiSettings[AI_SERVER_URL_KEY] || 'http://localhost:3456';
@@ -1778,9 +1691,7 @@ async function handleNewListing(listing) {
     if (!sendResult || !sendResult.success) {
       const errorMsg = sendResult?.error || 'Unknown error';
       console.error(`Failed to send message to ${landlordInfo}: ${errorMsg}`);
-      if (!isQueueProcessing) {
-        await sendActivityLog({ lastResult: 'failed', lastId: listing.id, lastTitle: listing.title || '', error: errorMsg });
-      }
+      await sendActivityLog({ lastResult: 'failed', lastId: listing.id, lastTitle: listing.title || '', error: errorMsg });
       await logActivity({
         listingId: listing.id,
         title: listing.title,
@@ -1791,9 +1702,7 @@ async function handleNewListing(listing) {
         landlord: landlordInfo
       });
     } else {
-      if (!isQueueProcessing) {
-        await sendActivityLog({ lastResult: 'success', lastId: listing.id, lastTitle: listing.title || '' });
-      }
+      await sendActivityLog({ lastResult: 'success', lastId: listing.id, lastTitle: listing.title || '' });
       if (isAutoSend) {
         console.log(`Message sent successfully to ${landlordInfo}`);
       } else {
@@ -1922,7 +1831,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           aiSkipped: stats[AI_LISTINGS_SKIPPED_KEY] || 0,
           aiPromptTokens: stats[AI_USAGE_PROMPT_TOKENS_KEY] || 0,
           aiCompletionTokens: stats[AI_USAGE_COMPLETION_TOKENS_KEY] || 0,
-          isQueueProcessing,
+          isProcessingQueue,
           queueLength: (stats[QUEUE_KEY] || []).length
         });
       } catch (error) {
@@ -1977,30 +1886,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       try {
         const incomingListings = request.listings || [];
-        const { [STORAGE_KEY]: seenListings, [QUEUE_KEY]: currentQueue } =
-          await chrome.storage.local.get([STORAGE_KEY, QUEUE_KEY]);
-
-        const seenSet = new Set((seenListings || []).map(id => String(id).toLowerCase().trim()));
-        const queueSet = new Set((currentQueue || []).map(item => String(item.id).toLowerCase().trim()));
-
-        const addedAt = Date.now();
-        const newItems = incomingListings
-          .filter(l => {
-            const id = String(l.id).toLowerCase().trim();
-            return id && l.url && !seenSet.has(id) && !queueSet.has(id);
-          })
-          .map(l => ({
-            id: String(l.id).toLowerCase().trim(),
-            url: l.url,
-            title: l.title || '',
-            addedAt
-          }));
-
-        const updatedQueue = [...(currentQueue || []), ...newItems];
-        await chrome.storage.local.set({ [QUEUE_KEY]: updatedQueue });
-
-        console.log(`[Queue] Captured ${newItems.length} new items (${incomingListings.length - newItems.length} filtered as seen/duplicate)`);
-        sendResponse({ success: true, added: newItems.length, total: updatedQueue.length });
+        const added = await enqueueListings(incomingListings, 'manual');
+        const { [QUEUE_KEY]: updatedQueue } = await chrome.storage.local.get([QUEUE_KEY]);
+        sendResponse({ success: true, added, total: (updatedQueue || []).length });
       } catch (error) {
         sendResponse({ success: false, error: error.message });
       }
@@ -2009,7 +1897,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   } else if (request.action === 'startQueueProcessing') {
     (async () => {
-      if (isQueueProcessing) {
+      if (isProcessingQueue) {
         sendResponse({ success: false, error: 'Already processing' });
         return;
       }
@@ -2018,13 +1906,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: 'Queue is empty' });
         return;
       }
-      processQueueListings().catch(e => console.error('[Queue] Processing error:', e));
+      userTriggeredProcessing = true;
+      processQueue().catch(e => console.error('[Queue] Processing error:', e));
       sendResponse({ success: true });
     })();
     return true;
 
   } else if (request.action === 'stopQueueProcessing') {
     queueAbortRequested = true;
+    userTriggeredProcessing = false;
     sendResponse({ success: true });
     return true;
 
@@ -2032,7 +1922,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       const { [QUEUE_KEY]: queue } = await chrome.storage.local.get([QUEUE_KEY]);
       sendResponse({
-        isProcessing: isQueueProcessing,
+        isProcessing: isProcessingQueue,
         queue: queue || []
       });
     })();
@@ -2096,6 +1986,126 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ success: true, tabId: tab.id });
         } else {
           sendResponse({ success: false, error: result?.error || 'Failed to fill reply' });
+        }
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+
+  } else if (request.action === 'respondToAppointment') {
+    (async () => {
+      try {
+        const { conversationId, response: apptResponse, userContext, appointment } = request;
+        if (!conversationId || !apptResponse) {
+          sendResponse({ success: false, error: 'conversationId and response required' });
+          return;
+        }
+
+        // Load conversation from storage
+        const { [CONVERSATIONS_KEY]: conversations } = await chrome.storage.local.get([CONVERSATIONS_KEY]);
+        const conv = (conversations || []).find(c => c.conversationId === conversationId);
+        if (!conv) {
+          sendResponse({ success: false, error: 'Conversation not found' });
+          return;
+        }
+
+        // Generate AI courtesy message
+        let courtesyMessage = '';
+        const { [AI_SERVER_URL_KEY]: serverUrl, [AI_API_KEY_KEY]: apiKey } = await chrome.storage.local.get([AI_SERVER_URL_KEY, AI_API_KEY_KEY]);
+        if (serverUrl) {
+          try {
+            const profileKeys = [
+              PROFILE_NAME_KEY, PROFILE_AGE_KEY, PROFILE_OCCUPATION_KEY, PROFILE_LANGUAGES_KEY,
+              PROFILE_MOVING_REASON_KEY, PROFILE_CURRENT_NEIGHBORHOOD_KEY, PROFILE_STRENGTHS_KEY,
+              PROFILE_MAX_WARMMIETE_KEY, AI_ABOUT_ME_KEY,
+              FORM_ADULTS_KEY, FORM_CHILDREN_KEY, FORM_PETS_KEY, FORM_SMOKER_KEY,
+              FORM_INCOME_KEY, FORM_INCOME_RANGE_KEY, FORM_PHONE_KEY
+            ];
+            const profileData = await chrome.storage.local.get(profileKeys);
+
+            const resp = await fetch(`${serverUrl}/reply`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                conversationHistory: conv.messages || [],
+                userProfile: {
+                  adults: profileData[FORM_ADULTS_KEY],
+                  children: profileData[FORM_CHILDREN_KEY],
+                  pets: profileData[FORM_PETS_KEY],
+                  smoker: profileData[FORM_SMOKER_KEY],
+                  income: profileData[FORM_INCOME_KEY],
+                  incomeRange: profileData[FORM_INCOME_RANGE_KEY],
+                  aboutMe: profileData[AI_ABOUT_ME_KEY],
+                  phone: profileData[FORM_PHONE_KEY]
+                },
+                landlordInfo: { name: conv.landlordName },
+                listingTitle: conv.listingTitle,
+                apiKey: apiKey || undefined,
+                profile: {
+                  name: profileData[PROFILE_NAME_KEY],
+                  age: profileData[PROFILE_AGE_KEY] ? Number(profileData[PROFILE_AGE_KEY]) : undefined,
+                  occupation: profileData[PROFILE_OCCUPATION_KEY],
+                  languages: profileData[PROFILE_LANGUAGES_KEY] ? profileData[PROFILE_LANGUAGES_KEY].split(',').map(l => l.trim()) : undefined,
+                  movingReason: profileData[PROFILE_MOVING_REASON_KEY],
+                  strengths: profileData[PROFILE_STRENGTHS_KEY] ? profileData[PROFILE_STRENGTHS_KEY].split(',').map(s => s.trim()) : undefined,
+                  maxWarmmiete: profileData[PROFILE_MAX_WARMMIETE_KEY] ? Number(profileData[PROFILE_MAX_WARMMIETE_KEY]) : undefined
+                },
+                appointmentAction: {
+                  type: apptResponse,
+                  date: appointment?.date,
+                  time: appointment?.time,
+                  location: appointment?.location,
+                  userContext: userContext || undefined
+                }
+              })
+            });
+
+            if (resp.ok) {
+              const result = await resp.json();
+              courtesyMessage = result.reply || '';
+            }
+          } catch (e) {
+            console.warn(`[Appointments] AI draft failed:`, e.message);
+          }
+        }
+
+        // Open the messenger conversation page
+        const messengerUrl = `https://www.immobilienscout24.de/messenger/conversations/${conversationId}`;
+        const tab = await chrome.tabs.create({ url: messengerUrl, active: true });
+
+        await waitForTabLoad(tab.id, 15000);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Ping content script until ready
+        let contentReady = false;
+        for (let i = 0; i < 5; i++) {
+          try {
+            const pong = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+            if (pong?.pong) { contentReady = true; break; }
+          } catch (e) { /* not ready yet */ }
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        if (!contentReady) {
+          sendResponse({ success: false, error: 'Content script not ready on messenger page' });
+          return;
+        }
+
+        // Send appointment action to content script
+        const result = await chrome.tabs.sendMessage(tab.id, {
+          action: 'handleAppointment',
+          response: apptResponse,
+          courtesyMessage
+        });
+
+        if (result?.success) {
+          const statusMap = { accept: 'accepted', reject: 'rejected', alternative: 'alternative_requested' };
+          await updateAppointmentStatus(conversationId, statusMap[apptResponse] || apptResponse);
+          console.log(`[Appointments] ${apptResponse} for ${conversationId}, tab left open for user review`);
+          sendResponse({ success: true, tabId: tab.id });
+        } else {
+          sendResponse({ success: false, error: result?.error || 'Failed to handle appointment' });
         }
       } catch (error) {
         sendResponse({ success: false, error: error.message });

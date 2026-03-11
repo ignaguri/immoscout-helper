@@ -411,9 +411,9 @@ toggleBtn.addEventListener('click', async () => {
     if (!searchUrlInput.value.trim()) {
       alert('Please enter a search URL');
       tabs.forEach(t => t.classList.remove('active'));
-      document.querySelector('[data-tab="profile"]').classList.add('active');
+      document.querySelector('[data-tab="message"]').classList.add('active');
       tabContents.forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-profile').classList.add('active');
+      document.getElementById('tab-message').classList.add('active');
       searchUrlInput.focus();
       return;
     }
@@ -421,9 +421,9 @@ toggleBtn.addEventListener('click', async () => {
     if (!messageTemplateInput.value.trim()) {
       alert('Please enter a message');
       tabs.forEach(t => t.classList.remove('active'));
-      document.querySelector('[data-tab="profile"]').classList.add('active');
+      document.querySelector('[data-tab="message"]').classList.add('active');
       tabContents.forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-profile').classList.add('active');
+      document.getElementById('tab-message').classList.add('active');
       messageTemplateInput.focus();
       return;
     }
@@ -434,6 +434,11 @@ toggleBtn.addEventListener('click', async () => {
       const response = await chrome.runtime.sendMessage({ action: 'startMonitoring' });
       if (response?.success) {
         updateStatus(true);
+        // Switch to Activity tab
+        tabs.forEach(t => t.classList.remove('active'));
+        document.querySelector('[data-tab="activity"]').classList.add('active');
+        tabContents.forEach(c => c.classList.remove('active'));
+        document.getElementById('tab-activity').classList.add('active');
       } else {
         alert(`Error: ${response?.error || 'Unknown error'}`);
       }
@@ -623,9 +628,9 @@ sendCurrentBtn.addEventListener('click', async () => {
     if (!template) {
       showTestResult('Please enter a message first!', true);
       tabs.forEach(t => t.classList.remove('active'));
-      document.querySelector('[data-tab="profile"]').classList.add('active');
+      document.querySelector('[data-tab="message"]').classList.add('active');
       tabContents.forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-profile').classList.add('active');
+      document.getElementById('tab-message').classList.add('active');
       messageTemplateInput.focus();
       return;
     }

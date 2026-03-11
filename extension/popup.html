@@ -461,106 +461,88 @@
     <span>Next: <strong id="statsNextCheck" style="color:#333">--</strong></span>
   </div>
 
-  <!-- Tabs (4 tabs) -->
+  <!-- Tabs -->
   <div class="tabs">
-    <button class="tab active" data-tab="profile">Profile</button>
-    <button class="tab" data-tab="settings">Settings</button>
-    <button class="tab" data-tab="test">Test</button>
+    <button class="tab active" data-tab="activity">Activity</button>
+    <button class="tab" data-tab="profile">Profile</button>
+    <button class="tab" data-tab="message">Message</button>
     <button class="tab" data-tab="queue">Queue</button>
-    <button class="tab" data-tab="activity">Activity</button>
     <button class="tab" data-tab="conversations" style="position:relative;">Replies <span id="convBadge" style="display:none; position:absolute; top:4px; right:4px; background:#e74c3c; color:white; font-size:9px; font-weight:700; border-radius:50%; width:16px; height:16px; line-height:16px; text-align:center;"></span></button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </div>
+
+  <!-- Activity Tab -->
+  <div id="tab-activity" class="tab-content active">
+    <div class="hint" style="margin-bottom: 10px;">
+      Live events from auto-monitoring. Persists across popup opens.
+    </div>
+    <div id="activityLogBox" style="min-height: 80px; max-height: 500px; overflow-y: auto; padding: 8px 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 11px; font-family: 'SF Mono', Monaco, monospace; word-break: break-word; color: #555;">No activity yet.</div>
+    <button id="clearActivityBtn" class="btn btn-danger" style="margin-top: 8px; font-size: 11px;">Clear Activity Log</button>
   </div>
 
   <!-- Profile Tab -->
-  <div id="tab-profile" class="tab-content active">
-    <div class="section-title" style="margin-top:0; padding-top:0; border-top:none;">Your Search</div>
-
-    <div class="field">
-      <label for="searchUrl">Search URL</label>
-      <input type="url" id="searchUrl" placeholder="https://www.immobilienscout24.de/Suche/...">
-      <div class="hint">Your ImmoScout24 search results page URL</div>
+  <div id="tab-profile" class="tab-content">
+    <!-- About You -->
+    <div class="section-title" style="margin-top:0; padding-top:0; border-top:none;">About You</div>
+    <div class="grid-2">
+      <div class="field">
+        <label for="profileName">Name</label>
+        <input type="text" id="profileName" placeholder="Max Mustermann">
+      </div>
+      <div class="field">
+        <label for="profileAge">Age</label>
+        <input type="number" id="profileAge" min="18" max="99" placeholder="30">
+      </div>
     </div>
 
     <div class="field">
-      <label for="messageTemplate">Message to Landlords</label>
-      <textarea id="messageTemplate" placeholder="Your message..."></textarea>
-      <div class="hint">"Sehr geehrte Frau/Herr [Name]" is added automatically</div>
+      <label for="profileOccupation">Occupation</label>
+      <input type="text" id="profileOccupation" placeholder="Software Engineer">
     </div>
 
     <div class="field">
-      <label for="autoSendMode">Send Mode</label>
-      <select id="autoSendMode">
-        <option value="auto" selected>Auto-send message</option>
-        <option value="manual">Fill form, send manually</option>
-      </select>
-      <div class="hint">In manual mode, the form is filled but not submitted</div>
+      <label for="profileLanguages">Languages</label>
+      <input type="text" id="profileLanguages" placeholder="Deutsch, English">
+      <div class="hint">Comma-separated</div>
     </div>
 
-    <!-- About You (collapsible) -->
-    <div class="section-title collapsible-header" data-target="aboutYouSection">
-      About You <span class="chevron">&#9654;</span>
+    <div class="field">
+      <label for="profileMovingReason">Reason for Moving</label>
+      <input type="text" id="profileMovingReason" placeholder="Closer to work, more space...">
     </div>
-    <div id="aboutYouSection" class="collapsible-body">
-      <div class="grid-2">
-        <div class="field">
-          <label for="profileName">Name</label>
-          <input type="text" id="profileName" placeholder="Max Mustermann">
-        </div>
-        <div class="field">
-          <label for="profileAge">Age</label>
-          <input type="number" id="profileAge" min="18" max="99" placeholder="30">
-        </div>
-      </div>
 
+    <div class="field">
+      <label for="profileCurrentNeighborhood">Current Neighborhood</label>
+      <input type="text" id="profileCurrentNeighborhood" placeholder="Schwabing, Munich">
+    </div>
+
+    <div class="grid-2">
       <div class="field">
-        <label for="profileOccupation">Occupation</label>
-        <input type="text" id="profileOccupation" placeholder="Software Engineer">
+        <label for="profileIdealApartment">Ideal Apartment</label>
+        <input type="text" id="profileIdealApartment" placeholder="2-3 rooms, balcony...">
       </div>
-
       <div class="field">
-        <label for="profileLanguages">Languages</label>
-        <input type="text" id="profileLanguages" placeholder="Deutsch, English">
-        <div class="hint">Comma-separated</div>
+        <label for="profileMaxWarmmiete">Max Warmmiete (&#8364;)</label>
+        <input type="number" id="profileMaxWarmmiete" min="0" max="10000" step="50" placeholder="1500">
+        <div class="hint">AI penalizes listings above this</div>
       </div>
+    </div>
 
-      <div class="field">
-        <label for="profileMovingReason">Reason for Moving</label>
-        <input type="text" id="profileMovingReason" placeholder="Closer to work, more space...">
-      </div>
+    <div class="field">
+      <label for="profileDealbreakers">Dealbreakers</label>
+      <input type="text" id="profileDealbreakers" placeholder="WBS required, Tauschwohnung">
+      <div class="hint">Comma-separated</div>
+    </div>
 
-      <div class="field">
-        <label for="profileCurrentNeighborhood">Current Neighborhood</label>
-        <input type="text" id="profileCurrentNeighborhood" placeholder="Schwabing, Munich">
-      </div>
+    <div class="field">
+      <label for="profileStrengths">Strengths as Tenant</label>
+      <input type="text" id="profileStrengths" placeholder="Quiet, non-smoker, stable income">
+      <div class="hint">Comma-separated</div>
+    </div>
 
-      <div class="grid-2">
-        <div class="field">
-          <label for="profileIdealApartment">Ideal Apartment</label>
-          <input type="text" id="profileIdealApartment" placeholder="2-3 rooms, balcony...">
-        </div>
-        <div class="field">
-          <label for="profileMaxWarmmiete">Max Warmmiete (&#8364;)</label>
-          <input type="number" id="profileMaxWarmmiete" min="0" max="10000" step="50" placeholder="1500">
-          <div class="hint">AI penalizes listings above this</div>
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="profileDealbreakers">Dealbreakers</label>
-        <input type="text" id="profileDealbreakers" placeholder="WBS required, Tauschwohnung">
-        <div class="hint">Comma-separated</div>
-      </div>
-
-      <div class="field">
-        <label for="profileStrengths">Strengths as Tenant</label>
-        <input type="text" id="profileStrengths" placeholder="Quiet, non-smoker, stable income">
-        <div class="hint">Comma-separated</div>
-      </div>
-
-      <div class="field">
-        <label for="aiAboutMe">Additional Notes</label>
-        <textarea id="aiAboutMe" rows="2" placeholder="Anything else the AI should know about you..." style="min-height: 60px;"></textarea>
-      </div>
+    <div class="field">
+      <label for="aiAboutMe">Additional Notes</label>
+      <textarea id="aiAboutMe" rows="2" placeholder="Anything else the AI should know about you..." style="min-height: 60px;"></textarea>
     </div>
 
     <!-- Form Auto-Fill (collapsible) -->
@@ -670,6 +652,30 @@
     </div>
   </div>
 
+  <!-- Message Tab -->
+  <div id="tab-message" class="tab-content">
+    <div class="field">
+      <label for="searchUrl">Search URL</label>
+      <input type="url" id="searchUrl" placeholder="https://www.immobilienscout24.de/Suche/...">
+      <div class="hint">Your ImmoScout24 search results page URL</div>
+    </div>
+
+    <div class="field">
+      <label for="messageTemplate">Message to Landlords</label>
+      <textarea id="messageTemplate" placeholder="Your message..."></textarea>
+      <div class="hint">"Sehr geehrte Frau/Herr [Name]" is added automatically. When AI is enabled, a personalized message is generated for each listing — this template is used as fallback.</div>
+    </div>
+
+    <div class="field">
+      <label for="autoSendMode">Send Mode</label>
+      <select id="autoSendMode">
+        <option value="auto" selected>Auto-send message</option>
+        <option value="manual">Fill form, send manually</option>
+      </select>
+      <div class="hint">In manual mode, the form is filled but not submitted</div>
+    </div>
+  </div>
+
   <!-- Settings Tab -->
   <div id="tab-settings" class="tab-content">
     <div class="section-title" style="margin-top:0; padding-top:0; border-top:none;">Monitoring</div>
@@ -759,10 +765,8 @@
     <div class="section-title">Data</div>
     <button id="clearSeenBtn" class="btn btn-danger">Clear Seen Listings</button>
     <div class="hint">Remove all remembered listings. New scan will re-mark existing listings.</div>
-  </div>
 
-  <!-- Test Tab -->
-  <div id="tab-test" class="tab-content">
+    <div class="section-title">Test</div>
     <div class="hint" style="margin-bottom: 12px;">
       Open a listing on ImmoScout24, then analyze or send from here.
     </div>
@@ -851,15 +855,6 @@
 
     <div class="section-title">Progress</div>
     <div id="queueProgressBox" style="min-height: 60px; max-height: 300px; overflow-y: auto; padding: 8px 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 11px; font-family: 'SF Mono', Monaco, monospace; word-break: break-word; color: #555;">Ready.</div>
-  </div>
-
-  <!-- Activity Tab -->
-  <div id="tab-activity" class="tab-content">
-    <div class="hint" style="margin-bottom: 10px;">
-      Live events from auto-monitoring. Persists across popup opens.
-    </div>
-    <div id="activityLogBox" style="min-height: 80px; max-height: 500px; overflow-y: auto; padding: 8px 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 11px; font-family: 'SF Mono', Monaco, monospace; word-break: break-word; color: #555;">No activity yet.</div>
-    <button id="clearActivityBtn" class="btn btn-danger" style="margin-top: 8px; font-size: 11px;">Clear Activity Log</button>
   </div>
 
   <!-- Conversations Tab -->

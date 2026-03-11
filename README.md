@@ -18,6 +18,14 @@ server/        AI server (Express + TypeScript + Gemini)
 3. Click **Load unpacked** → select the `extension/` folder
 4. Pin the extension icon in your toolbar
 
+**Recommended: Open as sidebar** for a better experience while browsing ImmoScout24:
+
+1. Right-click the extension icon in your toolbar
+2. Select **Open side panel**
+3. The extension stays visible alongside the page — no more opening/closing the popup
+
+You can also open it from Chrome's menu: **View → Open side panel** (or click the side panel icon next to the address bar), then select "Apartment Messenger" from the dropdown.
+
 ### AI Server
 
 ```bash

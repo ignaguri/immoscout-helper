@@ -1,0 +1,26 @@
+{
+  "name": "Ignacio Guri",
+  "age": 31,
+  "occupation": "Senior Software Engineer",
+  "aboutMe": "I am a reliable and quiet professional with a stable career in the tech industry. I have been living and working in Munich for four years and truly value the city's lifestyle. I lead a very orderly, active lifestyle—I am a non-smoker, have no pets, and spend my free time outdoors or working on personal projects. I am Italian-Argentine, which makes me very adaptable and friendly, and I take great pride in keeping my living space in excellent condition. I am looking for a place where I can settle down for the long term.",
+  "languages": [
+    "Spanish",
+    "Deutsch",
+    "English"
+  ],
+  "movingReason": "I currently live in a shared flat (WG) in Schwabing. While I love the neighborhood, I am now looking for my first own apartment to have more privacy and a dedicated space for my home-office days.",
+  "idealApartment": "2-3 rooms, balcony, good public transport, modern kitchen preferred",
+  "currentNeighborhood": "Schwabing",
+  "dealbreakers": [
+    "No temporary contracts",
+    "No Tauschwohnungen (swaps)"
+  ],
+  "strengths": [
+    "Stable high income",
+    "Permanent employment contract",
+    "Non-smoker",
+    "No pets",
+    "Very clean and organized",
+    "Flexible for viewings"
+  ]
+}

@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apartment Messenger</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      width: 100%;
+      min-width: 320px;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #83F1DC 0%, #5ce0c8 100%);
+      color: #1a1a1a;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-title {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .header .subtitle {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    .status-badge.active {
+      background: rgba(255,255,255,0.5);
+      color: #1a1a1a;
+    }
+
+    .status-badge.inactive {
+      background: rgba(0,0,0,0.15);
+      color: #333;
+    }
+
+    /* Toggle Button */
+    .toggle-btn {
+      width: calc(100% - 40px);
+      margin: 16px 20px;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .toggle-btn.start {
+      background: #83F1DC;
+      color: #1a1a1a;
+    }
+
+    .toggle-btn.start:hover {
+      background: #6de8d0;
+    }
+
+    .toggle-btn.stop {
+      background: #333;
+      color: white;
+    }
+
+    .toggle-btn.stop:hover {
+      background: #222;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px 8px;
+      border: none;
+      background: none;
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      color: #5ce0c8;
+      background: #f0fdfb;
+    }
+
+    .tab.active {
+      color: #3dbda8;
+      border-bottom-color: #83F1DC;
+      background: white;
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+      padding: 16px 20px;
+      background: white;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Form Elements */
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    input[type="text"],
+    input[type="url"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="password"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #83F1DC;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* Grid for form fields */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-test {
+      background: #83F1DC;
+      color: #1a1a1a;
+    }
+
+    .btn-test:hover {
+      background: #6de8d0;
+    }
+
+    .btn-danger {
+      background: none;
+      color: #dc3545;
+      font-size: 12px;
+    }
+
+    .btn-danger:hover {
+      background: #fff5f5;
+    }
+
+    /* Test Result */
+    #testResult {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border: 1px solid #dee2e6;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    #testResultContent {
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    /* Section titles in tabs */
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 16px 0 10px 0;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
+
+    .section-title:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .toggle-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #83F1DC;
+    }
+
+    .toggle-row label {
+      margin-bottom: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .ai-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+
+    .ai-status.connected {
+      background: #e6fff5;
+      color: #0d7a4e;
+    }
+
+    .ai-status.disconnected {
+      background: #fff5f5;
+      color: #dc3545;
+    }
+
+    .ai-status .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .ai-status.connected .dot {
+      background: #28a745;
+    }
+
+    .ai-status.disconnected .dot {
+      background: #dc3545;
+    }
+
+    .ai-settings-group {
+      transition: opacity 0.2s;
+    }
+
+    .ai-settings-group.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    /* Collapsible sections */
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .collapsible-header .chevron {
+      font-size: 10px;
+      color: #999;
+      transition: transform 0.2s;
+    }
+
+    .collapsible-header.open .chevron {
+      transform: rotate(90deg);
+    }
+
+    .collapsible-body {
+      display: none;
+    }
+
+    .collapsible-body.open {
+      display: block;
+    }
+
+    /* Password field with toggle */
+    .password-field {
+      position: relative;
+    }
+
+    .password-field input {
+      padding-right: 40px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      font-size: 12px;
+      color: #888;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    /* Setup instructions box */
+    .setup-box {
+      margin-top: 10px;
+      padding: 12px;
+      background: #f0f7ff;
+      border: 1px solid #c8dff5;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .setup-box strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #1a1a1a;
+    }
+
+    .setup-box code {
+      display: block;
+      background: #e8eef5;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 11px;
+      margin: 6px 0;
+      word-break: break-all;
+    }
+
+    .setup-box .copy-cmd {
+      font-size: 11px;
+      color: #3dbda8;
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header with Status -->
+  <div class="header">
+    <div class="header-title">
+      <h1>Apartment Messenger</h1>
+      <span class="subtitle">ImmoScout24 Edition</span>
+    </div>
+    <span id="statusBadge" class="status-badge inactive">Stopped</span>
+  </div>
+
+  <!-- Main Toggle Button -->
+  <button id="toggleBtn" class="toggle-btn start">
+    <span id="toggleIcon">▶</span>
+    <span id="toggleText">Start Monitoring</span>
+  </button>
+
+  <!-- Stats Display -->
+  <div id="statsDisplay" style="
+    padding: 8px 20px;
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-around;
+    font-size: 11px;
+    color: #666;
+  ">
+    <span>Sent: <strong id="statsSentHour" style="color:#333">0</strong>/hr | <strong id="statsSentTotal" style="color:#333">0</strong> total</span>
+    <span>Seen: <strong id="statsSeenCount" style="color:#333">0</strong> (<strong id="statsSyncedCount" style="color:#3dbda8">0</strong> synced)</span>
+    <span>Next: <strong id="statsNextCheck" style="color:#333">--</strong></span>
+  </div>
+
+  <!-- Tabs (4 tabs) -->
+  <div class="tabs">
+    <button class="tab active" data-tab="profile">Profile</button>
+    <button class="tab" data-tab="settings">Settings</button>
+    <button class="tab" data-tab="test">Test</button>
+    <button class="tab" data-tab="queue">Queue</button>
+    <button class="tab" data-tab="activity">Activity</button>
+    <button class="tab" data-tab="conversations" style="position:relative;">Replies <span id="convBadge" style="display:none; position:absolute; top:4px; right:4px; background:#e74c3c; color:white; font-size:9px; font-weight:700; border-radius:50%; width:16px; height:16px; line-height:16px; text-align:center;"></span></button>
+  </div>
+
+  <!-- Profile Tab -->
+  <div id="tab-profile" class="tab-content active">
+    <div class="section-title" style="margin-top:0; padding-top:0; border-top:none;">Your Search</div>
+
+    <div class="field">
+      <label for="searchUrl">Search URL</label>
+      <input type="url" id="searchUrl" placeholder="https://www.immobilienscout24.de/Suche/...">
+      <div class="hint">Your ImmoScout24 search results page URL</div>
+    </div>
+
+    <div class="field">
+      <label for="messageTemplate">Message to Landlords</label>
+      <textarea id="messageTemplate" placeholder="Your message..."></textarea>
+      <div class="hint">"Sehr geehrte Frau/Herr [Name]" is added automatically</div>
+    </div>
+
+    <div class="field">
+      <label for="autoSendMode">Send Mode</label>
+      <select id="autoSendMode">
+        <option value="auto" selected>Auto-send message</option>
+        <option value="manual">Fill form, send manually</option>
+      </select>
+      <div class="hint">In manual mode, the form is filled but not submitted</div>
+    </div>
+
+    <!-- About You (collapsible) -->
+    <div class="section-title collapsible-header" data-target="aboutYouSection">
+      About You <span class="chevron">&#9654;</span>
+    </div>
+    <div id="aboutYouSection" class="collapsible-body">
+      <div class="grid-2">
+        <div class="field">
+          <label for="profileName">Name</label>
+          <input type="text" id="profileName" placeholder="Max Mustermann">
+        </div>
+        <div class="field">
+          <label for="profileAge">Age</label>
+          <input type="number" id="profileAge" min="18" max="99" placeholder="30">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="profileOccupation">Occupation</label>
+        <input type="text" id="profileOccupation" placeholder="Software Engineer">
+      </div>
+
+      <div class="field">
+        <label for="profileLanguages">Languages</label>
+        <input type="text" id="profileLanguages" placeholder="Deutsch, English">
+        <div class="hint">Comma-separated</div>
+      </div>
+
+      <div class="field">
+        <label for="profileMovingReason">Reason for Moving</label>
+        <input type="text" id="profileMovingReason" placeholder="Closer to work, more space...">
+      </div>
+
+      <div class="field">
+        <label for="profileCurrentNeighborhood">Current Neighborhood</label>
+        <input type="text" id="profileCurrentNeighborhood" placeholder="Schwabing, Munich">
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="profileIdealApartment">Ideal Apartment</label>
+          <input type="text" id="profileIdealApartment" placeholder="2-3 rooms, balcony...">
+        </div>
+        <div class="field">
+          <label for="profileMaxWarmmiete">Max Warmmiete (&#8364;)</label>
+          <input type="number" id="profileMaxWarmmiete" min="0" max="10000" step="50" placeholder="1500">
+          <div class="hint">AI penalizes listings above this</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="profileDealbreakers">Dealbreakers</label>
+        <input type="text" id="profileDealbreakers" placeholder="WBS required, Tauschwohnung">
+        <div class="hint">Comma-separated</div>
+      </div>
+
+      <div class="field">
+        <label for="profileStrengths">Strengths as Tenant</label>
+        <input type="text" id="profileStrengths" placeholder="Quiet, non-smoker, stable income">
+        <div class="hint">Comma-separated</div>
+      </div>
+
+      <div class="field">
+        <label for="aiAboutMe">Additional Notes</label>
+        <textarea id="aiAboutMe" rows="2" placeholder="Anything else the AI should know about you..." style="min-height: 60px;"></textarea>
+      </div>
+    </div>
+
+    <!-- Form Auto-Fill (collapsible) -->
+    <div class="section-title collapsible-header" data-target="formFieldsSection">
+      Form Auto-Fill <span class="chevron">&#9654;</span>
+    </div>
+    <div id="formFieldsSection" class="collapsible-body">
+      <div class="grid-2">
+        <div class="field">
+          <label for="formSalutation">Anrede</label>
+          <select id="formSalutation">
+            <option value="Frau" selected>Frau</option>
+            <option value="Herr">Herr</option>
+            <option value="Divers">Divers</option>
+            <option value="Firma">Firma</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="formPhone">Telefonnummer</label>
+          <input type="tel" id="formPhone" placeholder="+49...">
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="formAdults">Erwachsene</label>
+          <input type="number" id="formAdults" min="1" max="10" value="1">
+        </div>
+        <div class="field">
+          <label for="formChildren">Kinder</label>
+          <input type="number" id="formChildren" min="0" max="10" value="0">
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="formHouseholdSize">Haushaltsgröße</label>
+          <select id="formHouseholdSize">
+            <option value="Einpersonenhaushalt" selected>Einpersonenhaushalt</option>
+            <option value="Zwei Erwachsene">Zwei Erwachsene</option>
+            <option value="Familie">Familie</option>
+            <option value="Wohngemeinschaft">Wohngemeinschaft</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="formPets">Haustiere</label>
+          <select id="formPets">
+            <option value="Nein" selected>Nein</option>
+            <option value="Ja">Ja</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="formSmoker">Raucher:in</label>
+          <select id="formSmoker">
+            <option value="Nein" selected>Nein</option>
+            <option value="Ja">Ja</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="formEmployment">Beschäftigung</label>
+          <select id="formEmployment">
+            <option value="Angestellte:r" selected>Angestellte:r</option>
+            <option value="Arbeiter:in">Arbeiter:in</option>
+            <option value="Selbstständige:r">Selbstständige:r</option>
+            <option value="Beamter:Beamtin">Beamter:Beamtin</option>
+            <option value="Auszubildende:r">Auszubildende:r</option>
+            <option value="Student:in">Student:in</option>
+            <option value="Doktorand:in">Doktorand:in</option>
+            <option value="Hausfrau:Hausmann">Hausfrau:Hausmann</option>
+            <option value="Arbeitssuchende:r">Arbeitssuchende:r</option>
+            <option value="Rentner:in">Rentner:in</option>
+            <option value="Sonstiges">Sonstiges</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="formIncomeRange">Einkommen (netto)</label>
+          <select id="formIncomeRange">
+            <option value="< 500">< 500 &#8364;</option>
+            <option value="500 - 1.000">500 - 1.000 &#8364;</option>
+            <option value="1.000 - 1.500">1.000 - 1.500 &#8364;</option>
+            <option value="1.500 - 2.000" selected>1.500 - 2.000 &#8364;</option>
+            <option value="2.000 - 3.000">2.000 - 3.000 &#8364;</option>
+            <option value="3.000 - 4.000">3.000 - 4.000 &#8364;</option>
+            <option value="4.000 - 5.000">4.000 - 5.000 &#8364;</option>
+            <option value="> 5.000">> 5.000 &#8364;</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="formIncome">Netto Einkommen (&#8364;)</label>
+          <input type="number" id="formIncome" min="0" max="50000" value="2000" step="100">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="formDocuments">Bewerbungsunterlagen</label>
+        <select id="formDocuments">
+          <option value="Vorhanden" selected>Vorhanden</option>
+          <option value="Nicht vorhanden">Nicht vorhanden</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Tab -->
+  <div id="tab-settings" class="tab-content">
+    <div class="section-title" style="margin-top:0; padding-top:0; border-top:none;">Monitoring</div>
+
+    <div class="field">
+      <label for="checkInterval">Check Interval (seconds)</label>
+      <input type="number" id="checkInterval" min="60" max="3600" value="60" step="30">
+      <div class="hint">How often to check for new listings</div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="rateLimit">Max Messages/Hour</label>
+        <input type="number" id="rateLimit" min="1" max="50" value="10">
+      </div>
+      <div class="field">
+        <label for="minDelay">Min Delay (sec)</label>
+        <input type="number" id="minDelay" min="10" max="300" value="30">
+      </div>
+    </div>
+    <div class="hint">Rate limiting prevents you from being blocked</div>
+
+    <div class="section-title">AI</div>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="aiEnabled">
+      <label for="aiEnabled">Enable AI Analysis</label>
+    </div>
+    <div class="hint" style="margin-bottom: 14px;">Scores listings and generates personalized messages via a local server</div>
+
+    <div id="aiSettingsGroup" class="ai-settings-group">
+      <div class="field">
+        <label for="aiApiKey">Gemini API Key</label>
+        <div class="password-field">
+          <input type="password" id="aiApiKey" placeholder="AIza...">
+          <button type="button" id="apiKeyToggle" class="password-toggle">show</button>
+        </div>
+        <div class="hint">Get one free at <span style="color:#3dbda8">ai.google.dev</span></div>
+      </div>
+
+      <div class="field">
+        <label for="aiServerUrl">Server URL</label>
+        <input type="url" id="aiServerUrl" placeholder="http://localhost:3456">
+      </div>
+
+      <div class="field">
+        <label for="aiMinScore">Minimum Score (1-10)</label>
+        <input type="number" id="aiMinScore" min="1" max="10" value="5">
+        <div class="hint">Listings below this score will be skipped</div>
+      </div>
+
+      <div class="section-title">AI Status</div>
+      <div id="aiServerStatus" class="ai-status disconnected">
+        <span class="dot"></span>
+        <span id="aiServerStatusText">Checking...</span>
+      </div>
+      <div style="font-size: 12px; color: #555; margin-top: 8px;">
+        Scored: <strong id="aiStatsScored" style="color:#333">0</strong> |
+        Skipped: <strong id="aiStatsSkipped" style="color:#333">0</strong>
+      </div>
+      <div style="font-size: 12px; color: #555; margin-top: 6px;">
+        Tokens: <strong id="aiUsagePromptTokens" style="color:#333">0</strong> in / <strong id="aiUsageCompletionTokens" style="color:#333">0</strong> out |
+        Est. cost: <strong id="aiUsageCost" style="color:#3dbda8">$0.000</strong>
+      </div>
+      <button id="resetUsageBtn" class="btn btn-danger" style="margin-top: 6px; font-size: 11px;">Reset Usage Stats</button>
+
+      <div id="setupInstructions" style="display: none;">
+        <div class="setup-box">
+          <strong>AI Server Setup</strong><br>
+          The AI features require a local server and a Google Gemini API key.<br><br>
+          <strong>1. Get a Gemini API key</strong> (free tier available):<br>
+          Go to <em>aistudio.google.com</em> → Get API Key → Create. Paste it in the "API Key" field above.<br><br>
+          <strong>2. Install Node.js</strong> (if you don't have it):<br>
+          Download from <em>nodejs.org</em> (LTS version recommended).<br><br>
+          <strong>3. Start the server</strong> — open a terminal in the extension folder and run:
+          <code id="setupCommand">cd server && npm install && npm start</code>
+          <button type="button" id="copySetupCmd" class="copy-cmd">Copy</button>
+          The server runs on port 3456. Keep the terminal open while using AI features.<br><br>
+          <strong>What the AI does:</strong><br>
+          • Scores each listing (1-10) based on your profile<br>
+          • Generates personalized messages per landlord<br>
+          • Solves captchas automatically
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Data</div>
+    <button id="clearSeenBtn" class="btn btn-danger">Clear Seen Listings</button>
+    <div class="hint">Remove all remembered listings. New scan will re-mark existing listings.</div>
+  </div>
+
+  <!-- Test Tab -->
+  <div id="tab-test" class="tab-content">
+    <div class="hint" style="margin-bottom: 12px;">
+      Open a listing on ImmoScout24, then analyze or send from here.
+    </div>
+
+    <div class="field" style="margin-bottom: 8px;">
+      <textarea id="analyzeNotes" rows="2" placeholder="Optional notes for the AI — e.g. &quot;photos show renovation in progress, emphasize wanting a viewing&quot;" style="font-size: 11px; min-height: 44px;"></textarea>
+    </div>
+    <button id="analyzeBtn" class="btn btn-test">Analyze Current Listing</button>
+
+    <div id="analyzeResult" style="display:none; margin-top: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <span id="analyzeScoreBadge" style="
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 40px; height: 40px; border-radius: 8px;
+          font-size: 18px; font-weight: 700; color: white;
+        "></span>
+        <div style="flex: 1;">
+          <div id="analyzeTitle" style="font-size: 13px; font-weight: 600; color: #333; margin-bottom: 2px;"></div>
+          <div id="analyzeReason" style="font-size: 11px; color: #666;"></div>
+        </div>
+      </div>
+      <div id="analyzeFlagsContainer" style="display: none; margin-bottom: 8px;"></div>
+      <div id="analyzeSummary" style="display: none; font-size: 12px; color: #444; line-height: 1.5; padding: 10px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #83F1DC; margin-bottom: 10px;"></div>
+
+      <div id="analyzeMsgSection" style="display: none;">
+        <label for="analyzeMessage" style="margin-top: 8px;">AI-Generated Message</label>
+        <textarea id="analyzeMessage" style="min-height: 120px; font-size: 12px;"></textarea>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <button id="sendAnalyzedBtn" class="btn btn-test" style="flex: 1; margin-top: 0;">Send This Message</button>
+          <button id="copyAnalyzedBtn" class="btn btn-secondary" style="flex: 0 0 auto; margin-top: 0; width: auto; padding: 10px 16px;">Copy</button>
+        </div>
+      </div>
+
+      <div id="analyzeDetails" style="margin-top: 10px;">
+        <button id="toggleDetailsBtn" style="
+          background: none; border: none; font-size: 11px; color: #888;
+          cursor: pointer; padding: 0; text-decoration: underline;
+        ">Show extracted data</button>
+        <pre id="analyzeDetailsContent" style="
+          display: none; margin-top: 6px; padding: 8px; background: #f8f9fa;
+          border: 1px solid #e0e0e0; border-radius: 6px; font-size: 10px;
+          max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+        "></pre>
+      </div>
+    </div>
+
+    <div style="border-top: 1px solid #eee; margin-top: 14px; padding-top: 14px;">
+      <div class="hint" style="margin-bottom: 8px;">Or send using your template (no AI):</div>
+      <button id="sendCurrentBtn" class="btn btn-secondary">Send Template Message</button>
+    </div>
+
+    <div id="testResult">
+      <div id="testResultContent"></div>
+    </div>
+  </div>
+
+  <!-- Queue Tab -->
+  <div id="tab-queue" class="tab-content">
+    <div class="section-title" style="margin-top:0; padding-top:0; border-top:none;">
+      Capture Listings
+    </div>
+    <div class="hint" style="margin-bottom: 10px;">
+      Browse to a search results page on ImmoScout24, then click Capture to add listings from that page to the queue. Navigate pages manually and capture each one.
+    </div>
+    <button id="captureBtn" class="btn btn-test">+ Capture from Current Page</button>
+    <div id="captureStatus" class="hint" style="margin-top: 6px; min-height: 16px;"></div>
+
+    <div class="section-title">Queue</div>
+    <div id="queueSummary" style="font-size: 12px; color: #555; margin-bottom: 8px;">
+      0 listings queued
+    </div>
+    <div id="queueList" style="max-height: 160px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 6px; background: #fafafa; margin-bottom: 10px; font-size: 11px; font-family: 'SF Mono', Monaco, monospace;">
+      <div id="queueListContent" style="padding: 8px 10px; color: #999;">
+        No listings in queue.
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <button id="processBtn" class="btn btn-test" style="flex: 1; margin-top: 0;">
+        ▶ Process Queue
+      </button>
+      <button id="clearQueueBtn" class="btn btn-danger" style="flex: 0 0 auto; margin-top: 0; width: auto; padding: 10px 16px;">
+        Clear
+      </button>
+    </div>
+
+    <div class="section-title">Progress</div>
+    <div id="queueProgressBox" style="min-height: 60px; max-height: 300px; overflow-y: auto; padding: 8px 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 11px; font-family: 'SF Mono', Monaco, monospace; word-break: break-word; color: #555;">Ready.</div>
+  </div>
+
+  <!-- Activity Tab -->
+  <div id="tab-activity" class="tab-content">
+    <div class="hint" style="margin-bottom: 10px;">
+      Live events from auto-monitoring. Persists across popup opens.
+    </div>
+    <div id="activityLogBox" style="min-height: 80px; max-height: 500px; overflow-y: auto; padding: 8px 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 11px; font-family: 'SF Mono', Monaco, monospace; word-break: break-word; color: #555;">No activity yet.</div>
+    <button id="clearActivityBtn" class="btn btn-danger" style="margin-top: 8px; font-size: 11px;">Clear Activity Log</button>
+  </div>
+
+  <!-- Conversations Tab -->
+  <div id="tab-conversations" class="tab-content">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <div class="hint" style="margin:0;">Landlord replies with AI-drafted responses.</div>
+      <button id="checkRepliesBtn" style="background:#83F1DC; color:#1a1a1a; border:none; border-radius:6px; padding:6px 12px; font-size:11px; font-weight:500; cursor:pointer;">Check Now</button>
+    </div>
+    <div id="convLastCheck" style="font-size:10px; color:#999; margin-bottom:10px;">Last check: --</div>
+    <div id="convList" style="display:flex; flex-direction:column; gap:8px;">
+      <div id="convEmptyState" style="text-align:center; padding:30px 20px; color:#999; font-size:12px;">
+        No conversations with replies yet.<br>
+        <span style="font-size:11px; color:#bbb;">Replies will appear here automatically.</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

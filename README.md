@@ -1,93 +1,163 @@
-# Apartment Messenger - ImmoScout24 Edition
+# Apartment Messenger — ImmoScout24 Edition
 
-A Chrome extension that automatically monitors ImmoScout24 for new apartment listings and contacts landlords on your behalf.
+A Chrome extension that monitors ImmoScout24 search results and automatically sends personalized messages to landlords when new listings appear. Includes a local AI server for listing scoring, captcha solving, and AI-assisted conversation replies.
 
-## Features
+## Project Structure
 
-- **Auto-monitoring** - Continuously checks your search results for new listings
-- **Smart messaging** - Automatically personalizes greetings based on landlord's name
-- **Form auto-fill** - Fills out the contact form with your saved details
-- **Manual mode** - Option to review messages before sending
-- **Rate limiting** - Prevents getting blocked with configurable delays
-
-## Installation
-
-1. Download or clone this repository
-2. Open Chrome and go to `chrome://extensions/`
-3. Enable **Developer mode** (top right toggle)
-4. Click **Load unpacked** and select this folder
+```
+extension/     Chrome extension (Manifest V3, vanilla JS)
+server/        AI server (Express + TypeScript + Gemini)
+```
 
 ## Setup
 
-1. Click the extension icon in your toolbar
-2. **Settings tab:**
-   - Paste your ImmoScout24 search URL
-   - Write your message (greeting is added automatically)
-   - Choose auto-send or manual mode
-3. **Form tab:**
-   - Fill in your personal details (used for the contact form)
-4. **Advanced tab:**
-   - Adjust check interval and rate limits
+### Chrome Extension
 
-## How It Works
+1. Open `chrome://extensions/` in Chrome
+2. Enable **Developer mode** (top-right toggle)
+3. Click **Load unpacked** → select the `extension/` folder
+4. Pin the extension icon in your toolbar
 
-1. The extension periodically checks your search results page
-2. When new listings appear, it opens each one
-3. Extracts the landlord's name and adds appropriate greeting:
-   - "Sehr geehrte Frau [Name]," or "Sehr geehrter Herr [Name],"
-   - Falls back to "Sehr geehrte Damen und Herren," if name not found
-4. Fills out the contact form with your details
-5. Either sends automatically or waits for your review (based on settings)
+### AI Server
 
-## Settings
-
-| Setting           | Description                                              |
-| ----------------- | -------------------------------------------------------- |
-| Search URL        | Your ImmoScout24 search results page                     |
-| Message           | Your message to landlords (greeting added automatically) |
-| Send Mode         | Auto-send or fill form for manual review                 |
-| Check Interval    | How often to check for new listings (60-3600 sec)        |
-| Max Messages/Hour | Rate limit to avoid blocks                               |
-| Min Delay         | Minimum wait between messages                            |
-
-## File Structure
-
-```
-├── manifest.json    # Extension configuration
-├── background.js    # Service worker (monitoring logic)
-├── content.js       # Page interaction scripts
-├── popup.html       # Extension popup UI
-├── popup.js         # Popup functionality
-└── icons/           # Extension icons
+```bash
+cd server
+npm install
+cp .env.example .env   # then add your Gemini API key
+npm run dev             # starts on http://localhost:3456
 ```
 
-## Tips
+The server provides:
+- `/analyze` — AI scoring of listings against your profile
+- `/captcha` — Captcha image → text extraction
+- `/reply` — AI-generated draft replies to landlord messages
+- `/health` — Health check
 
-- Make sure you're logged into ImmoScout24
-- Use manual mode first to verify everything works correctly
-- Keep check intervals reasonable (60+ seconds recommended)
-- The extension works best with search result pages
+## Quick Start
+
+1. Log into ImmoScout24
+2. Set up your search filters and copy the URL
+3. Click the extension icon → paste the URL into **Search URL**
+4. Write your message in **Message to Landlords**
+5. Fill in **Form** tab with your personal details
+6. Click **Start**
+
+The extension will periodically check for new listings and contact landlords for you.
+
+## Features
+
+### Automatic Messaging
+
+The extension monitors your search URL and when new listings appear:
+- Opens the listing page
+- Detects the landlord's name and adds a formal German greeting
+- Fills ImmoScout's contact form with your details
+- Sends the message (or leaves it for review in manual mode)
+
+### AI Listing Scoring
+
+With the AI server running, the extension can score listings against your profile and skip low-quality matches.
+
+### Conversation Replies
+
+The extension monitors your ImmoScout inbox for landlord replies and:
+- Shows unread conversations in the **Replies** tab
+- Generates AI draft replies using your profile context
+- Pre-fills the reply in the messenger for you to review and send
+
+### Message Personalization
+
+- **Frau detected** → `Sehr geehrte Frau [Name],`
+- **Herr detected** → `Sehr geehrter Herr [Name],`
+- **Unknown** → `Sehr geehrte Damen und Herren,`
+- Use `{name}` in your template for inline name replacement
+
+### Rate Limiting
+
+- **Hourly cap** — Stops sending after reaching your configured limit
+- **Minimum delay** — Waits between messages to avoid detection
+
+## Popup Tabs
+
+| Tab | Purpose |
+|-----|---------|
+| **Settings** | Search URL, message template, send mode |
+| **Form** | Personal details for contact form auto-fill |
+| **AI** | AI server URL, scoring threshold, profile |
+| **Replies** | Conversations with landlords, AI draft replies |
+| **Queue** | Manual queue for specific listings |
+| **Advanced** | Check interval, rate limits, clear data |
+| **Test** | Test message flow on a single listing |
+| **Activity** | Real-time activity log |
+
+## Development
+
+### Extension
+
+```bash
+# Validate syntax (no build step)
+node -c extension/background.js
+node -c extension/content.js
+node -c extension/popup.js
+node -c extension/shared.js
+```
+
+After editing, reload the extension in `chrome://extensions/`. For content script changes, also refresh the ImmoScout24 tab.
+
+**Debug:** Service worker logs → `chrome://extensions/` → "Inspect views: service worker". Content script logs → page DevTools (F12), filter by `[IS24]`.
+
+### Server
+
+```bash
+cd server
+npm run dev        # watch mode
+npm run typecheck  # TypeScript check
+```
+
+## Architecture
+
+```
+┌─────────────┐  messages   ┌──────────────┐  messages   ┌─────────────┐
+│  popup.js   │ ◄────────► │ background.js │ ◄────────► │ content.js  │
+│ (popup UI)  │            │ (svc worker)  │            │ (page DOM)  │
+└─────────────┘            └──────────────┘            └─────────────┘
+       │                          │
+       └──── both import ─────────┘
+                  │
+            ┌───────────┐
+            │ shared.js │
+            └───────────┘
+                                   │ HTTP
+                            ┌──────────────┐
+                            │  AI Server   │
+                            │  (Express)   │
+                            └──────────────┘
+```
+
+- **shared.js** — Storage key constants, message personalization, utility functions
+- **background.js** — Service worker: alarms, tab management, rate limiting, conversation detection
+- **content.js** — DOM interaction: listing extraction, form filling, reply filling
+- **popup.js** — UI controller: settings, stats, conversations, queue management
+- **server/** — AI endpoints for scoring, captcha, and reply generation
+
+## Data Storage
+
+All extension data is stored locally in `chrome.storage.local`. The AI server stores no persistent data (captcha images and activity logs are gitignored).
 
 ## Troubleshooting
 
-**Extension not detecting listings?**
-- Verify your search URL is correct
-- Make sure you're on the search results page (not a single listing)
+**"Receiving end does not exist"** → Refresh the ImmoScout24 page and try again.
 
-**Messages not sending?**
-- Check that you're logged into ImmoScout24
-- Try manual mode to see if forms are being filled correctly
-- Check browser console for errors (F12 → Console)
+**Extension stops checking** → Toggle Stop/Start to restart the alarm.
 
-**Getting blocked?**
-- Increase the check interval
-- Lower max messages per hour
-- Increase minimum delay between messages
+**Messages not sending** → Make sure you're logged into ImmoScout24.
+
+**Rate limit reached** → Wait for the hourly reset or increase the limit in Advanced settings.
 
 ## Disclaimer
 
-This tool is for personal use. Please use responsibly and respect ImmoScout24's terms of service. The extension may need updates if the website structure changes.
+For personal use. Please use responsibly and respect ImmoScout24's terms of service.
 
 ## License
 
-MIT License - feel free to modify and share.
+MIT

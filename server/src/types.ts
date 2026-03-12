@@ -123,6 +123,28 @@ export interface ScoreResult {
   flags?: string[];
 }
 
+export interface DocumentsRequestBody {
+  address: string;
+  name: string;
+  moveIn?: string;
+  birthDate?: string;
+  maritalStatus?: string;
+  currentAddress?: string;
+  phone?: string;
+  email?: string;
+  profession?: string;
+  netIncome?: string;
+  employer?: string;
+  employedSince?: string;
+  currentLandlord?: string;
+  landlordPhone?: string;
+  landlordEmail?: string;
+  signingDate?: string;
+  signatureName?: string;
+  attachments?: string[];
+  noAttach?: boolean;
+}
+
 export interface LogEntryBody {
   listingId: string;
   title?: string;

@@ -2113,6 +2113,111 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })();
     return true;
 
+  } else if (request.action === 'generateDocuments') {
+    (async () => {
+      try {
+        const { address, moveIn } = request;
+        if (!address) {
+          sendResponse({ success: false, error: 'No address provided' });
+          return;
+        }
+
+        const { [AI_SERVER_URL_KEY]: serverUrl } = await chrome.storage.local.get([AI_SERVER_URL_KEY]);
+        if (!serverUrl) {
+          sendResponse({ success: false, error: 'AI server URL not configured' });
+          return;
+        }
+
+        // Load all document profile fields
+        const docKeys = [
+          PROFILE_NAME_KEY, PROFILE_BIRTH_DATE_KEY, PROFILE_MARITAL_STATUS_KEY,
+          PROFILE_CURRENT_ADDRESS_KEY, PROFILE_EMAIL_KEY, PROFILE_OCCUPATION_KEY,
+          PROFILE_NET_INCOME_KEY, PROFILE_EMPLOYER_KEY, PROFILE_EMPLOYED_SINCE_KEY,
+          PROFILE_CURRENT_LANDLORD_KEY, PROFILE_LANDLORD_PHONE_KEY, PROFILE_LANDLORD_EMAIL_KEY,
+          FORM_PHONE_KEY
+        ];
+        const profile = await chrome.storage.local.get(docKeys);
+
+        const nameRaw = profile[PROFILE_NAME_KEY] || '';
+        // Convert "First Last" to "Last, First" for the form
+        const nameParts = nameRaw.split(' ').filter(Boolean);
+        const formName = nameParts.length >= 2
+          ? `${nameParts.slice(1).join(' ')}, ${nameParts[0]}`
+          : nameRaw;
+
+        // Convert YYYY-MM-DD (date input) to DD.MM.YYYY (German format)
+        const formatDate = (isoDate) => {
+          if (!isoDate || !isoDate.includes('-')) return isoDate || '';
+          const [y, m, d] = isoDate.split('-');
+          return `${d}.${m}.${y}`;
+        };
+
+        // Convert plain number to German currency format "X.XXX,XX EUR"
+        const formatEurAmount = (val) => {
+          if (!val) return '';
+          const num = parseFloat(val);
+          if (isNaN(num)) return val;
+          const parts = num.toFixed(2).split('.');
+          const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+          return `${intPart},${parts[1]} EUR`;
+        };
+
+        // Today as signing date in DD.MM.YYYY
+        const today = new Date();
+        const signingDate = `${String(today.getDate()).padStart(2, '0')}.${String(today.getMonth() + 1).padStart(2, '0')}.${today.getFullYear()}`;
+
+        const body = {
+          address,
+          name: formName,
+          moveIn: formatDate(moveIn),
+          birthDate: formatDate(profile[PROFILE_BIRTH_DATE_KEY]),
+          maritalStatus: profile[PROFILE_MARITAL_STATUS_KEY] || '',
+          currentAddress: profile[PROFILE_CURRENT_ADDRESS_KEY] || '',
+          phone: profile[FORM_PHONE_KEY] || '',
+          email: profile[PROFILE_EMAIL_KEY] || '',
+          profession: profile[PROFILE_OCCUPATION_KEY] || '',
+          netIncome: formatEurAmount(profile[PROFILE_NET_INCOME_KEY]),
+          employer: profile[PROFILE_EMPLOYER_KEY] || '',
+          employedSince: formatDate(profile[PROFILE_EMPLOYED_SINCE_KEY]),
+          currentLandlord: profile[PROFILE_CURRENT_LANDLORD_KEY] || '',
+          landlordPhone: profile[PROFILE_LANDLORD_PHONE_KEY] || '',
+          landlordEmail: profile[PROFILE_LANDLORD_EMAIL_KEY] || '',
+          signingDate,
+          signatureName: nameRaw,
+        };
+
+        const resp = await fetch(`${serverUrl}/documents/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: resp.statusText }));
+          sendResponse({ success: false, error: err.error || `Server error: ${resp.status}` });
+          return;
+        }
+
+        // Download the PDF — convert to data URL since service workers lack URL.createObjectURL
+        const buf = await resp.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const dataUrl = 'data:application/pdf;base64,' + btoa(binary);
+
+        const street = address.split(',')[0].trim().replace(/\s+/g, '_');
+        const filename = `Bewerbungsunterlagen_${nameParts[nameParts.length - 1] || 'Tenant'}_${street}.pdf`;
+
+        await chrome.downloads.download({ url: dataUrl, filename, saveAs: true });
+
+        console.log(`[Documents] Generated and downloading: ${filename}`);
+        sendResponse({ success: true });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+
   } else if (request.action === 'markConversationRead') {
     (async () => {
       try {

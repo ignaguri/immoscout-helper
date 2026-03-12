@@ -10,6 +10,7 @@
     "scripting",
     "alarms",
     "notifications",
+    "downloads",
     "sidePanel"
   ],
   "host_permissions": [

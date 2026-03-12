@@ -56,6 +56,18 @@ const PROFILE_DEALBREAKERS_KEY = 'profileDealbreakers';
 const PROFILE_STRENGTHS_KEY = 'profileStrengths';
 const PROFILE_MAX_WARMMIETE_KEY = 'profileMaxWarmmiete';
 
+// Document profile keys (for Selbstauskunft generation)
+const PROFILE_BIRTH_DATE_KEY = 'profileBirthDate';
+const PROFILE_MARITAL_STATUS_KEY = 'profileMaritalStatus';
+const PROFILE_CURRENT_ADDRESS_KEY = 'profileCurrentAddress';
+const PROFILE_EMAIL_KEY = 'profileEmail';
+const PROFILE_EMPLOYER_KEY = 'profileEmployer';
+const PROFILE_EMPLOYED_SINCE_KEY = 'profileEmployedSince';
+const PROFILE_NET_INCOME_KEY = 'profileNetIncome';
+const PROFILE_CURRENT_LANDLORD_KEY = 'profileCurrentLandlord';
+const PROFILE_LANDLORD_PHONE_KEY = 'profileLandlordPhone';
+const PROFILE_LANDLORD_EMAIL_KEY = 'profileLandlordEmail';
+
 // Sync keys
 const SYNCED_CONTACTED_KEY = 'syncedContactedCount';
 

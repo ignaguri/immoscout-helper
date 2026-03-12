@@ -31,6 +31,18 @@ const profileDealbreakersInput = document.getElementById('profileDealbreakers');
 const profileStrengthsInput = document.getElementById('profileStrengths');
 const profileMaxWarmmieteInput = document.getElementById('profileMaxWarmmiete');
 
+// Document profile inputs
+const profileBirthDateInput = document.getElementById('profileBirthDate');
+const profileMaritalStatusInput = document.getElementById('profileMaritalStatus');
+const profileCurrentAddressInput = document.getElementById('profileCurrentAddress');
+const profileEmailInput = document.getElementById('profileEmail');
+const profileEmployerInput = document.getElementById('profileEmployer');
+const profileEmployedSinceInput = document.getElementById('profileEmployedSince');
+const profileNetIncomeInput = document.getElementById('profileNetIncome');
+const profileCurrentLandlordInput = document.getElementById('profileCurrentLandlord');
+const profileLandlordPhoneInput = document.getElementById('profileLandlordPhone');
+const profileLandlordEmailInput = document.getElementById('profileLandlordEmail');
+
 // Form field inputs
 const formSalutationInput = document.getElementById('formSalutation');
 const formPhoneInput = document.getElementById('formPhone');
@@ -208,7 +220,11 @@ async function loadSettings() {
     PROFILE_NAME_KEY, PROFILE_AGE_KEY, PROFILE_OCCUPATION_KEY,
     PROFILE_LANGUAGES_KEY, PROFILE_MOVING_REASON_KEY,
     PROFILE_CURRENT_NEIGHBORHOOD_KEY, PROFILE_IDEAL_APARTMENT_KEY,
-    PROFILE_DEALBREAKERS_KEY, PROFILE_STRENGTHS_KEY, PROFILE_MAX_WARMMIETE_KEY
+    PROFILE_DEALBREAKERS_KEY, PROFILE_STRENGTHS_KEY, PROFILE_MAX_WARMMIETE_KEY,
+    PROFILE_BIRTH_DATE_KEY, PROFILE_MARITAL_STATUS_KEY, PROFILE_CURRENT_ADDRESS_KEY,
+    PROFILE_EMAIL_KEY, PROFILE_EMPLOYER_KEY, PROFILE_EMPLOYED_SINCE_KEY,
+    PROFILE_NET_INCOME_KEY, PROFILE_CURRENT_LANDLORD_KEY,
+    PROFILE_LANDLORD_PHONE_KEY, PROFILE_LANDLORD_EMAIL_KEY
   ]);
 
   if (result[SEARCH_URL_KEY]) searchUrlInput.value = result[SEARCH_URL_KEY];
@@ -229,6 +245,18 @@ async function loadSettings() {
   if (result[PROFILE_DEALBREAKERS_KEY]) profileDealbreakersInput.value = result[PROFILE_DEALBREAKERS_KEY];
   if (result[PROFILE_STRENGTHS_KEY]) profileStrengthsInput.value = result[PROFILE_STRENGTHS_KEY];
   if (result[PROFILE_MAX_WARMMIETE_KEY] !== undefined) profileMaxWarmmieteInput.value = result[PROFILE_MAX_WARMMIETE_KEY];
+
+  // Document profile fields
+  if (result[PROFILE_BIRTH_DATE_KEY]) profileBirthDateInput.value = result[PROFILE_BIRTH_DATE_KEY];
+  if (result[PROFILE_MARITAL_STATUS_KEY]) profileMaritalStatusInput.value = result[PROFILE_MARITAL_STATUS_KEY];
+  if (result[PROFILE_CURRENT_ADDRESS_KEY]) profileCurrentAddressInput.value = result[PROFILE_CURRENT_ADDRESS_KEY];
+  if (result[PROFILE_EMAIL_KEY]) profileEmailInput.value = result[PROFILE_EMAIL_KEY];
+  if (result[PROFILE_EMPLOYER_KEY]) profileEmployerInput.value = result[PROFILE_EMPLOYER_KEY];
+  if (result[PROFILE_EMPLOYED_SINCE_KEY]) profileEmployedSinceInput.value = result[PROFILE_EMPLOYED_SINCE_KEY];
+  if (result[PROFILE_NET_INCOME_KEY]) profileNetIncomeInput.value = result[PROFILE_NET_INCOME_KEY];
+  if (result[PROFILE_CURRENT_LANDLORD_KEY]) profileCurrentLandlordInput.value = result[PROFILE_CURRENT_LANDLORD_KEY];
+  if (result[PROFILE_LANDLORD_PHONE_KEY]) profileLandlordPhoneInput.value = result[PROFILE_LANDLORD_PHONE_KEY];
+  if (result[PROFILE_LANDLORD_EMAIL_KEY]) profileLandlordEmailInput.value = result[PROFILE_LANDLORD_EMAIL_KEY];
 
   // Form fields
   if (result[FORM_SALUTATION_KEY]) formSalutationInput.value = result[FORM_SALUTATION_KEY];
@@ -275,6 +303,17 @@ async function saveSettings() {
     [PROFILE_DEALBREAKERS_KEY]: profileDealbreakersInput.value.trim() || '',
     [PROFILE_STRENGTHS_KEY]: profileStrengthsInput.value.trim() || '',
     [PROFILE_MAX_WARMMIETE_KEY]: profileMaxWarmmieteInput.value || '',
+    // Document profile
+    [PROFILE_BIRTH_DATE_KEY]: profileBirthDateInput.value.trim() || '',
+    [PROFILE_MARITAL_STATUS_KEY]: profileMaritalStatusInput.value.trim() || '',
+    [PROFILE_CURRENT_ADDRESS_KEY]: profileCurrentAddressInput.value.trim() || '',
+    [PROFILE_EMAIL_KEY]: profileEmailInput.value.trim() || '',
+    [PROFILE_EMPLOYER_KEY]: profileEmployerInput.value.trim() || '',
+    [PROFILE_EMPLOYED_SINCE_KEY]: profileEmployedSinceInput.value.trim() || '',
+    [PROFILE_NET_INCOME_KEY]: profileNetIncomeInput.value.trim() || '',
+    [PROFILE_CURRENT_LANDLORD_KEY]: profileCurrentLandlordInput.value.trim() || '',
+    [PROFILE_LANDLORD_PHONE_KEY]: profileLandlordPhoneInput.value.trim() || '',
+    [PROFILE_LANDLORD_EMAIL_KEY]: profileLandlordEmailInput.value.trim() || '',
     // Form
     [FORM_SALUTATION_KEY]: formSalutationInput.value || 'Frau',
     [FORM_PHONE_KEY]: formPhoneInput.value || '',
@@ -372,6 +411,9 @@ const allInputs = [
   profileNameInput, profileAgeInput, profileOccupationInput, profileLanguagesInput,
   profileMovingReasonInput, profileCurrentNeighborhoodInput, profileIdealApartmentInput,
   profileDealbreakersInput, profileStrengthsInput, profileMaxWarmmieteInput,
+  profileBirthDateInput, profileMaritalStatusInput, profileCurrentAddressInput, profileEmailInput,
+  profileEmployerInput, profileEmployedSinceInput, profileNetIncomeInput,
+  profileCurrentLandlordInput, profileLandlordPhoneInput, profileLandlordEmailInput,
   formSalutationInput, formPhoneInput, formAdultsInput, formChildrenInput, formPetsInput, formSmokerInput,
   formIncomeInput, formHouseholdSizeInput, formEmploymentInput, formIncomeRangeInput, formDocumentsInput,
   aiEnabledInput, aiApiKeyInput, aiServerUrlInput, aiMinScoreInput, aiAboutMeInput
@@ -410,9 +452,9 @@ toggleBtn.addEventListener('click', async () => {
     if (!searchUrlInput.value.trim()) {
       alert('Please enter a search URL');
       tabs.forEach(t => t.classList.remove('active'));
-      document.querySelector('[data-tab="message"]').classList.add('active');
+      document.querySelector('[data-tab="activity"]').classList.add('active');
       tabContents.forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-message').classList.add('active');
+      document.getElementById('tab-activity').classList.add('active');
       searchUrlInput.focus();
       return;
     }
@@ -420,9 +462,9 @@ toggleBtn.addEventListener('click', async () => {
     if (!messageTemplateInput.value.trim()) {
       alert('Please enter a message');
       tabs.forEach(t => t.classList.remove('active'));
-      document.querySelector('[data-tab="message"]').classList.add('active');
+      document.querySelector('[data-tab="activity"]').classList.add('active');
       tabContents.forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-message').classList.add('active');
+      document.getElementById('tab-activity').classList.add('active');
       messageTemplateInput.focus();
       return;
     }
@@ -599,9 +641,9 @@ sendCurrentBtn.addEventListener('click', async () => {
     if (!template) {
       showTestResult('Please enter a message first!', true);
       tabs.forEach(t => t.classList.remove('active'));
-      document.querySelector('[data-tab="message"]').classList.add('active');
+      document.querySelector('[data-tab="activity"]').classList.add('active');
       tabContents.forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-message').classList.add('active');
+      document.getElementById('tab-activity').classList.add('active');
       messageTemplateInput.focus();
       return;
     }
@@ -1664,6 +1706,60 @@ function renderConversationCard(conv) {
       chrome.tabs.create({ url: `https://www.immobilienscout24.de/messenger/conversations/${conv.conversationId}`, active: true });
     });
     btnRow.appendChild(openBtn);
+
+    // Move-in date input for document generation
+    const moveInInput = document.createElement('input');
+    moveInInput.type = 'date';
+    moveInInput.style.cssText = 'padding:6px 8px; border:1px solid #ddd; border-radius:6px; font-size:11px; width:120px;';
+    moveInInput.title = 'Move-in date for Selbstauskunft';
+    // Default to 1st of next month
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+    moveInInput.value = nextMonth.toISOString().split('T')[0];
+    const moveInWrap = document.createElement('div');
+    moveInWrap.style.cssText = 'display:flex; flex-direction:column; align-items:flex-start;';
+    moveInWrap.appendChild(moveInInput);
+    const moveInLabel = document.createElement('span');
+    moveInLabel.textContent = 'Move-in date';
+    moveInLabel.style.cssText = 'font-size:9px; color:#888; margin-top:2px; padding-left:2px;';
+    moveInWrap.appendChild(moveInLabel);
+    btnRow.appendChild(moveInWrap);
+
+    // Generate Documents button
+    const docsBtn = document.createElement('button');
+    docsBtn.style.cssText = 'padding:8px 12px; background:#f0f0f0; color:#333; border:none; border-radius:6px; font-size:11px; cursor:pointer;';
+    docsBtn.textContent = 'Docs';
+    docsBtn.title = 'Generate Selbstauskunft + supporting documents PDF';
+    docsBtn.addEventListener('click', async () => {
+      docsBtn.disabled = true;
+      docsBtn.textContent = 'Generating...';
+      try {
+        const result = await chrome.runtime.sendMessage({
+          action: 'generateDocuments',
+          conversationId: conv.conversationId,
+          address: conv.listingTitle || '',
+          moveIn: moveInInput.value || '',
+        });
+        if (result.success) {
+          docsBtn.textContent = 'Downloaded!';
+          docsBtn.style.background = '#e6fff5';
+        } else {
+          docsBtn.textContent = 'Failed';
+          docsBtn.style.background = '#fff5f5';
+          console.error('Document generation failed:', result.error);
+        }
+      } catch (e) {
+        docsBtn.textContent = 'Error';
+        docsBtn.style.background = '#fff5f5';
+        console.error('Document generation error:', e);
+      }
+      setTimeout(() => {
+        docsBtn.disabled = false;
+        docsBtn.textContent = 'Docs';
+        docsBtn.style.background = '#f0f0f0';
+      }, 5000);
+    });
+    btnRow.appendChild(docsBtn);
 
     draftSection.appendChild(btnRow);
   }

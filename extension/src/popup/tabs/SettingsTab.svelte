@@ -193,16 +193,14 @@ function toggleApiKey() {
     <div class="hint">{settings.aiMode === 'direct' ? 'Calls the AI provider directly — no server needed' : 'Uses local Express server for AI calls'}</div>
   </div>
 
-  {#if settings.aiMode === 'direct'}
-    <div class="field">
-      <label for="aiProvider">AI Provider</label>
-      <select id="aiProvider" bind:value={settings.aiProvider} onchange={handleProviderChange}>
-        {#each Object.values(PROVIDERS) as provider}
-          <option value={provider.id}>{provider.label}</option>
-        {/each}
-      </select>
-    </div>
-  {/if}
+  <div class="field">
+    <label for="aiProvider">AI Provider</label>
+    <select id="aiProvider" bind:value={settings.aiProvider} onchange={handleProviderChange}>
+      {#each Object.values(PROVIDERS) as provider}
+        <option value={provider.id}>{provider.label}</option>
+      {/each}
+    </select>
+  </div>
 
   <div class="field">
     <label for="aiApiKey">{settings.aiMode === 'direct' ? `${activeProvider.label} API Key` : 'API Key (optional)'}</label>

@@ -414,7 +414,7 @@ export async function trySolveCaptcha(
           { maxTokens: 32, thinkingBudget: 0 },
         );
         const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
-        captchaText = answer && answer.length >= 4 ? answer : null;
+        captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;
         captchaUsage = result.usage;
 
         if (!captchaText) {

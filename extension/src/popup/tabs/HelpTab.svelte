@@ -10,7 +10,7 @@
       <span class="step-num">1</span>
       <div>
         <strong>Set up AI</strong>
-        <p>Go to <strong>Settings</strong> &rarr; enable <strong>AI Analysis</strong> &rarr; paste your <a href="https://aistudio.google.com/app/apikeys" target="_blank" rel="noopener">Gemini API key</a> (free). Check the status dot turns green.</p>
+        <p>Go to <strong>Settings</strong> &rarr; enable <strong>AI Analysis</strong> &rarr; paste your <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Gemini API key</a> (free). Check the status dot turns green.</p>
       </div>
     </div>
     <div class="help-step">

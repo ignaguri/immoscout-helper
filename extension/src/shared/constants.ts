@@ -33,8 +33,10 @@ export const RATE_COUNT_RESET_TIME_KEY = 'rateCountResetTime' as const;
 
 // AI keys
 export const AI_MODE_KEY = 'aiMode' as const; // 'direct' | 'server'
+export const AI_PROVIDER_KEY = 'aiProvider' as const; // 'gemini' | 'openai'
 export const AI_ENABLED_KEY = 'aiEnabled' as const;
-export const AI_API_KEY_KEY = 'aiApiKey' as const;
+export const AI_API_KEY_GEMINI_KEY = 'aiApiKeyGemini' as const;
+export const AI_API_KEY_OPENAI_KEY = 'aiApiKeyOpenai' as const;
 export const AI_SERVER_URL_KEY = 'aiServerUrl' as const;
 export const AI_MIN_SCORE_KEY = 'aiMinScore' as const;
 export const AI_ABOUT_ME_KEY = 'aiAboutMe' as const;

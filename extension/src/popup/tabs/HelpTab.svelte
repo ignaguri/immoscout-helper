@@ -1,5 +1,5 @@
 <script lang="ts">
-  const version = chrome.runtime.getManifest().version;
+const version = chrome.runtime.getManifest().version;
 </script>
 
 <div class="help-tab">
@@ -10,7 +10,7 @@
       <span class="step-num">1</span>
       <div>
         <strong>Set up AI</strong>
-        <p>Go to <strong>Settings</strong> &rarr; paste your <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Gemini API key</a> (free). Check the status dot turns green.</p>
+        <p>Go to <strong>Settings</strong> &rarr; pick your AI provider &rarr; paste your API key. Check the status dot turns green. Use <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Gemini</a> (free) or <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a>.</p>
       </div>
     </div>
     <div class="help-step">
@@ -45,42 +45,46 @@
 
   <div class="section-title" id="api-key-guide">Getting Your API Key</div>
 
-  <p>The extension uses Google's <strong>Gemini AI</strong> to score listings, write messages, solve captchas, and draft replies. You need a free API key to use it.</p>
+  <p>The extension uses AI to score listings, write messages, solve captchas, and draft replies. Choose your preferred provider in Settings.</p>
+
+  <div class="mode-box" style="margin-top: 10px; margin-bottom: 12px;">
+    <div class="mode">
+      <strong>Gemini (Google) &mdash; Recommended</strong>
+      <p>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>, sign in, click <strong>"Create API key"</strong>. Your key looks like <code>AIza...</code>. Free tier is very generous.</p>
+    </div>
+    <div class="mode">
+      <strong>OpenAI (GPT-4o)</strong>
+      <p>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a>, click <strong>"Create new secret key"</strong>. Your key looks like <code>sk-...</code>. Requires a paid account with credits.</p>
+    </div>
+  </div>
 
   <div class="help-steps" style="margin-top: 10px;">
     <div class="help-step">
       <span class="step-num">1</span>
       <div>
-        <strong>Open Google AI Studio</strong>
-        <p>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>. Sign in with your Google account.</p>
+        <strong>Pick a provider</strong>
+        <p>Go to <strong>Settings</strong> &rarr; <strong>AI Provider</strong> and select Gemini or OpenAI.</p>
       </div>
     </div>
     <div class="help-step">
       <span class="step-num">2</span>
       <div>
-        <strong>Create an API key</strong>
-        <p>Click <strong>"Create API key"</strong>. If prompted, select any Google Cloud project (or let it create one for you).</p>
+        <strong>Get your API key</strong>
+        <p>Follow the provider link above to create a key. Copy it to your clipboard.</p>
       </div>
     </div>
     <div class="help-step">
       <span class="step-num">3</span>
       <div>
-        <strong>Copy the key</strong>
-        <p>Your key will look like <code>AIza...</code>. Click the copy button next to it.</p>
-      </div>
-    </div>
-    <div class="help-step">
-      <span class="step-num">4</span>
-      <div>
         <strong>Paste it in Settings</strong>
-        <p>Go to <strong>Settings</strong> &rarr; paste the key in the <strong>Gemini API Key</strong> field. The green dot confirms it works.</p>
+        <p>Go to <strong>Settings</strong> &rarr; paste the key in the API Key field. The green dot confirms it works.</p>
       </div>
     </div>
   </div>
 
   <div class="info-box" style="margin-top: 12px;">
-    <strong>Is it free?</strong>
-    <p>Yes. Gemini API has a generous free tier. This extension uses the <strong>Gemini 2.5 Flash</strong> model which is very affordable. Typical usage costs fractions of a cent. You can check your usage in the Settings tab under "AI Usage".</p>
+    <strong>Cost?</strong>
+    <p>Both providers are very affordable. <strong>Gemini 2.5 Flash</strong> has a free tier; typical usage costs fractions of a cent. <strong>GPT-4o-mini</strong> is also very cheap but requires a paid OpenAI account. Check your usage in Settings &rarr; AI Usage.</p>
   </div>
 
   <div class="section-title">AI Modes</div>

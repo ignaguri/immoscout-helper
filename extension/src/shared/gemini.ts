@@ -1,25 +1,10 @@
-// Thin wrapper around the Gemini REST API for direct calls from the extension.
-// No SDK dependency — just fetch().
+// Gemini provider — thin wrapper around the Gemini REST API.
+import type { AIOptions, AIProvider, AIResult } from './ai-provider';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 
-export interface GeminiOptions {
-  maxTokens?: number;
-  thinkingBudget?: number; // 0 = disable thinking
-}
-
-export interface GeminiUsage {
-  promptTokens: number;
-  completionTokens: number;
-}
-
-export interface GeminiResult {
-  text: string;
-  usage: GeminiUsage;
-}
-
-function buildGenerationConfig(opts?: GeminiOptions): Record<string, any> {
+function buildGenerationConfig(opts?: AIOptions & { thinkingBudget?: number }): Record<string, any> {
   const config: Record<string, any> = {};
   if (opts?.maxTokens) config.maxOutputTokens = opts.maxTokens;
   if (opts?.thinkingBudget !== undefined) {
@@ -28,13 +13,14 @@ function buildGenerationConfig(opts?: GeminiOptions): Record<string, any> {
   return config;
 }
 
-function extractResult(data: any): GeminiResult {
-  const text = data.candidates?.[0]?.content?.parts
-    ?.filter((p: any) => p.text !== undefined)
-    ?.map((p: any) => p.text)
-    ?.join('') || '';
+function extractResult(data: any): AIResult {
+  const text =
+    data.candidates?.[0]?.content?.parts
+      ?.filter((p: any) => p.text !== undefined)
+      ?.map((p: any) => p.text)
+      ?.join('') || '';
 
-  const usage: GeminiUsage = {
+  const usage = {
     promptTokens: data.usageMetadata?.promptTokenCount || 0,
     completionTokens: data.usageMetadata?.candidatesTokenCount || 0,
   };
@@ -42,13 +28,12 @@ function extractResult(data: any): GeminiResult {
   return { text, usage };
 }
 
-/** Text-only generation */
-export async function geminiGenerateText(
+async function generateText(
   apiKey: string,
   systemPrompt: string,
   userPrompt: string,
-  opts?: GeminiOptions,
-): Promise<GeminiResult> {
+  opts?: AIOptions,
+): Promise<AIResult> {
   const url = `${GEMINI_API_BASE}/${DEFAULT_MODEL}:generateContent?key=${apiKey}`;
 
   const body: Record<string, any> = {
@@ -56,7 +41,8 @@ export async function geminiGenerateText(
     contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
   };
 
-  const generationConfig = buildGenerationConfig(opts);
+  // Suppress extended thinking by default (faster, cheaper for these tasks)
+  const generationConfig = buildGenerationConfig({ ...opts, thinkingBudget: 0 });
   if (Object.keys(generationConfig).length > 0) {
     body.generationConfig = generationConfig;
   }
@@ -72,19 +58,17 @@ export async function geminiGenerateText(
     throw new Error(`Gemini API error ${response.status}: ${errorBody}`);
   }
 
-  const data = await response.json();
-  return extractResult(data);
+  return extractResult(await response.json());
 }
 
-/** Vision generation (for captcha solving) */
-export async function geminiGenerateWithImage(
+async function generateWithImage(
   apiKey: string,
   systemPrompt: string,
   imageBase64: string,
   mimeType: string,
   textPrompt: string,
-  opts?: GeminiOptions,
-): Promise<GeminiResult> {
+  opts?: AIOptions,
+): Promise<AIResult> {
   const url = `${GEMINI_API_BASE}/${DEFAULT_MODEL}:generateContent?key=${apiKey}`;
 
   const body: Record<string, any> = {
@@ -92,15 +76,13 @@ export async function geminiGenerateWithImage(
     contents: [
       {
         role: 'user',
-        parts: [
-          { inline_data: { mime_type: mimeType, data: imageBase64 } },
-          { text: textPrompt },
-        ],
+        parts: [{ inline_data: { mime_type: mimeType, data: imageBase64 } }, { text: textPrompt }],
       },
     ],
   };
 
-  const generationConfig = buildGenerationConfig(opts);
+  // Disable thinking for vision/captcha calls (fast, short output needed)
+  const generationConfig = buildGenerationConfig({ ...opts, thinkingBudget: 0 });
   if (Object.keys(generationConfig).length > 0) {
     body.generationConfig = generationConfig;
   }
@@ -116,17 +98,30 @@ export async function geminiGenerateWithImage(
     throw new Error(`Gemini API error ${response.status}: ${errorBody}`);
   }
 
-  const data = await response.json();
-  return extractResult(data);
+  return extractResult(await response.json());
 }
 
-/** Validate an API key by fetching model metadata (lightweight, no generation) */
-export async function geminiValidateKey(apiKey: string): Promise<boolean> {
+async function validateKey(apiKey: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const url = `${GEMINI_API_BASE}/${DEFAULT_MODEL}?key=${apiKey}`;
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetch(url, { method: 'GET', signal: controller.signal });
     return response.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
+
+export const geminiProvider: AIProvider = {
+  id: 'gemini',
+  label: 'Gemini',
+  defaultModel: DEFAULT_MODEL,
+  pricing: { input: 0.15, output: 0.6 }, // USD per 1M tokens (Gemini 2.5 Flash)
+  keyUrl: 'https://aistudio.google.com/app/apikey',
+  generateText,
+  generateWithImage,
+  validateKey,
+};

@@ -1,10 +1,21 @@
+import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
-import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage } from '../shared/ai-router';
-import { geminiGenerateText } from '../shared/gemini';
-import { buildReplyPrompt, buildConversationText } from '../shared/prompts';
+import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
+import { getProfile } from './ai';
+import type { ConversationEntry } from './conversations';
 import {
-  isMonitoring,
+  checkForNewReplies,
+  generateDraftReply,
+  updateAppointmentStatus,
+  updateConversationDraft,
+} from './conversations';
+import { scheduleNextAlarm, waitForTabLoad } from './helpers';
+import type { Listing } from './listings';
+import { startMonitoring, stopMonitoring, updateCheckInterval } from './monitoring';
+import { enqueueListings, processQueue } from './queue';
+import {
   currentCheckInterval,
+  isMonitoring,
   isProcessingQueue,
   messageCount,
   messageCountResetTime,
@@ -13,14 +24,6 @@ import {
   setQueueAbortRequested,
   setUserTriggeredProcessing,
 } from './state';
-import { scheduleNextAlarm, waitForTabLoad } from './helpers';
-import { startMonitoring, stopMonitoring, updateCheckInterval } from './monitoring';
-import { checkForNewReplies } from './conversations';
-import { updateConversationDraft, generateDraftReply, updateAppointmentStatus } from './conversations';
-import type { ConversationEntry } from './conversations';
-import { enqueueListings, processQueue } from './queue';
-import { getProfile } from './ai';
-import type { Listing } from './listings';
 
 type MessageRequest = { action: string; [key: string]: any };
 
@@ -263,9 +266,14 @@ export function registerMessageHandler(): void {
               const aiConfig = await getAIConfig();
               const profile = await getProfile();
               const formData: Record<string, any> = await chrome.storage.local.get([
-                C.AI_ABOUT_ME_KEY, C.FORM_ADULTS_KEY, C.FORM_CHILDREN_KEY,
-                C.FORM_PETS_KEY, C.FORM_SMOKER_KEY, C.FORM_INCOME_KEY,
-                C.FORM_INCOME_RANGE_KEY, C.FORM_PHONE_KEY,
+                C.AI_ABOUT_ME_KEY,
+                C.FORM_ADULTS_KEY,
+                C.FORM_CHILDREN_KEY,
+                C.FORM_PETS_KEY,
+                C.FORM_SMOKER_KEY,
+                C.FORM_INCOME_KEY,
+                C.FORM_INCOME_RANGE_KEY,
+                C.FORM_PHONE_KEY,
               ]);
 
               const userProfile = {
@@ -295,7 +303,10 @@ export function registerMessageHandler(): void {
                   conv.listingTitle || undefined,
                   appointmentAction,
                 );
-                const result = await geminiGenerateText(aiConfig.apiKey, systemPrompt, conversationText, { maxTokens: 2048 });
+                const provider = getProvider(aiConfig);
+                const result = await provider.generateText(aiConfig.apiKey, systemPrompt, conversationText, {
+                  maxTokens: 2048,
+                });
                 courtesyMessage = result.text.trim();
                 await trackTokenUsage(result.usage.promptTokens, result.usage.completionTokens);
               } else if (canUseServer(aiConfig)) {
@@ -308,6 +319,7 @@ export function registerMessageHandler(): void {
                     landlordInfo,
                     listingTitle: conv.listingTitle,
                     apiKey: aiConfig.apiKey || undefined,
+                    provider: aiConfig.provider,
                     profile,
                     appointmentAction,
                   }),

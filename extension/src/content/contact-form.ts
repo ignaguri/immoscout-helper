@@ -1,18 +1,18 @@
 // Contact form filling and message sending
 
 import type { FormValues, SendMessageResult } from '../shared/types';
-import * as S from './selectors';
-import {
-  findElement,
-  findByLabel,
-  findButtonByKeywords,
-  setInputValue,
-  setSelectValue,
-  setReactValue,
-  sleep,
-  randomDelay,
-} from './dom-helpers';
 import { detectCaptchaElement } from './captcha';
+import {
+  findButtonByKeywords,
+  findByLabel,
+  findElement,
+  randomDelay,
+  setInputValue,
+  setReactValue,
+  setSelectValue,
+  sleep,
+} from './dom-helpers';
+import * as S from './selectors';
 
 // --- Form field defaults ---
 

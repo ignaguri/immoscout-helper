@@ -1,8 +1,8 @@
 <script lang="ts">
 import type { ConversationEntry } from '../../shared/types';
 import { markConversationRead } from '../lib/messages';
-import ConversationMessages from './ConversationMessages.svelte';
 import AppointmentSection from './AppointmentSection.svelte';
+import ConversationMessages from './ConversationMessages.svelte';
 import DraftReplySection from './DraftReplySection.svelte';
 
 let {

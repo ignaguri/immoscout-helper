@@ -1,7 +1,7 @@
 <script lang="ts">
-import { generatePersonalizedMessage } from '../../shared/utils';
-import { geminiGenerateWithImage } from '../../shared/gemini';
+import { PROVIDERS } from '../../shared/ai-router';
 import { CAPTCHA_SYSTEM_PROMPT, CAPTCHA_USER_PROMPT } from '../../shared/prompts';
+import { generatePersonalizedMessage } from '../../shared/utils';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
 import AnalyzeSection from '../components/AnalyzeSection.svelte';
 import type { PopupSettings } from '../lib/storage';
@@ -87,9 +87,10 @@ function getFormValues() {
 }
 
 async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolean; messageSent?: boolean }> {
-  const isDirect = settings.aiMode === 'direct' && !!settings.aiApiKey;
+  const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
+  const isDirect = settings.aiMode === 'direct' && !!currentApiKey;
   const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
-  const apiKey = settings.aiApiKey || undefined;
+  const apiKey = currentApiKey || undefined;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     appendToResult(`Captcha detected - solving (attempt ${attempt}/2)...`);
@@ -117,9 +118,14 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
           appendToResult('Invalid captcha image format');
           return { solved: false };
         }
-        const result = await geminiGenerateWithImage(
-          apiKey, CAPTCHA_SYSTEM_PROMPT, match[2], match[1], CAPTCHA_USER_PROMPT,
-          { maxTokens: 32, thinkingBudget: 0 },
+        const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
+        const result = await provider.generateWithImage(
+          apiKey,
+          CAPTCHA_SYSTEM_PROMPT,
+          match[2],
+          match[1],
+          CAPTCHA_USER_PROMPT,
+          { maxTokens: 32 },
         );
         const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
         captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;
@@ -134,7 +140,7 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
         const response = await fetch(`${serverUrl}/captcha`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey }),
+          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey, provider: settings.aiProvider }),
           signal: controller.signal,
         });
         clearTimeout(timeout);

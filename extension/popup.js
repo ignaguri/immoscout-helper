@@ -1381,6 +1381,8 @@ clearQueueBtn.addEventListener('click', async () => {
 // CONVERSATIONS
 // ============================================================================
 
+let expandedConvId = null;
+
 async function loadConversations() {
   const stored = await chrome.storage.local.get([CONVERSATIONS_KEY, CONVERSATIONS_LAST_CHECK_KEY, CONV_UNREAD_COUNT_KEY]);
   const conversations = stored[CONVERSATIONS_KEY] || [];
@@ -1431,7 +1433,13 @@ async function loadConversations() {
   });
 
   for (const conv of relevant) {
-    convList.appendChild(renderConversationCard(conv));
+    const card = renderConversationCard(conv);
+    // Re-expand the previously expanded card
+    if (expandedConvId && conv.conversationId === expandedConvId) {
+      const body = card.querySelector('.conv-body');
+      if (body) body.style.display = 'block';
+    }
+    convList.appendChild(card);
   }
 }
 
@@ -1451,6 +1459,7 @@ function renderConversationCard(conv) {
     if (body) {
       const isExpanding = body.style.display === 'none';
       body.style.display = isExpanding ? 'block' : 'none';
+      expandedConvId = isExpanding ? conv.conversationId : null;
 
       // Only mark as read when expanding, and don't rebuild the list
       if (isExpanding && conv.hasUnreadReply) {
@@ -1686,7 +1695,7 @@ function renderConversationCard(conv) {
       draftTextarea.value = '';
       draftTextarea.placeholder = 'Generating AI draft...';
       try {
-        await chrome.runtime.sendMessage({ action: 'regenerateDraft', conversationId: conv.conversationId });
+        await chrome.runtime.sendMessage({ action: 'regenerateDraft', conversationId: conv.conversationId, userContext: draftTextarea.value.trim() || '' });
         // Will be updated via conversationUpdate message
       } catch (e) {
         regenBtn.textContent = 'Error';

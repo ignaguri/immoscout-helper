@@ -41,7 +41,8 @@ async function generateText(
     contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
   };
 
-  const generationConfig = buildGenerationConfig(opts);
+  // Suppress extended thinking by default (faster, cheaper for these tasks)
+  const generationConfig = buildGenerationConfig({ ...opts, thinkingBudget: 0 });
   if (Object.keys(generationConfig).length > 0) {
     body.generationConfig = generationConfig;
   }
@@ -101,12 +102,16 @@ async function generateWithImage(
 }
 
 async function validateKey(apiKey: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const url = `${GEMINI_API_BASE}/${DEFAULT_MODEL}?key=${apiKey}`;
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetch(url, { method: 'GET', signal: controller.signal });
     return response.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

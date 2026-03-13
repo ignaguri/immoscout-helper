@@ -69,6 +69,8 @@ export interface Example {
   notes?: string;
 }
 
+export type ProviderId = 'gemini' | 'openai';
+
 export interface AnalyzeRequestBody {
   listingDetails: ListingDetails;
   landlordInfo?: LandlordInfo;
@@ -77,6 +79,7 @@ export interface AnalyzeRequestBody {
   minScore?: number;
   userNotes?: string;
   apiKey?: string;
+  provider?: ProviderId;
   profile?: Profile;
   examples?: Example[];
 }
@@ -84,12 +87,14 @@ export interface AnalyzeRequestBody {
 export interface CaptchaRequestBody {
   imageBase64: string;
   apiKey?: string;
+  provider?: ProviderId;
 }
 
 export interface ShortenRequestBody {
   message: string;
   maxLength: number;
   apiKey?: string;
+  provider?: ProviderId;
 }
 
 export interface ConversationMessage {
@@ -112,6 +117,7 @@ export interface ReplyRequestBody {
   landlordInfo?: LandlordInfo;
   listingTitle?: string;
   apiKey?: string;
+  provider?: ProviderId;
   profile?: Profile;
   appointmentAction?: AppointmentAction;
   userContext?: string;

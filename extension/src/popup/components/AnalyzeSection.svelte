@@ -1,12 +1,12 @@
 <script lang="ts">
-import { geminiGenerateText, geminiGenerateWithImage } from '../../shared/gemini';
+import { PROVIDERS } from '../../shared/ai-router';
 import {
-  buildScoringPrompt,
   buildMessagePrompt,
-  formatListingForPrompt,
-  parseScoreJSON,
+  buildScoringPrompt,
   CAPTCHA_SYSTEM_PROMPT,
   CAPTCHA_USER_PROMPT,
+  formatListingForPrompt,
+  parseScoreJSON,
 } from '../../shared/prompts';
 import type { PopupSettings } from '../lib/storage';
 import { trackTokenUsage } from '../lib/storage';
@@ -93,9 +93,10 @@ function getFormValues() {
 }
 
 async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolean; messageSent?: boolean }> {
-  const isDirect = settings.aiMode === 'direct' && !!settings.aiApiKey;
+  const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
+  const isDirect = settings.aiMode === 'direct' && !!currentApiKey;
   const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
-  const apiKey = settings.aiApiKey || undefined;
+  const apiKey = currentApiKey || undefined;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     appendToResult(`Captcha detected - solving (attempt ${attempt}/2)...`);
@@ -118,15 +119,20 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
       let captchaText: string | null = null;
 
       if (isDirect && apiKey) {
-        // Direct Gemini mode
+        // Direct provider mode
         const match = detection.imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
         if (!match) {
           appendToResult('Invalid captcha image format');
           return { solved: false };
         }
-        const result = await geminiGenerateWithImage(
-          apiKey, CAPTCHA_SYSTEM_PROMPT, match[2], match[1], CAPTCHA_USER_PROMPT,
-          { maxTokens: 32, thinkingBudget: 0 },
+        const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
+        const result = await provider.generateWithImage(
+          apiKey,
+          CAPTCHA_SYSTEM_PROMPT,
+          match[2],
+          match[1],
+          CAPTCHA_USER_PROMPT,
+          { maxTokens: 32 },
         );
         const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
         captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;
@@ -142,7 +148,7 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
         const response = await fetch(`${serverUrl}/captcha`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey }),
+          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey, provider: settings.aiProvider }),
           signal: controller.signal,
         });
         clearTimeout(timeout);
@@ -187,7 +193,8 @@ async function handleAnalyze() {
       return;
     }
     const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
-    const apiKey = settings.aiApiKey || undefined;
+    const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
+    const apiKey = currentApiKey || undefined;
     const profile = buildProfileFromSettings();
 
     analyzeBtnDisabled = true;
@@ -225,17 +232,19 @@ async function handleAnalyze() {
     let result: any;
     try {
       if (isDirect) {
-        // Direct Gemini mode — build prompts locally
+        // Direct provider mode — build prompts locally
         const userProfile = { ...formValues, aboutMe };
         const listingText = formatListingForPrompt(listingDetails);
-        let totalPromptTokens = 0, totalCompletionTokens = 0;
+        let totalPromptTokens = 0,
+          totalCompletionTokens = 0;
+        const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
 
         // Score
         const scoringPrompt = buildScoringPrompt(userProfile, profile);
         const userPrompt = notes
           ? `Bewerte dieses Inserat:\n\n${listingText}\n\nNotizen: ${notes}`
           : `Bewerte dieses Inserat:\n\n${listingText}`;
-        const scoreResult = await geminiGenerateText(apiKey!, scoringPrompt, userPrompt, { maxTokens: 1024, thinkingBudget: 0 });
+        const scoreResult = await provider.generateText(apiKey!, scoringPrompt, userPrompt, { maxTokens: 1024 });
         totalPromptTokens += scoreResult.usage.promptTokens;
         totalCompletionTokens += scoreResult.usage.completionTokens;
 
@@ -249,7 +258,12 @@ async function handleAnalyze() {
         let message: string | undefined;
         try {
           const msgPrompt = buildMessagePrompt(userProfile, landlordInfo, settings.messageTemplate || '', profile);
-          const msgResult = await geminiGenerateText(apiKey!, msgPrompt, `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`, { maxTokens: 4096 });
+          const msgResult = await provider.generateText(
+            apiKey!,
+            msgPrompt,
+            `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`,
+            { maxTokens: 4096 },
+          );
           message = msgResult.text.trim() || undefined;
           totalPromptTokens += msgResult.usage.promptTokens;
           totalCompletionTokens += msgResult.usage.completionTokens;
@@ -258,7 +272,15 @@ async function handleAnalyze() {
         }
 
         await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
-        result = { score, reason, summary, flags, message, skip: false, usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens } };
+        result = {
+          score,
+          reason,
+          summary,
+          flags,
+          message,
+          skip: false,
+          usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+        };
       } else {
         // Server mode
         const payload = {
@@ -269,6 +291,7 @@ async function handleAnalyze() {
           minScore: 0,
           userNotes: notes || undefined,
           apiKey,
+          provider: settings.aiProvider,
           profile,
         };
 

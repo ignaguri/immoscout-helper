@@ -1,13 +1,13 @@
 import * as C from '../shared/constants';
+import { scheduleNextAlarm } from './helpers';
 import {
-  isMonitoring,
   currentCheckInterval,
+  isMonitoring,
   searchTabId,
-  setIsMonitoring,
   setCurrentCheckInterval,
+  setIsMonitoring,
   setSearchTabId,
 } from './state';
-import { scheduleNextAlarm } from './helpers';
 import { syncContactedListings } from './sync';
 
 export async function updateCheckInterval(): Promise<void> {

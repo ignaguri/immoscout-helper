@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMount } from 'svelte';
+import { PROVIDERS } from '../shared/ai-router';
 import { ALARM_NAME } from '../shared/constants';
 import { getStatus, startMonitoring, stopMonitoring } from './lib/messages';
 import type { PopupSettings } from './lib/storage';
@@ -12,9 +13,9 @@ import {
 } from './lib/storage';
 import ActivityTab from './tabs/ActivityTab.svelte';
 import ConversationsTab from './tabs/ConversationsTab.svelte';
+import HelpTab from './tabs/HelpTab.svelte';
 import ProfileTab from './tabs/ProfileTab.svelte';
 import QueueTab from './tabs/QueueTab.svelte';
-import HelpTab from './tabs/HelpTab.svelte';
 import SettingsTab from './tabs/SettingsTab.svelte';
 
 // State
@@ -57,7 +58,9 @@ let settings: PopupSettings = $state({
   formIncomeRange: '1.500 - 2.000',
   formDocuments: 'Vorhanden',
   aiMode: 'direct',
-  aiApiKey: '',
+  aiProvider: 'gemini',
+  aiApiKeyGemini: '',
+  aiApiKeyOpenai: '',
   aiServerUrl: 'http://localhost:3456',
   aiMinScore: 5,
   aiAboutMe: '',
@@ -170,23 +173,15 @@ async function updateAiStats() {
 
 async function checkAiServerHealth() {
   if (settings.aiMode === 'direct') {
-    // Direct mode: validate API key via Gemini model metadata endpoint
-    if (!settings.aiApiKey) {
+    const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
+    if (!currentApiKey) {
       aiServerConnected = false;
       return;
     }
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${settings.aiApiKey}`,
-        { signal: controller.signal },
-      );
-      aiServerConnected = response.ok;
+      aiServerConnected = await (PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini).validateKey(currentApiKey);
     } catch {
       aiServerConnected = false;
-    } finally {
-      clearTimeout(timeout);
     }
   } else {
     // Server mode: check /health endpoint
@@ -217,12 +212,16 @@ async function handleToggle() {
       activeTab = 'activity';
       return;
     }
-    const needsKey = settings.aiMode === 'direct' && !settings.aiApiKey;
+    const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
+    const needsKey = settings.aiMode === 'direct' && !currentApiKey;
     const needsServer = settings.aiMode === 'server' && !settings.aiServerUrl;
     if (needsKey || needsServer) {
-      alert(needsKey
-        ? 'Please configure your Gemini API key in Settings'
-        : 'Please configure your AI server URL in Settings');
+      const providerLabel = (PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini).label;
+      alert(
+        needsKey
+          ? `Please configure your ${providerLabel} API key in Settings`
+          : 'Please configure your AI server URL in Settings',
+      );
       activeTab = 'settings';
       return;
     }

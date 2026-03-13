@@ -1,23 +1,19 @@
 // Listing detail extraction, landlord name, and listing type detection
 
-import type { ListingDetails, LandlordInfo, ListingType } from '../shared/types';
 import * as C from '../shared/constants';
+import type { LandlordInfo, ListingDetails, ListingType } from '../shared/types';
+import { findButtonByKeywords, findElement } from './dom-helpers';
 import * as S from './selectors';
-import { findElement, findButtonByKeywords } from './dom-helpers';
 
 export function detectListingType(): ListingType {
   // Tenant-network listings (Nachvermietung): posted by the current tenant,
   // not the landlord. These have no contact form — only a tenant info box.
-  const isTenantNetwork = S.TENANT_NETWORK_SELECTORS.some(
-    (sel) => !!document.querySelector(sel),
-  );
+  const isTenantNetwork = S.TENANT_NETWORK_SELECTORS.some((sel) => !!document.querySelector(sel));
 
   // Check if a contact button or form exists
   const hasContactForm = !!document.querySelector(S.CONTACT_FORM_DETECT_SELECTORS);
   // Fallback: button with contact-related text
-  const hasContactButton =
-    hasContactForm ||
-    !!findButtonByKeywords(S.CONTACT_BUTTON_KEYWORDS, { skipSubmit: true });
+  const hasContactButton = hasContactForm || !!findButtonByKeywords(S.CONTACT_BUTTON_KEYWORDS, { skipSubmit: true });
 
   return {
     isTenantNetwork,

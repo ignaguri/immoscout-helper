@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlin
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGoogleGenerativeAI, google } from '@ai-sdk/google';
+import { createOpenAI, openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
@@ -14,6 +15,7 @@ import type {
   DocumentsRequestBody,
   ListingDetails,
   LogEntryBody,
+  ProviderId,
   ReplyRequestBody,
   ScoreResult,
   ShortenRequestBody,
@@ -28,11 +30,20 @@ app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 3456;
 
-function getModel(apiKey?: string) {
-  if (apiKey) {
-    return createGoogleGenerativeAI({ apiKey })('gemini-2.5-flash');
+function getModel(provider?: ProviderId, apiKey?: string) {
+  if (provider === 'openai') {
+    if (apiKey) return createOpenAI({ apiKey })('gpt-4o-mini');
+    return openai('gpt-4o-mini');
   }
+  // Default: Gemini
+  if (apiKey) return createGoogleGenerativeAI({ apiKey })('gemini-2.5-flash');
   return google('gemini-2.5-flash');
+}
+
+/** Gemini-specific thinking suppression — omitted for other providers */
+function geminiNoThinking(provider?: ProviderId) {
+  if (provider === 'openai') return {};
+  return { providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } } };
 }
 
 // Format listing details into readable text for the AI
@@ -93,14 +104,24 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Main analysis endpoint
 app.post('/analyze', async (req: Request<{}, unknown, AnalyzeRequestBody>, res: Response) => {
-  const { listingDetails, landlordInfo, userProfile, messageTemplate, minScore, userNotes, apiKey, profile, examples } =
-    req.body;
+  const {
+    listingDetails,
+    landlordInfo,
+    userProfile,
+    messageTemplate,
+    minScore,
+    userNotes,
+    apiKey,
+    provider,
+    profile,
+    examples,
+  } = req.body;
 
   if (!listingDetails) {
     return res.status(400).json({ error: 'listingDetails is required' });
   }
 
-  const model = getModel(apiKey);
+  const model = getModel(provider, apiKey);
   const listingText = formatListingForPrompt(listingDetails);
 
   // Step 1: Score the listing
@@ -117,9 +138,7 @@ app.post('/analyze', async (req: Request<{}, unknown, AnalyzeRequestBody>, res: 
       system: scoringPrompt,
       prompt: `Bewerte dieses Inserat:\n\n${listingText}${userNotes ? `\n\nUSER NOTES: ${userNotes}` : ''}`,
       maxTokens: 1024,
-      providerOptions: {
-        google: { thinkingConfig: { thinkingBudget: 0 } },
-      },
+      ...geminiNoThinking(provider),
     });
     totalPromptTokens += scoreUsage_?.promptTokens || 0;
     totalCompletionTokens += scoreUsage_?.completionTokens || 0;
@@ -230,13 +249,13 @@ app.post('/analyze', async (req: Request<{}, unknown, AnalyzeRequestBody>, res: 
 
 // Captcha solving endpoint
 app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: Response) => {
-  const { imageBase64, apiKey } = req.body;
+  const { imageBase64, apiKey, provider } = req.body;
 
   if (!imageBase64) {
     return res.status(400).json({ error: 'imageBase64 is required' });
   }
 
-  const model = getModel(apiKey);
+  const model = getModel(provider, apiKey);
 
   try {
     // Extract base64 data (strip data URL prefix if present)
@@ -275,7 +294,6 @@ app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: 
       }
     } catch {}
 
-
     const { text, usage: captchaUsage } = await generateText({
       model,
       system:
@@ -297,9 +315,7 @@ app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: 
         },
       ],
       maxTokens: 32,
-      providerOptions: {
-        google: { thinkingConfig: { thinkingBudget: 0 } },
-      },
+      ...geminiNoThinking(provider),
     });
 
     // Strip anything that isn't ASCII alphanumeric (catches Cyrillic, spaces, punctuation)
@@ -321,13 +337,13 @@ app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: 
 
 // Message shortening endpoint — rewrites a message to fit within a character limit
 app.post('/shorten', async (req: Request<{}, unknown, ShortenRequestBody>, res: Response) => {
-  const { message, maxLength, apiKey } = req.body;
+  const { message, maxLength, apiKey, provider } = req.body;
 
   if (!message || !maxLength) {
     return res.status(400).json({ error: 'message and maxLength are required' });
   }
 
-  const model = getModel(apiKey);
+  const model = getModel(provider, apiKey);
 
   console.log(`[Shorten] Shortening message from ${message.length} to max ${maxLength} chars`);
 
@@ -346,9 +362,7 @@ REGELN:
 7. Schreibe NUR die gekürzte Nachricht, nichts anderes.`,
       prompt: `Kürze diese Nachricht auf maximal ${maxLength} Zeichen:\n\n${message}`,
       maxTokens: 2048,
-      providerOptions: {
-        google: { thinkingConfig: { thinkingBudget: 0 } },
-      },
+      ...geminiNoThinking(provider),
     });
 
     const shortened = text.trim();
@@ -373,6 +387,7 @@ app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Resp
     landlordInfo,
     listingTitle,
     apiKey,
+    provider,
     profile,
     appointmentAction,
     userContext,
@@ -382,7 +397,7 @@ app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Resp
     return res.status(400).json({ error: 'conversationHistory is required and must not be empty' });
   }
 
-  const model = getModel(apiKey);
+  const model = getModel(provider, apiKey);
 
   try {
     const systemPrompt = buildReplyPrompt(userProfile || {}, landlordInfo || {}, profile);

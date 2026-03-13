@@ -6,10 +6,13 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx --watch src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "../node_modules/.bin/biome check .",
+    "lint:fix": "../node_modules/.bin/biome check --write ."
   },
   "dependencies": {
     "@ai-sdk/google": "^1.2.0",
+    "@ai-sdk/openai": "^1.2.0",
     "ai": "^4.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

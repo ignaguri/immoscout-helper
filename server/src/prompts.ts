@@ -1,6 +1,6 @@
-import type { Profile, Example, UserProfile, LandlordInfo, ConversationMessage } from './types.js';
+import type { Example, LandlordInfo, Profile, UserProfile } from './types.js';
 
-export function buildScoringPrompt(userProfile: UserProfile, profile?: Profile, examples?: Example[]): string {
+export function buildScoringPrompt(userProfile: UserProfile, profile?: Profile, _examples?: Example[]): string {
   const p = profile || {};
   const profileSection = [
     p.occupation ? `Beruf: ${p.occupation}` : null,
@@ -16,7 +16,9 @@ export function buildScoringPrompt(userProfile: UserProfile, profile?: Profile, 
     p.idealApartment ? `Idealwohnung: ${p.idealApartment}` : null,
     p.maxWarmmiete ? `Maximale Warmmiete: ${p.maxWarmmiete}€` : null,
     p.dealbreakers?.length ? `Ausschlusskriterien: ${p.dealbreakers.join(', ')}` : null,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const today = new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -79,7 +81,7 @@ RED FLAGS (flag and penalize):
 - Unrenovated: Old building (pre-1970) without renovation — flag "unrenovated".
 
 DEALBREAKERS:
-${p.dealbreakers?.length ? p.dealbreakers.map(d => `- ${d}`).join('\n') : '- None specified'}
+${p.dealbreakers?.length ? p.dealbreakers.map((d) => `- ${d}`).join('\n') : '- None specified'}
 
 RESPONSE FORMAT:
 Reply with a JSON object only:
@@ -120,7 +122,9 @@ export function buildMessagePrompt(
     userProfile.children ? `Kinder: ${userProfile.children}` : null,
     userProfile.pets && userProfile.pets !== 'Nein' ? `Haustiere: Ja` : null,
     userProfile.smoker === 'Nein' ? `Nichtraucher` : null,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const isPrivate = landlordInfo.isPrivate ?? false;
   const isTenantNetwork = landlordInfo.isTenantNetwork ?? false;
@@ -189,11 +193,7 @@ REGELN:
 Schreibe NUR die Nachricht, nichts anderes.`;
 }
 
-export function buildReplyPrompt(
-  userProfile: UserProfile,
-  landlordInfo: LandlordInfo,
-  profile?: Profile,
-): string {
+export function buildReplyPrompt(userProfile: UserProfile, landlordInfo: LandlordInfo, profile?: Profile): string {
   const p = profile || {};
   const profileSection = [
     p.name ? `Name: ${p.name}` : null,
@@ -210,7 +210,9 @@ export function buildReplyPrompt(
     userProfile.smoker === 'Nein' ? `Nichtraucher` : null,
     userProfile.income ? `Netto-Haushaltseinkommen: ${userProfile.income}€` : null,
     userProfile.phone ? `Telefon: ${userProfile.phone}` : null,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const isTenantNetwork = landlordInfo.isTenantNetwork ?? false;
   const isPrivate = landlordInfo.isPrivate ?? false;

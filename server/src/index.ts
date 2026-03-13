@@ -1,14 +1,23 @@
 import 'dotenv/config';
-import { appendFileSync, writeFileSync, mkdirSync, readFileSync, unlinkSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { execFile } from 'child_process';
-import express, { type Request, type Response } from 'express';
-import cors from 'cors';
+import { execFile } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createGoogleGenerativeAI, google } from '@ai-sdk/google';
 import { generateText } from 'ai';
-import { google, createGoogleGenerativeAI } from '@ai-sdk/google';
-import { buildScoringPrompt, buildMessagePrompt, buildReplyPrompt } from './prompts.js';
-import type { ListingDetails, AnalyzeRequestBody, CaptchaRequestBody, ShortenRequestBody, ScoreResult, LogEntryBody, ReplyRequestBody, DocumentsRequestBody } from './types.js';
+import cors from 'cors';
+import express, { type Request, type Response } from 'express';
+import { buildMessagePrompt, buildReplyPrompt, buildScoringPrompt } from './prompts.js';
+import type {
+  AnalyzeRequestBody,
+  CaptchaRequestBody,
+  DocumentsRequestBody,
+  ListingDetails,
+  LogEntryBody,
+  ReplyRequestBody,
+  ScoreResult,
+  ShortenRequestBody,
+} from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LOG_FILE = join(__dirname, '..', 'data', 'activity.jsonl');
@@ -17,7 +26,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const PORT = process.env['PORT'] || 3456;
+const PORT = process.env.PORT || 3456;
 
 function getModel(apiKey?: string) {
   if (apiKey) {
@@ -84,7 +93,8 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Main analysis endpoint
 app.post('/analyze', async (req: Request<{}, unknown, AnalyzeRequestBody>, res: Response) => {
-  const { listingDetails, landlordInfo, userProfile, messageTemplate, minScore, userNotes, apiKey, profile, examples } = req.body;
+  const { listingDetails, landlordInfo, userProfile, messageTemplate, minScore, userNotes, apiKey, profile, examples } =
+    req.body;
 
   if (!listingDetails) {
     return res.status(400).json({ error: 'listingDetails is required' });
@@ -136,7 +146,13 @@ app.post('/analyze', async (req: Request<{}, unknown, AnalyzeRequestBody>, res: 
           let end = -1;
           for (let i = start; i < scoreText.length; i++) {
             if (scoreText[i] === '{') depth++;
-            else if (scoreText[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+            else if (scoreText[i] === '}') {
+              depth--;
+              if (depth === 0) {
+                end = i;
+                break;
+              }
+            }
           }
           if (end !== -1) {
             try {
@@ -166,8 +182,17 @@ app.post('/analyze', async (req: Request<{}, unknown, AnalyzeRequestBody>, res: 
 
   // If score is below threshold, skip message generation
   if (score < effectiveMinScore) {
-    console.log(`[Analyze] Score ${score}/${effectiveMinScore} — skipping${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`);
-    return res.json({ score, reason, summary, flags, skip: true, usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens } });
+    console.log(
+      `[Analyze] Score ${score}/${effectiveMinScore} — skipping${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
+    );
+    return res.json({
+      score,
+      reason,
+      summary,
+      flags,
+      skip: true,
+      usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+    });
   }
 
   // Step 2: Generate personalized message
@@ -189,8 +214,18 @@ app.post('/analyze', async (req: Request<{}, unknown, AnalyzeRequestBody>, res: 
     // Return score but null message — extension falls back to template
   }
 
-  console.log(`[Analyze] Score ${score}/10 — message ${message ? 'generated' : 'fallback to template'}${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`);
-  res.json({ score, reason, summary, flags, message, skip: false, usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens } });
+  console.log(
+    `[Analyze] Score ${score}/10 — message ${message ? 'generated' : 'fallback to template'}${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
+  );
+  res.json({
+    score,
+    reason,
+    summary,
+    flags,
+    message,
+    skip: false,
+    usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+  });
 });
 
 // Captcha solving endpoint
@@ -215,7 +250,9 @@ app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: 
 
     // Save captcha image for debugging
     const captchaDir = join(__dirname, '..', 'data', 'captchas');
-    try { mkdirSync(captchaDir, { recursive: true }); } catch {}
+    try {
+      mkdirSync(captchaDir, { recursive: true });
+    } catch {}
     const ext = mimeType.split('/')[1] || 'png';
     const captchaPath = join(captchaDir, `captcha-${Date.now()}.${ext}`);
     writeFileSync(captchaPath, imageBuffer);
@@ -223,21 +260,24 @@ app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: 
 
     const { text, usage: captchaUsage } = await generateText({
       model,
-      system: 'You are a captcha solver. The image contains a security captcha with 5–7 distorted alphanumeric characters (only ASCII letters a–z and digits 0–9, no special characters, no spaces). The text may be warped, have noise, or an unusual background. Examine every character carefully. Output ONLY the alphanumeric characters you see — nothing else, no explanation, no punctuation, no newlines.',
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            image: imageBuffer,
-            mimeType,
-          },
-          {
-            type: 'text',
-            text: 'What are the characters in this captcha?',
-          },
-        ],
-      }],
+      system:
+        'You are a captcha solver. The image contains a security captcha with 5–7 distorted alphanumeric characters (only ASCII letters a–z and digits 0–9, no special characters, no spaces). The text may be warped, have noise, or an unusual background. Examine every character carefully. Output ONLY the alphanumeric characters you see — nothing else, no explanation, no punctuation, no newlines.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              image: imageBuffer,
+              mimeType,
+            },
+            {
+              type: 'text',
+              text: 'What are the characters in this captcha?',
+            },
+          ],
+        },
+      ],
       maxTokens: 32,
       providerOptions: {
         google: { thinkingConfig: { thinkingBudget: 0 } },
@@ -251,7 +291,10 @@ app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: 
       return res.json({ text: null, error: 'Could not read captcha' });
     }
     console.log(`[Captcha] Solved: "${answer}" (raw: "${text.trim()}")`);
-    res.json({ text: answer, usage: { promptTokens: captchaUsage?.promptTokens || 0, completionTokens: captchaUsage?.completionTokens || 0 } });
+    res.json({
+      text: answer,
+      usage: { promptTokens: captchaUsage?.promptTokens || 0, completionTokens: captchaUsage?.completionTokens || 0 },
+    });
   } catch (error) {
     console.error('[Captcha] Error:', (error as Error).message);
     res.json({ text: null, error: (error as Error).message });
@@ -292,7 +335,12 @@ REGELN:
 
     const shortened = text.trim();
     console.log(`[Shorten] Result: ${shortened.length} chars (limit: ${maxLength})`);
-    res.json({ message: shortened, originalLength: message.length, shortenedLength: shortened.length, usage: { promptTokens: shortenUsage?.promptTokens || 0, completionTokens: shortenUsage?.completionTokens || 0 } });
+    res.json({
+      message: shortened,
+      originalLength: message.length,
+      shortenedLength: shortened.length,
+      usage: { promptTokens: shortenUsage?.promptTokens || 0, completionTokens: shortenUsage?.completionTokens || 0 },
+    });
   } catch (error) {
     console.error('[Shorten] Error:', (error as Error).message);
     res.status(502).json({ error: 'Shortening failed', details: (error as Error).message });
@@ -301,7 +349,16 @@ REGELN:
 
 // Reply generation endpoint
 app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Response) => {
-  const { conversationHistory, userProfile, landlordInfo, listingTitle, apiKey, profile, appointmentAction, userContext } = req.body;
+  const {
+    conversationHistory,
+    userProfile,
+    landlordInfo,
+    listingTitle,
+    apiKey,
+    profile,
+    appointmentAction,
+    userContext,
+  } = req.body;
 
   if (!conversationHistory || !conversationHistory.length) {
     return res.status(400).json({ error: 'conversationHistory is required and must not be empty' });
@@ -313,7 +370,7 @@ app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Resp
     const systemPrompt = buildReplyPrompt(userProfile || {}, landlordInfo || {}, profile);
 
     const conversationText = conversationHistory
-      .map(msg => {
+      .map((msg) => {
         const label = msg.role === 'user' ? 'ICH (Bewerber)' : 'VERMIETER/ANBIETER';
         const time = msg.timestamp ? ` [${msg.timestamp}]` : '';
         return `${label}${time}:\n${msg.text}`;
@@ -335,7 +392,9 @@ app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Resp
         `GEWÜNSCHTE AKTION: ${actionLabels[appointmentAction.type] || appointmentAction.type}`,
         appointmentAction.userContext ? `ZUSÄTZLICHER KONTEXT VOM NUTZER: ${appointmentAction.userContext}` : null,
         `Schreibe eine passende kurze Antwort (30-60 Wörter). Berücksichtige den Kontext des Nutzers falls vorhanden.`,
-      ].filter(Boolean).join('\n');
+      ]
+        .filter(Boolean)
+        .join('\n');
       appointmentContext = parts;
     }
 
@@ -353,7 +412,10 @@ app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Resp
 
     const reply = text.trim();
     console.log(`[Reply] Generated reply (${reply.length} chars)`);
-    res.json({ reply, usage: { promptTokens: replyUsage?.promptTokens || 0, completionTokens: replyUsage?.completionTokens || 0 } });
+    res.json({
+      reply,
+      usage: { promptTokens: replyUsage?.promptTokens || 0, completionTokens: replyUsage?.completionTokens || 0 },
+    });
   } catch (error) {
     console.error('[Reply] Error:', (error as Error).message);
     res.status(502).json({ error: 'Reply generation failed', details: (error as Error).message });
@@ -409,7 +471,11 @@ app.post('/documents/generate', async (req: Request<{}, unknown, DocumentsReques
     const pdfBuffer = readFileSync(outputPath);
 
     // Clean up temp file
-    try { unlinkSync(outputPath); } catch { /* ignore */ }
+    try {
+      unlinkSync(outputPath);
+    } catch {
+      /* ignore */
+    }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="Bewerbungsunterlagen_${namePart}_${street}.pdf"`);
@@ -428,8 +494,10 @@ app.post('/log', (req: Request<{}, unknown, LogEntryBody>, res: Response) => {
   };
 
   try {
-    appendFileSync(LOG_FILE, JSON.stringify(entry) + '\n');
-    console.log(`[Log] ${entry.action.toUpperCase()} ${entry.listingId} — score ${entry.score ?? '?'}: ${entry.reason ?? 'n/a'}`);
+    appendFileSync(LOG_FILE, `${JSON.stringify(entry)}\n`);
+    console.log(
+      `[Log] ${entry.action.toUpperCase()} ${entry.listingId} — score ${entry.score ?? '?'}: ${entry.reason ?? 'n/a'}`,
+    );
     res.json({ ok: true });
   } catch (error) {
     console.error('[Log] Write error:', (error as Error).message);

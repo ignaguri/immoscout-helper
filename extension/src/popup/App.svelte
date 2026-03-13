@@ -14,6 +14,7 @@ import ActivityTab from './tabs/ActivityTab.svelte';
 import ConversationsTab from './tabs/ConversationsTab.svelte';
 import ProfileTab from './tabs/ProfileTab.svelte';
 import QueueTab from './tabs/QueueTab.svelte';
+import HelpTab from './tabs/HelpTab.svelte';
 import SettingsTab from './tabs/SettingsTab.svelte';
 
 // State
@@ -107,6 +108,7 @@ const tabs = [
   { id: 'queue', label: 'Queue' },
   { id: 'replies', label: 'Replies' },
   { id: 'settings', label: 'Settings' },
+  { id: 'help', label: '?' },
 ];
 
 // Status badge
@@ -430,6 +432,10 @@ onMount(() => {
           bind:aiPromptTokens
           bind:aiCompletionTokens
         />
+      </div>
+    {:else if activeTab === 'help'}
+      <div class="tab-content active">
+        <HelpTab />
       </div>
     {/if}
   </div>

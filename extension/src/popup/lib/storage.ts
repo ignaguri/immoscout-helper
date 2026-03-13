@@ -2,8 +2,8 @@ import {
   ACTIVITY_LOG_KEY,
   AI_ABOUT_ME_KEY,
   AI_API_KEY_KEY,
-  AI_ENABLED_KEY,
   AI_MIN_SCORE_KEY,
+  AI_MODE_KEY,
   AI_SERVER_URL_KEY,
   AI_USAGE_COMPLETION_TOKENS_KEY,
   AI_USAGE_PROMPT_TOKENS_KEY,
@@ -102,7 +102,7 @@ export interface PopupSettings {
   formIncomeRange: string;
   formDocuments: string;
   // AI
-  aiEnabled: boolean;
+  aiMode: 'direct' | 'server';
   aiApiKey: string;
   aiServerUrl: string;
   aiMinScore: number;
@@ -127,7 +127,7 @@ const ALL_SETTINGS_KEYS = [
   FORM_EMPLOYMENT_KEY,
   FORM_INCOME_RANGE_KEY,
   FORM_DOCUMENTS_KEY,
-  AI_ENABLED_KEY,
+  AI_MODE_KEY,
   AI_API_KEY_KEY,
   AI_SERVER_URL_KEY,
   AI_MIN_SCORE_KEY,
@@ -194,7 +194,7 @@ export async function loadAllSettings(): Promise<PopupSettings> {
     formEmployment: result[FORM_EMPLOYMENT_KEY] || 'Angestellte:r',
     formIncomeRange: result[FORM_INCOME_RANGE_KEY] || '1.500 - 2.000',
     formDocuments: result[FORM_DOCUMENTS_KEY] || 'Vorhanden',
-    aiEnabled: result[AI_ENABLED_KEY] || false,
+    aiMode: result[AI_MODE_KEY] || 'direct',
     aiApiKey: result[AI_API_KEY_KEY] || '',
     aiServerUrl: result[AI_SERVER_URL_KEY] || 'http://localhost:3456',
     aiMinScore: result[AI_MIN_SCORE_KEY] ?? 5,
@@ -241,7 +241,7 @@ export async function saveAllSettings(s: PopupSettings): Promise<void> {
     [FORM_EMPLOYMENT_KEY]: s.formEmployment || 'Angestellte:r',
     [FORM_INCOME_RANGE_KEY]: s.formIncomeRange || '1.500 - 2.000',
     [FORM_DOCUMENTS_KEY]: s.formDocuments || 'Vorhanden',
-    [AI_ENABLED_KEY]: s.aiEnabled,
+    [AI_MODE_KEY]: s.aiMode || 'direct',
     [AI_API_KEY_KEY]: s.aiApiKey.trim(),
     [AI_SERVER_URL_KEY]: s.aiServerUrl.trim() || 'http://localhost:3456',
     [AI_MIN_SCORE_KEY]: Math.max(1, Math.min(10, s.aiMinScore || 5)),

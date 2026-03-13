@@ -1,4 +1,13 @@
 <script lang="ts">
+import { geminiGenerateText, geminiGenerateWithImage } from '../../shared/gemini';
+import {
+  buildScoringPrompt,
+  buildMessagePrompt,
+  formatListingForPrompt,
+  parseScoreJSON,
+  CAPTCHA_SYSTEM_PROMPT,
+  CAPTCHA_USER_PROMPT,
+} from '../../shared/prompts';
 import type { PopupSettings } from '../lib/storage';
 import { trackTokenUsage } from '../lib/storage';
 
@@ -84,6 +93,7 @@ function getFormValues() {
 }
 
 async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolean; messageSent?: boolean }> {
+  const isDirect = settings.aiMode === 'direct' && !!settings.aiApiKey;
   const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
   const apiKey = settings.aiApiKey || undefined;
 
@@ -105,24 +115,52 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
       return { solved: false };
     }
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(`${serverUrl}/captcha`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      const result = await response.json();
-      if (!result.text) {
-        appendToResult(`Server could not solve captcha: ${result.error}`);
-        return { solved: false };
+      let captchaText: string | null = null;
+
+      if (isDirect && apiKey) {
+        // Direct Gemini mode
+        const match = detection.imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
+        if (!match) {
+          appendToResult('Invalid captcha image format');
+          return { solved: false };
+        }
+        const result = await geminiGenerateWithImage(
+          apiKey, CAPTCHA_SYSTEM_PROMPT, match[2], match[1], CAPTCHA_USER_PROMPT,
+          { maxTokens: 32, thinkingBudget: 0 },
+        );
+        const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
+        captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;
+        await trackTokenUsage(result.usage.promptTokens, result.usage.completionTokens);
+        if (!captchaText) {
+          appendToResult(`AI could not solve captcha (raw: "${result.text.trim()}")`);
+          return { solved: false };
+        }
+      } else {
+        // Server mode
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const response = await fetch(`${serverUrl}/captcha`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        const result = await response.json();
+        captchaText = result.text || null;
+        if (result.usage) {
+          await trackTokenUsage(result.usage.promptTokens || 0, result.usage.completionTokens || 0);
+        }
+        if (!captchaText) {
+          appendToResult(`Server could not solve captcha: ${result.error}`);
+          return { solved: false };
+        }
       }
-      appendToResult(`Solution: "${result.text}", submitting...`);
+
+      appendToResult(`Solution: "${captchaText}", submitting...`);
       const solveResult = await chrome.tabs.sendMessage(tabId, {
         action: 'solveCaptcha',
-        text: result.text,
+        text: captchaText,
       });
       if (solveResult?.success) {
         if (solveResult.messageSent) {
@@ -182,40 +220,80 @@ async function handleAnalyze() {
     const formValues = getFormValues();
     const aboutMe = settings.aiAboutMe || '';
     const notes = analyzeNotes.trim();
-    const payload = {
-      listingDetails,
-      landlordInfo,
-      userProfile: { ...formValues, aboutMe },
-      messageTemplate: settings.messageTemplate || '',
-      minScore: 0,
-      userNotes: notes || undefined,
-      apiKey,
-      profile,
-    };
+    const isDirect = settings.aiMode === 'direct' && !!apiKey;
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
     let result: any;
     try {
-      const response = await fetch(`${serverUrl}/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!response.ok) throw new Error(`Server returned ${response.status}`);
-      result = await response.json();
+      if (isDirect) {
+        // Direct Gemini mode — build prompts locally
+        const userProfile = { ...formValues, aboutMe };
+        const listingText = formatListingForPrompt(listingDetails);
+        let totalPromptTokens = 0, totalCompletionTokens = 0;
 
-      if (result.usage) {
-        await trackTokenUsage(result.usage.promptTokens || 0, result.usage.completionTokens || 0);
+        // Score
+        const scoringPrompt = buildScoringPrompt(userProfile, profile);
+        const userPrompt = notes
+          ? `Bewerte dieses Inserat:\n\n${listingText}\n\nNotizen: ${notes}`
+          : `Bewerte dieses Inserat:\n\n${listingText}`;
+        const scoreResult = await geminiGenerateText(apiKey!, scoringPrompt, userPrompt, { maxTokens: 1024, thinkingBudget: 0 });
+        totalPromptTokens += scoreResult.usage.promptTokens;
+        totalCompletionTokens += scoreResult.usage.completionTokens;
+
+        const parsed = parseScoreJSON(scoreResult.text);
+        const score = parsed?.score ?? 5;
+        const reason = parsed?.reason ?? 'Score konnte nicht ermittelt werden';
+        const summary = parsed?.summary;
+        const flags = parsed?.flags || [];
+
+        // Generate message (always, since minScore=0 for popup analyze)
+        let message: string | undefined;
+        try {
+          const msgPrompt = buildMessagePrompt(userProfile, landlordInfo, settings.messageTemplate || '', profile);
+          const msgResult = await geminiGenerateText(apiKey!, msgPrompt, `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`, { maxTokens: 4096 });
+          message = msgResult.text.trim() || undefined;
+          totalPromptTokens += msgResult.usage.promptTokens;
+          totalCompletionTokens += msgResult.usage.completionTokens;
+        } catch (e: any) {
+          console.error('[Analyze/Direct] Message generation failed:', e.message);
+        }
+
+        await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
+        result = { score, reason, summary, flags, message, skip: false, usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens } };
+      } else {
+        // Server mode
+        const payload = {
+          listingDetails,
+          landlordInfo,
+          userProfile: { ...formValues, aboutMe },
+          messageTemplate: settings.messageTemplate || '',
+          minScore: 0,
+          userNotes: notes || undefined,
+          apiKey,
+          profile,
+        };
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+        const response = await fetch(`${serverUrl}/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
+        result = await response.json();
+
+        if (result.usage) {
+          await trackTokenUsage(result.usage.promptTokens || 0, result.usage.completionTokens || 0);
+        }
       }
     } catch (e: any) {
-      clearTimeout(timeout);
       analyzeBtnDisabled = false;
       analyzeBtnText = 'Analyze Current Listing';
       const msg = e.name === 'AbortError' ? 'Request timed out (30s)' : e.message;
-      showTestResult(`AI server error: ${msg}\n\nMake sure the server is running at ${serverUrl}`, true);
+      const hint = isDirect ? 'Check your API key in Settings.' : `Make sure the server is running at ${serverUrl}`;
+      showTestResult(`AI error: ${msg}\n\n${hint}`, true);
       return;
     }
 
@@ -307,18 +385,7 @@ async function handleSendAnalyzed() {
     if (sendResult?.success) {
       appendToResult('\nMessage sent successfully!');
       testResultIsError = false;
-      if (lastAnalyzeContext) {
-        const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
-        try {
-          await fetch(`${serverUrl}/log`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...lastAnalyzeContext, action: 'sent' }),
-          });
-        } catch {
-          /* logging is best-effort */
-        }
-      }
+      // Activity logging is handled via chrome.storage.local in background
     } else {
       appendToResult(`\n${sendResult?.error || 'Unknown error'}`);
       testResultIsError = true;

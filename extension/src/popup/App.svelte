@@ -14,6 +14,7 @@ import ActivityTab from './tabs/ActivityTab.svelte';
 import ConversationsTab from './tabs/ConversationsTab.svelte';
 import ProfileTab from './tabs/ProfileTab.svelte';
 import QueueTab from './tabs/QueueTab.svelte';
+import HelpTab from './tabs/HelpTab.svelte';
 import SettingsTab from './tabs/SettingsTab.svelte';
 
 // State
@@ -55,7 +56,7 @@ let settings: PopupSettings = $state({
   formEmployment: 'Angestellte:r',
   formIncomeRange: '1.500 - 2.000',
   formDocuments: 'Vorhanden',
-  aiEnabled: false,
+  aiMode: 'direct',
   aiApiKey: '',
   aiServerUrl: 'http://localhost:3456',
   aiMinScore: 5,
@@ -106,6 +107,7 @@ const tabs = [
   { id: 'queue', label: 'Queue' },
   { id: 'replies', label: 'Replies' },
   { id: 'settings', label: 'Settings' },
+  { id: 'help', label: 'Help' },
 ];
 
 // Status badge
@@ -167,16 +169,39 @@ async function updateAiStats() {
 }
 
 async function checkAiServerHealth() {
-  const url = settings.aiServerUrl || 'http://localhost:3456';
-  try {
+  if (settings.aiMode === 'direct') {
+    // Direct mode: validate API key via Gemini model metadata endpoint
+    if (!settings.aiApiKey) {
+      aiServerConnected = false;
+      return;
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${settings.aiApiKey}`,
+        { signal: controller.signal },
+      );
+      aiServerConnected = response.ok;
+    } catch {
+      aiServerConnected = false;
+    } finally {
+      clearTimeout(timeout);
+    }
+  } else {
+    // Server mode: check /health endpoint
+    const url = settings.aiServerUrl || 'http://localhost:3456';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const response = await fetch(`${url}/health`, { signal: controller.signal });
-    clearTimeout(timeout);
-    const data = await response.json();
-    aiServerConnected = data.status === 'ok';
-  } catch {
-    aiServerConnected = false;
+    try {
+      const response = await fetch(`${url}/health`, { signal: controller.signal });
+      const data = await response.json();
+      aiServerConnected = data.status === 'ok';
+    } catch {
+      aiServerConnected = false;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 }
 
@@ -192,9 +217,13 @@ async function handleToggle() {
       activeTab = 'activity';
       return;
     }
-    if (!settings.messageTemplate.trim()) {
-      alert('Please enter a message');
-      activeTab = 'activity';
+    const needsKey = settings.aiMode === 'direct' && !settings.aiApiKey;
+    const needsServer = settings.aiMode === 'server' && !settings.aiServerUrl;
+    if (needsKey || needsServer) {
+      alert(needsKey
+        ? 'Please configure your Gemini API key in Settings'
+        : 'Please configure your AI server URL in Settings');
+      activeTab = 'settings';
       return;
     }
     await saveAllSettings(settings);
@@ -407,7 +436,12 @@ onMount(() => {
           bind:aiStatsSkipped
           bind:aiPromptTokens
           bind:aiCompletionTokens
+          onNavigate={(tab) => activeTab = tab}
         />
+      </div>
+    {:else if activeTab === 'help'}
+      <div class="tab-content active">
+        <HelpTab />
       </div>
     {/if}
   </div>
@@ -750,7 +784,7 @@ onMount(() => {
     font-size: 11px;
     padding: 4px 10px;
     border-radius: 12px;
-    margin-top: 8px;
+    margin-bottom: 12px;
   }
 
   :global(.ai-status.connected) {
@@ -834,7 +868,7 @@ onMount(() => {
 
   /* Setup instructions box */
   :global(.setup-box) {
-    margin-top: 10px;
+    margin-bottom: 12px;
     padding: 12px;
     background: #f0f7ff;
     border: 1px solid #c8dff5;

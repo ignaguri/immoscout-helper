@@ -1,6 +1,9 @@
 import * as C from '../shared/constants';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';
+import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage } from '../shared/ai-router';
+import { geminiGenerateText } from '../shared/gemini';
+import { buildReplyPrompt, buildConversationText } from '../shared/prompts';
 import type { ConversationApiResponse } from './sync';
 import { sendActivityLog } from './listings';
 
@@ -223,7 +226,7 @@ export async function fetchConversationMessages(conversationId: string): Promise
   return null;
 }
 
-// Generate a draft reply using the AI server
+// Generate a draft reply using AI (direct Gemini or server)
 export async function generateDraftReply(
   conversation: ConversationEntry,
   serverUrl: string,
@@ -233,7 +236,7 @@ export async function generateDraftReply(
   if (!conversation.messages || conversation.messages.length === 0) return;
 
   try {
-    // Load user profile for context
+    const config = await getAIConfig();
     const profile = await getProfile();
     const formKeys = [
       C.AI_ABOUT_ME_KEY,
@@ -247,57 +250,71 @@ export async function generateDraftReply(
     ];
     const formData: Record<string, any> = await chrome.storage.local.get(formKeys);
 
-    const response = await fetch(`${serverUrl}/reply`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        conversationHistory: conversation.messages,
-        userProfile: {
-          adults: formData[C.FORM_ADULTS_KEY],
-          children: formData[C.FORM_CHILDREN_KEY],
-          pets: formData[C.FORM_PETS_KEY],
-          smoker: formData[C.FORM_SMOKER_KEY],
-          income: formData[C.FORM_INCOME_KEY],
-          incomeRange: formData[C.FORM_INCOME_RANGE_KEY],
-          aboutMe: formData[C.AI_ABOUT_ME_KEY],
-          phone: formData[C.FORM_PHONE_KEY],
-        },
-        landlordInfo: {
-          name: conversation.landlordName,
-        },
-        listingTitle: conversation.listingTitle,
-        userContext: userContext || undefined,
-        apiKey: apiKey || undefined,
-        profile,
-      }),
-    });
+    const userProfile = {
+      adults: formData[C.FORM_ADULTS_KEY],
+      children: formData[C.FORM_CHILDREN_KEY],
+      pets: formData[C.FORM_PETS_KEY],
+      smoker: formData[C.FORM_SMOKER_KEY],
+      income: formData[C.FORM_INCOME_KEY],
+      incomeRange: formData[C.FORM_INCOME_RANGE_KEY],
+      aboutMe: formData[C.AI_ABOUT_ME_KEY],
+      phone: formData[C.FORM_PHONE_KEY],
+    };
 
-    if (!response.ok) {
-      console.error(`[Conversations] Draft reply API error: ${response.status}`);
+    const landlordInfo = { name: conversation.landlordName };
+
+    let reply: string | null = null;
+    let replyUsage = { promptTokens: 0, completionTokens: 0 };
+
+    if (canUseDirect(config) && config.apiKey) {
+      // Direct Gemini mode
+      const systemPrompt = buildReplyPrompt(userProfile, landlordInfo, profile);
+      const conversationText = buildConversationText(
+        conversation.messages,
+        conversation.listingTitle || undefined,
+        undefined,
+        userContext || undefined,
+      );
+      const result = await geminiGenerateText(config.apiKey, systemPrompt, conversationText, { maxTokens: 2048 });
+      reply = result.text.trim() || null;
+      replyUsage = result.usage;
+    } else if (canUseServer(config)) {
+      // Server mode
+      const response = await fetch(`${config.serverUrl}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationHistory: conversation.messages,
+          userProfile,
+          landlordInfo,
+          listingTitle: conversation.listingTitle,
+          userContext: userContext || undefined,
+          apiKey: apiKey || undefined,
+          profile,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`[Conversations] Draft reply API error: ${response.status}`);
+        await updateConversationDraft(conversation.conversationId, null, 'none');
+        return;
+      }
+
+      const result: any = await response.json();
+      reply = result.reply || null;
+      if (result.usage) {
+        replyUsage = { promptTokens: result.usage.promptTokens || 0, completionTokens: result.usage.completionTokens || 0 };
+      }
+    } else {
+      console.warn('[Conversations] No valid AI configuration for draft reply');
       await updateConversationDraft(conversation.conversationId, null, 'none');
       return;
     }
 
-    const result: any = await response.json();
-    if (result.reply) {
-      await updateConversationDraft(conversation.conversationId, result.reply, 'ready');
-      console.log(
-        `[Conversations] Draft reply generated for ${conversation.conversationId} (${result.reply.length} chars)`,
-      );
-
-      // Track token usage
-      if (result.usage) {
-        const usageStored: Record<string, any> = await chrome.storage.local.get([
-          C.AI_USAGE_PROMPT_TOKENS_KEY,
-          C.AI_USAGE_COMPLETION_TOKENS_KEY,
-        ]);
-        await chrome.storage.local.set({
-          [C.AI_USAGE_PROMPT_TOKENS_KEY]:
-            (usageStored[C.AI_USAGE_PROMPT_TOKENS_KEY] || 0) + (result.usage.promptTokens || 0),
-          [C.AI_USAGE_COMPLETION_TOKENS_KEY]:
-            (usageStored[C.AI_USAGE_COMPLETION_TOKENS_KEY] || 0) + (result.usage.completionTokens || 0),
-        });
-      }
+    if (reply) {
+      await updateConversationDraft(conversation.conversationId, reply, 'ready');
+      console.log(`[Conversations] Draft reply generated for ${conversation.conversationId} (${reply.length} chars)`);
+      await trackTokenUsage(replyUsage.promptTokens, replyUsage.completionTokens);
 
       // Notify popup
       try {

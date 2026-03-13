@@ -24,7 +24,7 @@ function buildExtensionScripts() {
           outDir: resolve(__dirname, 'dist'),
           emptyOutDir: false,
           lib: {
-            entry: resolve(__dirname, 'src/background.ts'),
+            entry: resolve(__dirname, 'src/background/index.ts'),
             name: 'background',
             formats: ['iife'],
             fileName: () => 'background.js',
@@ -45,7 +45,7 @@ function buildExtensionScripts() {
           outDir: resolve(__dirname, 'dist'),
           emptyOutDir: false,
           lib: {
-            entry: resolve(__dirname, 'src/content.ts'),
+            entry: resolve(__dirname, 'src/content/index.ts'),
             name: 'content',
             formats: ['iife'],
             fileName: () => 'content.js',

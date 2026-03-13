@@ -1,7 +1,7 @@
 <script lang="ts">
-import { generatePersonalizedMessage } from '../../shared/utils';
 import { PROVIDERS } from '../../shared/ai-router';
 import { CAPTCHA_SYSTEM_PROMPT, CAPTCHA_USER_PROMPT } from '../../shared/prompts';
+import { generatePersonalizedMessage } from '../../shared/utils';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
 import AnalyzeSection from '../components/AnalyzeSection.svelte';
 import type { PopupSettings } from '../lib/storage';
@@ -120,7 +120,11 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
         }
         const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
         const result = await provider.generateWithImage(
-          apiKey, CAPTCHA_SYSTEM_PROMPT, match[2], match[1], CAPTCHA_USER_PROMPT,
+          apiKey,
+          CAPTCHA_SYSTEM_PROMPT,
+          match[2],
+          match[1],
+          CAPTCHA_USER_PROMPT,
           { maxTokens: 32 },
         );
         const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');

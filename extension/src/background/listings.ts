@@ -1,10 +1,10 @@
 import * as C from '../shared/constants';
 import { capSeenListings } from '../shared/utils';
-import { isMonitoring, setSearchTabId } from './state';
-import { waitForTabLoad, humanDelay } from './helpers';
-import { findOrCreateSearchTab } from './tabs';
-import { syncContactedListings } from './sync';
+import { humanDelay, waitForTabLoad } from './helpers';
 import { enqueueListings, processQueue } from './queue';
+import { isMonitoring, setSearchTabId } from './state';
+import { syncContactedListings } from './sync';
+import { findOrCreateSearchTab } from './tabs';
 
 export interface Listing {
   id: string;

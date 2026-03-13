@@ -2,14 +2,14 @@
 // All logic lives in the feature modules; this file only wires up the
 // chrome.runtime.onMessage listener.
 
-import type { ContentRequest, CheckMessageSentResult } from '../shared/types';
-import * as S from './selectors';
-import { simulateHumanEngagement } from './dom-helpers';
-import { extractListings, extractPaginationInfo } from './listings';
-import { extractLandlordName, extractListingDetails, detectListingType } from './listing-details';
+import type { CheckMessageSentResult, ContentRequest } from '../shared/types';
 import { detectCaptcha, detectCaptchaElement, fillCaptchaAndSubmit } from './captcha';
 import { sendMessageToLandlord } from './contact-form';
+import { simulateHumanEngagement } from './dom-helpers';
+import { detectListingType, extractLandlordName, extractListingDetails } from './listing-details';
+import { extractListings, extractPaginationInfo } from './listings';
 import { fillConversationReply, handleAppointment } from './messenger';
+import * as S from './selectors';
 
 chrome.runtime.onMessage.addListener(
   (

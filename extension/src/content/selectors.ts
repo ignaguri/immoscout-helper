@@ -3,8 +3,7 @@
 // --- Captcha selectors ---
 export const CAPTCHA_IMAGE_SELECTORS = '.captcha-image-container img, img[src*="captcha"]';
 export const CAPTCHA_HEADING_KEYWORDS = 'Sicherheitsabfrage';
-export const CAPTCHA_INPUT_SELECTORS =
-  'input#userAnswer, input[data-testid="userAnswer"], input[name="captcha"]';
+export const CAPTCHA_INPUT_SELECTORS = 'input#userAnswer, input[data-testid="userAnswer"], input[name="captcha"]';
 
 // --- Contact form selectors ---
 export const TEXTAREA_SELECTORS = [
@@ -81,8 +80,7 @@ export const CONTACT_FORM_DETECT_SELECTORS =
   'button[data-testid="contact-button"], textarea[name="message"], form[data-testid="contact-form"]';
 
 // --- Message sent / success selectors ---
-export const MESSAGE_SENT_SELECTORS =
-  '[class*="status-confirm"], [class*="StatusMessage_status-confirm"]';
+export const MESSAGE_SENT_SELECTORS = '[class*="status-confirm"], [class*="StatusMessage_status-confirm"]';
 export const MESSAGE_SENT_TEXT = 'Nachricht gesendet';
 export const MESSAGE_SENT_TEXT_ALT = 'Nachricht wurde gesendet';
 
@@ -102,5 +100,4 @@ export const REPLY_TEXTAREA_SELECTORS = [
 ];
 
 export const APPOINTMENT_INVITATION_SELECTOR = '[data-testid^="invitation-msg-id-"]';
-export const MESSAGES_SECTION_SELECTORS =
-  '[data-testid="messages-section"], [data-testid="messages"]';
+export const MESSAGES_SECTION_SELECTORS = '[data-testid="messages-section"], [data-testid="messages"]';

@@ -275,7 +275,6 @@ app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: 
       }
     } catch {}
 
-
     const { text, usage: captchaUsage } = await generateText({
       model,
       system:

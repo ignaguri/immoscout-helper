@@ -1,5 +1,5 @@
 // Gemini provider — thin wrapper around the Gemini REST API.
-import type { AIProvider, AIOptions, AIResult } from './ai-provider';
+import type { AIOptions, AIProvider, AIResult } from './ai-provider';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-2.5-flash';
@@ -75,10 +75,7 @@ async function generateWithImage(
     contents: [
       {
         role: 'user',
-        parts: [
-          { inline_data: { mime_type: mimeType, data: imageBase64 } },
-          { text: textPrompt },
-        ],
+        parts: [{ inline_data: { mime_type: mimeType, data: imageBase64 } }, { text: textPrompt }],
       },
     ],
   };
@@ -117,7 +114,7 @@ export const geminiProvider: AIProvider = {
   id: 'gemini',
   label: 'Gemini',
   defaultModel: DEFAULT_MODEL,
-  pricing: { input: 0.15, output: 0.60 }, // USD per 1M tokens (Gemini 2.5 Flash)
+  pricing: { input: 0.15, output: 0.6 }, // USD per 1M tokens (Gemini 2.5 Flash)
   keyUrl: 'https://aistudio.google.com/app/apikey',
   generateText,
   generateWithImage,

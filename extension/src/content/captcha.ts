@@ -1,8 +1,8 @@
 // Captcha detection and solving
 
 import type { CaptchaDetectResult, CaptchaSubmitResult } from '../shared/types';
-import * as S from './selectors';
 import { setInputValue, sleep } from './dom-helpers';
+import * as S from './selectors';
 
 /**
  * Detect whether a captcha element (image or heading) is currently visible on the page.
@@ -12,9 +12,10 @@ import { setInputValue, sleep } from './dom-helpers';
  */
 export function detectCaptchaElement(): { image: Element | null; heading: Element | null } {
   const image = document.querySelector(S.CAPTCHA_IMAGE_SELECTORS);
-  const heading = Array.from(document.querySelectorAll('h1, h2, h3, h4, p, span')).find((el) =>
-    (el.textContent || '').includes(S.CAPTCHA_HEADING_KEYWORDS),
-  ) || null;
+  const heading =
+    Array.from(document.querySelectorAll('h1, h2, h3, h4, p, span')).find((el) =>
+      (el.textContent || '').includes(S.CAPTCHA_HEADING_KEYWORDS),
+    ) || null;
   return { image, heading };
 }
 

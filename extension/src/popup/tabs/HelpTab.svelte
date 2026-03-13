@@ -43,70 +43,6 @@
     </div>
   </div>
 
-  <div class="section-title">Features</div>
-
-  <div class="feature-list">
-    <div class="feature">
-      <span class="feature-icon">&#x1F50D;</span>
-      <div>
-        <strong>Auto-Monitoring</strong>
-        <p>Periodically scans your ImmoScout24 search for new listings. Configurable interval (default: 60s). Runs in the background via service worker.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <span class="feature-icon">&#x1F916;</span>
-      <div>
-        <strong>AI Scoring</strong>
-        <p>Each listing is scored 1-10 based on your profile and preferences. Listings below your minimum score are skipped. Saves time and API calls.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <span class="feature-icon">&#x2709;</span>
-      <div>
-        <strong>Auto-Messaging</strong>
-        <p>Fills the contact form with your message, personalizes the greeting with the landlord's name, and submits automatically. Handles captchas with AI.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <span class="feature-icon">&#x1F4AC;</span>
-      <div>
-        <strong>Conversation Replies</strong>
-        <p>Tracks your ImmoScout24 conversations. Detects unread landlord replies and drafts AI-powered responses. Handles appointment scheduling.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <span class="feature-icon">&#x1F4CB;</span>
-      <div>
-        <strong>Manual Queue</strong>
-        <p>Browse listings yourself, add them to a queue, and process them in batch. Great for cherry-picking specific apartments.</p>
-      </div>
-    </div>
-
-    <div class="feature">
-      <span class="feature-icon">&#x1F464;</span>
-      <div>
-        <strong>Profile</strong>
-        <p>Your personal details (name, job, income, etc.) are used by the AI to write compelling, personalized messages that stand out.</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="section-title">Tips</div>
-
-  <ul class="tips-list">
-    <li>The extension runs as a <strong>side panel</strong> &mdash; click the extension icon to open it alongside any page.</li>
-    <li>Use <strong>Send Mode: Manual</strong> to fill forms without auto-submitting (good for reviewing messages first).</li>
-    <li>Set a higher <strong>Min Score</strong> (7-8) if you only want the AI to contact top matches.</li>
-    <li>The <strong>About Me</strong> field in Settings gives the AI extra context &mdash; mention deal-breakers, must-haves, or your situation.</li>
-    <li><strong>Rate limiting</strong> protects you from sending too many messages. Default: 10/hour with 30s delay between sends.</li>
-    <li>If a captcha appears, the AI will try to solve it automatically (up to 2 attempts).</li>
-    <li>Check the <strong>Activity</strong> log to see what the extension is doing in real time.</li>
-  </ul>
-
   <div class="section-title" id="api-key-guide">Getting Your API Key</div>
 
   <p>The extension uses Google's <strong>Gemini AI</strong> to score listings, write messages, solve captchas, and draft replies. You need a free API key to use it.</p>
@@ -157,6 +93,70 @@
     <div class="mode">
       <strong>Server (local)</strong>
       <p>Routes AI calls through a local Express server. For developers who want to customize prompts or use the server's PDF generation features.</p>
+    </div>
+  </div>
+
+  <div class="section-title">Tips</div>
+
+  <ul class="tips-list">
+    <li>The extension runs as a <strong>side panel</strong> &mdash; click the extension icon to open it alongside any page.</li>
+    <li>Use <strong>Send Mode: Manual</strong> to fill forms without auto-submitting (good for reviewing messages first).</li>
+    <li>Set a higher <strong>Min Score</strong> (7-8) if you only want the AI to contact top matches.</li>
+    <li>The <strong>About Me</strong> field in Settings gives the AI extra context &mdash; mention deal-breakers, must-haves, or your situation.</li>
+    <li><strong>Rate limiting</strong> protects you from sending too many messages. Default: 10/hour with 30s delay between sends.</li>
+    <li>If a captcha appears, the AI will try to solve it automatically (up to 2 attempts).</li>
+    <li>Check the <strong>Activity</strong> log to see what the extension is doing in real time.</li>
+  </ul>
+
+  <div class="section-title">Features</div>
+
+  <div class="feature-list">
+    <div class="feature">
+      <span class="feature-icon">&#x1F50D;</span>
+      <div>
+        <strong>Auto-Monitoring</strong>
+        <p>Periodically scans your ImmoScout24 search for new listings. Configurable interval (default: 60s). Runs in the background via service worker.</p>
+      </div>
+    </div>
+
+    <div class="feature">
+      <span class="feature-icon">&#x1F916;</span>
+      <div>
+        <strong>AI Scoring</strong>
+        <p>Each listing is scored 1-10 based on your profile and preferences. Listings below your minimum score are skipped. Saves time and API calls.</p>
+      </div>
+    </div>
+
+    <div class="feature">
+      <span class="feature-icon">&#x2709;</span>
+      <div>
+        <strong>Auto-Messaging</strong>
+        <p>Fills the contact form with your message, personalizes the greeting with the landlord's name, and submits automatically. Handles captchas with AI.</p>
+      </div>
+    </div>
+
+    <div class="feature">
+      <span class="feature-icon">&#x1F4AC;</span>
+      <div>
+        <strong>Conversation Replies</strong>
+        <p>Tracks your ImmoScout24 conversations. Detects unread landlord replies and drafts AI-powered responses. Handles appointment scheduling.</p>
+      </div>
+    </div>
+
+    <div class="feature">
+      <span class="feature-icon">&#x1F4CB;</span>
+      <div>
+        <strong>Manual Queue</strong>
+        <p>Browse listings yourself, add them to a queue, and process them in batch. Great for cherry-picking specific apartments.</p>
+      </div>
+    </div>
+
+    <div class="feature">
+      <span class="feature-icon">&#x1F464;</span>
+      <div>
+        <strong>Profile</strong>
+        <p>Your personal details (name, job, income, etc.) are used by the AI to write compelling, personalized messages that stand out.</p>
+      </div>
     </div>
   </div>
 

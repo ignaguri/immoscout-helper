@@ -12,6 +12,9 @@
 # Dependencies
 node_modules/
 
+# Build output
+extension/dist/
+
 # Worktrees
 .worktrees/
 .memelord/

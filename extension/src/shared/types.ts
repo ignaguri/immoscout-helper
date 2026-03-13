@@ -188,7 +188,7 @@ export interface ConversationEntry {
 }
 
 export interface ConversationMessage {
-  role: string;
+  role: 'user' | 'landlord';
   text: string;
   timestamp: string;
 }

@@ -1,4 +1,14 @@
 import * as C from '../shared/constants';
+import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage, type AIConfig } from '../shared/ai-router';
+import { geminiGenerateText, geminiGenerateWithImage } from '../shared/gemini';
+import {
+  buildScoringPrompt,
+  buildMessagePrompt,
+  formatListingForPrompt,
+  parseScoreJSON,
+  CAPTCHA_SYSTEM_PROMPT,
+  CAPTCHA_USER_PROMPT,
+} from '../shared/prompts';
 import { waitForTabLoad } from './helpers';
 
 export interface UserProfile {
@@ -73,6 +83,196 @@ export interface FormValues {
   phone: string;
 }
 
+// ── Direct Gemini mode ──
+
+async function tryAIAnalysisDirect(
+  config: AIConfig,
+  tabId: number,
+  landlordTitle: string | null,
+  landlordName: string | null,
+  isPrivateLandlord: boolean,
+  formValues: FormValues,
+  messageTemplate: string,
+  isTenantNetwork: boolean,
+): Promise<AIAnalysisResult | null> {
+  const profile = await getProfile();
+  const apiKey = config.apiKey!;
+
+  let listingDetails: any;
+  try {
+    listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
+  } catch (e: any) {
+    console.error('[AI/Direct] Failed to extract listing details:', e.message);
+    return null;
+  }
+  if (!listingDetails) return null;
+
+  const listingText = formatListingForPrompt(listingDetails);
+  const userProfile = { ...formValues, aboutMe: config.aboutMe };
+  let totalPromptTokens = 0;
+  let totalCompletionTokens = 0;
+
+  // Step 1: Score
+  let score: number | undefined;
+  let reason: string | undefined;
+  let summary: string | undefined;
+  let flags: string[] = [];
+
+  try {
+    const scoringPrompt = buildScoringPrompt(userProfile, profile);
+    const result = await geminiGenerateText(apiKey, scoringPrompt, `Bewerte dieses Inserat:\n\n${listingText}`, {
+      maxTokens: 1024,
+      thinkingBudget: 0,
+    });
+    totalPromptTokens += result.usage.promptTokens;
+    totalCompletionTokens += result.usage.completionTokens;
+
+    const parsed = parseScoreJSON(result.text);
+    if (parsed) {
+      score = parsed.score;
+      reason = parsed.reason;
+      summary = parsed.summary;
+      flags = parsed.flags || [];
+    } else {
+      console.warn('[AI/Direct] Could not parse score JSON, defaulting to 5');
+      score = 5;
+      reason = 'Score konnte nicht ermittelt werden';
+    }
+  } catch (error) {
+    console.error('[AI/Direct] Scoring error:', (error as Error).message);
+    return null;
+  }
+
+  // Update stats
+  const statsUpdates: Record<string, number> = {
+    [C.AI_LISTINGS_SCORED_KEY]:
+      ((await chrome.storage.local.get([C.AI_LISTINGS_SCORED_KEY]))[C.AI_LISTINGS_SCORED_KEY] || 0) + 1,
+  };
+
+  // If score below threshold, skip message generation
+  if (score < config.minScore) {
+    console.log(`[AI/Direct] Score ${score}/${config.minScore} — skipping${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`);
+    statsUpdates[C.AI_LISTINGS_SKIPPED_KEY] =
+      ((await chrome.storage.local.get([C.AI_LISTINGS_SKIPPED_KEY]))[C.AI_LISTINGS_SKIPPED_KEY] || 0) + 1;
+    await chrome.storage.local.set(statsUpdates);
+    await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
+    return { score, reason, summary, flags, skip: true, usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens } };
+  }
+
+  await chrome.storage.local.set(statsUpdates);
+
+  // Step 2: Generate message
+  let message: string | null = null;
+  try {
+    const landlordInfo = {
+      title: landlordTitle || undefined,
+      name: landlordName || undefined,
+      isPrivate: isPrivateLandlord,
+      isTenantNetwork,
+    };
+    const messagePrompt = buildMessagePrompt(userProfile, landlordInfo, messageTemplate, profile);
+    const msgResult = await geminiGenerateText(
+      apiKey,
+      messagePrompt,
+      `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`,
+      { maxTokens: 4096 },
+    );
+    message = msgResult.text.trim();
+    totalPromptTokens += msgResult.usage.promptTokens;
+    totalCompletionTokens += msgResult.usage.completionTokens;
+  } catch (error) {
+    console.error('[AI/Direct] Message generation error:', (error as Error).message);
+  }
+
+  await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
+  console.log(`[AI/Direct] Score ${score}/10 — message ${message ? 'generated' : 'fallback'}${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`);
+  return { score, reason, summary, flags, message: message || undefined, skip: false, usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens } };
+}
+
+// ── Server mode (existing) ──
+
+async function tryAIAnalysisServer(
+  config: AIConfig,
+  tabId: number,
+  landlordTitle: string | null,
+  landlordName: string | null,
+  isPrivateLandlord: boolean,
+  formValues: FormValues,
+  messageTemplate: string,
+  isTenantNetwork: boolean,
+): Promise<AIAnalysisResult | null> {
+  const profile = await getProfile();
+
+  let listingDetails: any;
+  try {
+    listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
+  } catch (e: any) {
+    console.error('[AI/Server] Failed to extract listing details:', e.message);
+    return null;
+  }
+  if (!listingDetails) return null;
+
+  const payload = {
+    listingDetails,
+    landlordInfo: { title: landlordTitle, name: landlordName, isPrivate: isPrivateLandlord, isTenantNetwork },
+    userProfile: { ...formValues, aboutMe: config.aboutMe },
+    messageTemplate,
+    minScore: config.minScore,
+    apiKey: config.apiKey,
+    profile,
+  };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), C.AI_ANALYSIS_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${config.serverUrl}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.error(`[AI/Server] Server returned ${response.status}`);
+      return null;
+    }
+
+    const result: AIAnalysisResult = await response.json();
+
+    // Update AI stats
+    const stats: Record<string, any> = await chrome.storage.local.get([
+      C.AI_LISTINGS_SCORED_KEY,
+      C.AI_LISTINGS_SKIPPED_KEY,
+      C.AI_USAGE_PROMPT_TOKENS_KEY,
+      C.AI_USAGE_COMPLETION_TOKENS_KEY,
+    ]);
+    const updates: Record<string, number> = {
+      [C.AI_LISTINGS_SCORED_KEY]: (stats[C.AI_LISTINGS_SCORED_KEY] || 0) + 1,
+    };
+    if (result.skip) {
+      updates[C.AI_LISTINGS_SKIPPED_KEY] = (stats[C.AI_LISTINGS_SKIPPED_KEY] || 0) + 1;
+    }
+    if (result.usage) {
+      updates[C.AI_USAGE_PROMPT_TOKENS_KEY] =
+        (stats[C.AI_USAGE_PROMPT_TOKENS_KEY] || 0) + (result.usage.promptTokens || 0);
+      updates[C.AI_USAGE_COMPLETION_TOKENS_KEY] =
+        (stats[C.AI_USAGE_COMPLETION_TOKENS_KEY] || 0) + (result.usage.completionTokens || 0);
+    }
+    await chrome.storage.local.set(updates);
+
+    console.log(`[AI/Server] Score: ${result.score}/10, Skip: ${result.skip}, Message: ${result.message ? 'yes' : 'no'}`);
+    return result;
+  } catch (e: any) {
+    clearTimeout(timeout);
+    console.error('[AI/Server] Fetch error:', e.message);
+    return null;
+  }
+}
+
+// ── Public API ──
+
 export async function tryAIAnalysis(
   tabId: number,
   landlordTitle: string | null,
@@ -83,92 +283,18 @@ export async function tryAIAnalysis(
   isTenantNetwork: boolean = false,
 ): Promise<AIAnalysisResult | null> {
   try {
-    const aiSettings: Record<string, any> = await chrome.storage.local.get([
-      C.AI_ENABLED_KEY,
-      C.AI_API_KEY_KEY,
-      C.AI_SERVER_URL_KEY,
-      C.AI_MIN_SCORE_KEY,
-      C.AI_ABOUT_ME_KEY,
-    ]);
+    const config = await getAIConfig();
+    if (!config.enabled) return null;
 
-    if (!aiSettings[C.AI_ENABLED_KEY]) return null;
-
-    const serverUrl: string = aiSettings[C.AI_SERVER_URL_KEY] || 'http://localhost:3456';
-    const minScore: number = aiSettings[C.AI_MIN_SCORE_KEY] || 5;
-    const apiKey: string | undefined = aiSettings[C.AI_API_KEY_KEY] || undefined;
-    const profile = await getProfile();
-
-    // Extract listing details from the page
-    let listingDetails: any;
-    try {
-      listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
-    } catch (e: any) {
-      console.error('[AI] Failed to extract listing details:', e.message);
-      return null;
+    if (canUseDirect(config)) {
+      return await tryAIAnalysisDirect(config, tabId, landlordTitle, landlordName, isPrivateLandlord, formValues, messageTemplate, isTenantNetwork);
+    }
+    if (canUseServer(config)) {
+      return await tryAIAnalysisServer(config, tabId, landlordTitle, landlordName, isPrivateLandlord, formValues, messageTemplate, isTenantNetwork);
     }
 
-    if (!listingDetails) return null;
-
-    const payload = {
-      listingDetails,
-      landlordInfo: { title: landlordTitle, name: landlordName, isPrivate: isPrivateLandlord, isTenantNetwork },
-      userProfile: {
-        ...formValues,
-        aboutMe: aiSettings[C.AI_ABOUT_ME_KEY] || '',
-      },
-      messageTemplate,
-      minScore,
-      apiKey,
-      profile,
-    };
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), C.AI_ANALYSIS_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(`${serverUrl}/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        console.error(`[AI] Server returned ${response.status}`);
-        return null;
-      }
-
-      const result: AIAnalysisResult = await response.json();
-
-      // Update AI stats
-      const stats: Record<string, any> = await chrome.storage.local.get([
-        C.AI_LISTINGS_SCORED_KEY,
-        C.AI_LISTINGS_SKIPPED_KEY,
-        C.AI_USAGE_PROMPT_TOKENS_KEY,
-        C.AI_USAGE_COMPLETION_TOKENS_KEY,
-      ]);
-      const updates: Record<string, number> = {
-        [C.AI_LISTINGS_SCORED_KEY]: (stats[C.AI_LISTINGS_SCORED_KEY] || 0) + 1,
-      };
-      if (result.skip) {
-        updates[C.AI_LISTINGS_SKIPPED_KEY] = (stats[C.AI_LISTINGS_SKIPPED_KEY] || 0) + 1;
-      }
-      if (result.usage) {
-        updates[C.AI_USAGE_PROMPT_TOKENS_KEY] =
-          (stats[C.AI_USAGE_PROMPT_TOKENS_KEY] || 0) + (result.usage.promptTokens || 0);
-        updates[C.AI_USAGE_COMPLETION_TOKENS_KEY] =
-          (stats[C.AI_USAGE_COMPLETION_TOKENS_KEY] || 0) + (result.usage.completionTokens || 0);
-      }
-      await chrome.storage.local.set(updates);
-
-      console.log(`[AI] Score: ${result.score}/10, Skip: ${result.skip}, Message: ${result.message ? 'yes' : 'no'}`);
-      return result;
-    } catch (e: any) {
-      clearTimeout(timeout);
-      console.error('[AI] Fetch error:', e.message);
-      return null;
-    }
+    console.warn('[AI] No valid AI configuration (need API key for direct mode or server URL for server mode)');
+    return null;
   } catch (e: any) {
     console.error('[AI] Unexpected error:', e.message);
     return null;
@@ -186,22 +312,19 @@ export async function trySolveCaptcha(
   serverUrl: string,
   apiKey: string | undefined,
 ): Promise<CaptchaResult | false> {
+  // Determine mode from storage
+  const config = await getAIConfig();
   let sentSolution = false;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     console.log(`[Captcha] Attempt ${attempt}/2 — detecting...`);
 
-    // If we sent a solution on the previous attempt and got "channel closed",
-    // the page likely navigated after successful captcha → wait for it to load
     if (sentSolution) {
       console.log('[Captcha] Previous attempt sent solution — waiting for page to settle...');
       await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      // Try to ping the content script — page may have reloaded
       try {
         await chrome.tabs.sendMessage(tabId, { action: 'ping' });
       } catch (_e) {
-        // Content script not ready — wait for tab to finish loading
         await waitForTabLoad(tabId);
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
@@ -212,7 +335,6 @@ export async function trySolveCaptcha(
       detection = await chrome.tabs.sendMessage(tabId, { action: 'detectCaptcha' });
     } catch (e: any) {
       if (sentSolution) {
-        // Sent a solution and now can't talk to page — wait for it to load and verify
         console.log('[Captcha] Page unreachable after sending solution — waiting for reload...');
         try {
           await waitForTabLoad(tabId);
@@ -235,8 +357,6 @@ export async function trySolveCaptcha(
 
     if (!detection?.hasCaptcha) {
       if (sentSolution) {
-        // Captcha is gone after we sent a solution — but was the message actually sent?
-        // Check the page for confirmation instead of blindly assuming success
         console.log('[Captcha] Captcha gone after sending solution — verifying message delivery...');
         try {
           const pageCheck: any = await chrome.tabs.sendMessage(tabId, { action: 'checkMessageSent' });
@@ -246,7 +366,6 @@ export async function trySolveCaptcha(
           }
           if (pageCheck?.hasCaptcha) {
             console.log('[Captcha] New captcha appeared — previous solution was wrong');
-            // Continue the loop to try again (but we're likely out of attempts)
             sentSolution = false;
             continue;
           }
@@ -254,14 +373,10 @@ export async function trySolveCaptcha(
             console.log('[Captcha] Contact form still present — captcha solved but message not sent yet');
             return { solved: true, messageSent: false };
           }
-          // No confirmation, no form, no captcha — page likely reloaded (wrong captcha)
           console.warn('[Captcha] No confirmation found on page — captcha likely failed. Page:', pageCheck?.url);
           return { solved: false, messageSent: false };
         } catch (e) {
-          // Can't talk to page at all — it navigated away completely
           console.warn('[Captcha] Cannot verify page state:', (e as any).message);
-          // Could be success (navigated to confirmation) or failure (page reloaded)
-          // Be conservative: report as unverified
           return { solved: true, messageSent: false, unverified: true };
         }
       }
@@ -274,46 +389,70 @@ export async function trySolveCaptcha(
       return false;
     }
 
-    console.log('[Captcha] Captcha detected, sending to AI server...');
+    console.log('[Captcha] Captcha detected, solving...');
 
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), C.CAPTCHA_SOLVE_TIMEOUT_MS);
+      let captchaText: string | null = null;
+      let captchaUsage = { promptTokens: 0, completionTokens: 0 };
 
-      const response = await fetch(`${serverUrl}/captcha`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
+      if (canUseDirect(config) && config.apiKey) {
+        // Direct mode: call Gemini vision API
+        const match = detection.imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
+        if (!match) {
+          console.error('[Captcha] Invalid base64 image format');
+          return false;
+        }
+        const mimeType = match[1];
+        const rawBase64 = match[2];
 
-      const result: any = await response.json();
+        const result = await geminiGenerateWithImage(
+          config.apiKey,
+          CAPTCHA_SYSTEM_PROMPT,
+          rawBase64,
+          mimeType,
+          CAPTCHA_USER_PROMPT,
+          { maxTokens: 32, thinkingBudget: 0 },
+        );
+        const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
+        captchaText = answer && answer.length >= 4 ? answer : null;
+        captchaUsage = result.usage;
 
-      if (result.usage) {
-        const usageStats: Record<string, any> = await chrome.storage.local.get([
-          C.AI_USAGE_PROMPT_TOKENS_KEY,
-          C.AI_USAGE_COMPLETION_TOKENS_KEY,
-        ]);
-        await chrome.storage.local.set({
-          [C.AI_USAGE_PROMPT_TOKENS_KEY]:
-            (usageStats[C.AI_USAGE_PROMPT_TOKENS_KEY] || 0) + (result.usage.promptTokens || 0),
-          [C.AI_USAGE_COMPLETION_TOKENS_KEY]:
-            (usageStats[C.AI_USAGE_COMPLETION_TOKENS_KEY] || 0) + (result.usage.completionTokens || 0),
+        if (!captchaText) {
+          console.warn(`[Captcha/Direct] Empty/invalid answer (raw: "${result.text.trim()}")`);
+        }
+      } else if (canUseServer(config)) {
+        // Server mode
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), C.CAPTCHA_SOLVE_TIMEOUT_MS);
+        const response = await fetch(`${serverUrl}/captcha`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey }),
+          signal: controller.signal,
         });
+        clearTimeout(timeout);
+        const result: any = await response.json();
+        captchaText = result.text || null;
+        if (result.usage) {
+          captchaUsage = { promptTokens: result.usage.promptTokens || 0, completionTokens: result.usage.completionTokens || 0 };
+        }
       }
 
-      if (!result.text) {
-        console.error('[Captcha] Server could not solve:', result.error);
+      if (captchaUsage.promptTokens || captchaUsage.completionTokens) {
+        await trackTokenUsage(captchaUsage.promptTokens, captchaUsage.completionTokens);
+      }
+
+      if (!captchaText) {
+        console.error('[Captcha] Could not solve captcha');
         return false;
       }
 
-      console.log(`[Captcha] Solution: "${result.text}", filling...`);
+      console.log(`[Captcha] Solution: "${captchaText}", filling...`);
       sentSolution = true;
 
       const solveResult: any = await chrome.tabs.sendMessage(tabId, {
         action: 'solveCaptcha',
-        text: result.text,
+        text: captchaText,
       });
 
       if (solveResult?.success) {
@@ -329,7 +468,6 @@ export async function trySolveCaptcha(
       console.warn(`[Captcha] Attempt ${attempt} failed:`, solveResult?.error);
     } catch (e: any) {
       console.error(`[Captcha] Attempt ${attempt} error:`, e.message);
-      // If we just sent a solution and got channel closed, loop will handle it
     }
 
     await new Promise((resolve) => setTimeout(resolve, 1000));

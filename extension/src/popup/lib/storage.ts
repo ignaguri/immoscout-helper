@@ -4,6 +4,7 @@ import {
   AI_API_KEY_KEY,
   AI_ENABLED_KEY,
   AI_MIN_SCORE_KEY,
+  AI_MODE_KEY,
   AI_SERVER_URL_KEY,
   AI_USAGE_COMPLETION_TOKENS_KEY,
   AI_USAGE_PROMPT_TOKENS_KEY,
@@ -102,6 +103,7 @@ export interface PopupSettings {
   formIncomeRange: string;
   formDocuments: string;
   // AI
+  aiMode: string; // 'direct' | 'server'
   aiEnabled: boolean;
   aiApiKey: string;
   aiServerUrl: string;
@@ -127,6 +129,7 @@ const ALL_SETTINGS_KEYS = [
   FORM_EMPLOYMENT_KEY,
   FORM_INCOME_RANGE_KEY,
   FORM_DOCUMENTS_KEY,
+  AI_MODE_KEY,
   AI_ENABLED_KEY,
   AI_API_KEY_KEY,
   AI_SERVER_URL_KEY,
@@ -194,6 +197,7 @@ export async function loadAllSettings(): Promise<PopupSettings> {
     formEmployment: result[FORM_EMPLOYMENT_KEY] || 'Angestellte:r',
     formIncomeRange: result[FORM_INCOME_RANGE_KEY] || '1.500 - 2.000',
     formDocuments: result[FORM_DOCUMENTS_KEY] || 'Vorhanden',
+    aiMode: result[AI_MODE_KEY] || 'direct',
     aiEnabled: result[AI_ENABLED_KEY] || false,
     aiApiKey: result[AI_API_KEY_KEY] || '',
     aiServerUrl: result[AI_SERVER_URL_KEY] || 'http://localhost:3456',
@@ -241,6 +245,7 @@ export async function saveAllSettings(s: PopupSettings): Promise<void> {
     [FORM_EMPLOYMENT_KEY]: s.formEmployment || 'Angestellte:r',
     [FORM_INCOME_RANGE_KEY]: s.formIncomeRange || '1.500 - 2.000',
     [FORM_DOCUMENTS_KEY]: s.formDocuments || 'Vorhanden',
+    [AI_MODE_KEY]: s.aiMode || 'direct',
     [AI_ENABLED_KEY]: s.aiEnabled,
     [AI_API_KEY_KEY]: s.aiApiKey.trim(),
     [AI_SERVER_URL_KEY]: s.aiServerUrl.trim() || 'http://localhost:3456',

@@ -55,17 +55,43 @@ async function handleCheckIntervalChange() {
 }
 
 async function checkHealth() {
-  const url = settings.aiServerUrl || 'http://localhost:3456';
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    const response = await fetch(`${url}/health`, { signal: controller.signal });
-    clearTimeout(timeout);
-    const data = await response.json();
-    aiServerConnected = data.status === 'ok';
-  } catch {
-    aiServerConnected = false;
+  if (settings.aiMode === 'direct') {
+    // Direct mode: validate API key
+    if (!settings.aiApiKey) {
+      aiServerConnected = false;
+      return;
+    }
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${settings.aiApiKey}`,
+        { signal: controller.signal },
+      );
+      clearTimeout(timeout);
+      aiServerConnected = response.ok;
+    } catch {
+      aiServerConnected = false;
+    }
+  } else {
+    // Server mode: check /health endpoint
+    const url = settings.aiServerUrl || 'http://localhost:3456';
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const response = await fetch(`${url}/health`, { signal: controller.signal });
+      clearTimeout(timeout);
+      const data = await response.json();
+      aiServerConnected = data.status === 'ok';
+    } catch {
+      aiServerConnected = false;
+    }
   }
+}
+
+async function handleAiModeChange() {
+  await autoSave();
+  checkHealth();
 }
 
 async function handleClearSeen() {
@@ -136,26 +162,42 @@ function toggleApiKey() {
 
 <div class="ai-settings-group" class:disabled={!settings.aiEnabled}>
   <div class="field">
-    <label for="aiApiKey">API Key (optional)</label>
+    <label for="aiMode">AI Mode</label>
+    <select id="aiMode" bind:value={settings.aiMode} onchange={handleAiModeChange}>
+      <option value="direct">Direct (Gemini API)</option>
+      <option value="server">Server (local)</option>
+    </select>
+    <div class="hint">{settings.aiMode === 'direct' ? 'Calls Gemini API directly — no server needed' : 'Uses local Express server for AI calls'}</div>
+  </div>
+
+  <div class="field">
+    <label for="aiApiKey">{settings.aiMode === 'direct' ? 'Gemini API Key' : 'API Key (optional)'}</label>
     <div class="password-field">
       <input
         type={showApiKey ? 'text' : 'password'}
         id="aiApiKey"
         bind:value={settings.aiApiKey}
         oninput={autoSave}
-        onblur={autoSave}
-        placeholder="Your Gemini API key"
+        onblur={() => { autoSave(); checkHealth(); }}
+        placeholder={settings.aiMode === 'direct' ? 'Paste your Gemini API key' : 'Optional — passed to server'}
       />
       <button class="password-toggle" onclick={toggleApiKey}>
         {showApiKey ? 'hide' : 'show'}
       </button>
     </div>
+    {#if settings.aiMode === 'direct'}
+      <div class="hint">
+        <a href="https://aistudio.google.com/app/apikeys" target="_blank" rel="noopener">Get a free API key from Google AI Studio</a>
+      </div>
+    {/if}
   </div>
 
-  <div class="field">
-    <label for="aiServerUrl">Server URL</label>
-    <input type="url" id="aiServerUrl" bind:value={settings.aiServerUrl} oninput={autoSave} onblur={autoSave} placeholder="http://localhost:3456" />
-  </div>
+  {#if settings.aiMode === 'server'}
+    <div class="field">
+      <label for="aiServerUrl">Server URL</label>
+      <input type="url" id="aiServerUrl" bind:value={settings.aiServerUrl} oninput={autoSave} onblur={() => { autoSave(); checkHealth(); }} placeholder="http://localhost:3456" />
+    </div>
+  {/if}
 
   <div class="field">
     <label for="aiMinScore">Min Score (1-10)</label>
@@ -177,10 +219,10 @@ function toggleApiKey() {
 
   <div class="ai-status" class:connected={aiServerConnected} class:disconnected={!aiServerConnected}>
     <span class="dot"></span>
-    <span>{aiServerConnected ? 'Connected' : 'Unreachable'}</span>
+    <span>{aiServerConnected ? 'Connected' : (settings.aiMode === 'direct' ? 'Invalid API key' : 'Server unreachable')}</span>
   </div>
 
-  {#if !aiServerConnected && settings.aiEnabled}
+  {#if !aiServerConnected && settings.aiEnabled && settings.aiMode === 'server'}
     <div class="setup-box">
       <strong>Setup Instructions</strong>
       The AI server needs to be running locally.

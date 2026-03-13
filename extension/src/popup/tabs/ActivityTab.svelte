@@ -1,9 +1,11 @@
 <script lang="ts">
 import { generatePersonalizedMessage } from '../../shared/utils';
+import { geminiGenerateWithImage } from '../../shared/gemini';
+import { CAPTCHA_SYSTEM_PROMPT, CAPTCHA_USER_PROMPT } from '../../shared/prompts';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
 import AnalyzeSection from '../components/AnalyzeSection.svelte';
 import type { PopupSettings } from '../lib/storage';
-import { clearActivityLog, saveAllSettings } from '../lib/storage';
+import { clearActivityLog, saveAllSettings, trackTokenUsage } from '../lib/storage';
 
 let {
   settings = $bindable(),
@@ -85,6 +87,7 @@ function getFormValues() {
 }
 
 async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolean; messageSent?: boolean }> {
+  const isDirect = settings.aiMode === 'direct' && !!settings.aiApiKey;
   const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
   const apiKey = settings.aiApiKey || undefined;
 
@@ -106,24 +109,50 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
       return { solved: false };
     }
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(`${serverUrl}/captcha`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      const result = await response.json();
-      if (!result.text) {
-        appendToResult(`Server could not solve captcha: ${result.error}`);
-        return { solved: false };
+      let captchaText: string | null = null;
+
+      if (isDirect && apiKey) {
+        const match = detection.imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
+        if (!match) {
+          appendToResult('Invalid captcha image format');
+          return { solved: false };
+        }
+        const result = await geminiGenerateWithImage(
+          apiKey, CAPTCHA_SYSTEM_PROMPT, match[2], match[1], CAPTCHA_USER_PROMPT,
+          { maxTokens: 32, thinkingBudget: 0 },
+        );
+        const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
+        captchaText = answer && answer.length >= 4 ? answer : null;
+        await trackTokenUsage(result.usage.promptTokens, result.usage.completionTokens);
+        if (!captchaText) {
+          appendToResult(`AI could not solve captcha (raw: "${result.text.trim()}")`);
+          return { solved: false };
+        }
+      } else {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const response = await fetch(`${serverUrl}/captcha`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        const result = await response.json();
+        captchaText = result.text || null;
+        if (result.usage) {
+          await trackTokenUsage(result.usage.promptTokens || 0, result.usage.completionTokens || 0);
+        }
+        if (!captchaText) {
+          appendToResult(`Server could not solve captcha: ${result.error}`);
+          return { solved: false };
+        }
       }
-      appendToResult(`Solution: "${result.text}", submitting...`);
+
+      appendToResult(`Solution: "${captchaText}", submitting...`);
       const solveResult = await chrome.tabs.sendMessage(tabId, {
         action: 'solveCaptcha',
-        text: result.text,
+        text: captchaText,
       });
       if (solveResult?.success) {
         if (solveResult.messageSent) {

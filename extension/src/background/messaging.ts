@@ -1,5 +1,8 @@
 import * as C from '../shared/constants';
 import { generatePersonalizedMessage } from '../shared/utils';
+import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage } from '../shared/ai-router';
+import { geminiGenerateText } from '../shared/gemini';
+import { buildShortenPrompt } from '../shared/prompts';
 import {
   isMonitoring,
   isProcessingQueue,
@@ -226,57 +229,58 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         `[Message] Too long for form (${personalizedMessage.length} chars, limit: ${limit}) — asking AI to shorten`,
       );
       try {
-        const aiSettings: Record<string, any> = await chrome.storage.local.get([
-          C.AI_ENABLED_KEY,
-          C.AI_API_KEY_KEY,
-          C.AI_SERVER_URL_KEY,
-        ]);
-        const serverUrl: string = aiSettings[C.AI_SERVER_URL_KEY] || 'http://localhost:3456';
-        const shortenApiKey: string | undefined = aiSettings[C.AI_API_KEY_KEY] || undefined;
-        const shortenResponse = await fetch(`${serverUrl}/shorten`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: personalizedMessage, maxLength: limit, apiKey: shortenApiKey }),
-        });
-        if (shortenResponse.ok) {
-          const shortenResult: any = await shortenResponse.json();
-          const shortened: string = shortenResult.message;
-          if (shortenResult.usage) {
-            const usageStats: Record<string, any> = await chrome.storage.local.get([
-              C.AI_USAGE_PROMPT_TOKENS_KEY,
-              C.AI_USAGE_COMPLETION_TOKENS_KEY,
-            ]);
-            await chrome.storage.local.set({
-              [C.AI_USAGE_PROMPT_TOKENS_KEY]:
-                (usageStats[C.AI_USAGE_PROMPT_TOKENS_KEY] || 0) + (shortenResult.usage.promptTokens || 0),
-              [C.AI_USAGE_COMPLETION_TOKENS_KEY]:
-                (usageStats[C.AI_USAGE_COMPLETION_TOKENS_KEY] || 0) + (shortenResult.usage.completionTokens || 0),
-            });
-          }
-          if (shortened && shortened.length <= limit) {
-            console.log(
-              `[Message] AI shortened from ${personalizedMessage.length} to ${shortened.length} chars — retrying`,
-            );
-            sendResult = await chrome.tabs.sendMessage(currentListingTabId, {
-              action: 'sendMessage',
-              message: shortened,
-              formValues: formValues,
-              autoSend: isAutoSend,
-            });
+        const shortenConfig = await getAIConfig();
+        let shortened: string | null = null;
+        let shortenUsage = { promptTokens: 0, completionTokens: 0 };
+
+        if (canUseDirect(shortenConfig) && shortenConfig.apiKey) {
+          // Direct Gemini mode
+          const systemPrompt = buildShortenPrompt(limit);
+          const result = await geminiGenerateText(
+            shortenConfig.apiKey,
+            systemPrompt,
+            `Kürze diese Nachricht auf maximal ${limit} Zeichen:\n\n${personalizedMessage}`,
+            { maxTokens: 4096, thinkingBudget: 0 },
+          );
+          shortened = result.text.trim();
+          shortenUsage = result.usage;
+        } else if (canUseServer(shortenConfig)) {
+          // Server mode
+          const shortenResponse = await fetch(`${shortenConfig.serverUrl}/shorten`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: personalizedMessage, maxLength: limit, apiKey: shortenConfig.apiKey }),
+          });
+          if (shortenResponse.ok) {
+            const shortenResult: any = await shortenResponse.json();
+            shortened = shortenResult.message;
+            if (shortenResult.usage) {
+              shortenUsage = { promptTokens: shortenResult.usage.promptTokens || 0, completionTokens: shortenResult.usage.completionTokens || 0 };
+            }
           } else {
-            console.warn(`[Message] AI shorten returned ${shortened?.length} chars (limit ${limit}) — hard truncating`);
-            sendResult = await chrome.tabs.sendMessage(currentListingTabId, {
-              action: 'sendMessage',
-              message: (shortened || personalizedMessage).substring(0, limit),
-              formValues: formValues,
-              autoSend: isAutoSend,
-            });
+            console.error(`[Message] Shorten API returned ${shortenResponse.status}`);
           }
-        } else {
-          console.error(`[Message] Shorten API returned ${shortenResponse.status} — hard truncating`);
+        }
+
+        if (shortenUsage.promptTokens || shortenUsage.completionTokens) {
+          await trackTokenUsage(shortenUsage.promptTokens, shortenUsage.completionTokens);
+        }
+
+        if (shortened && shortened.length <= limit) {
+          console.log(
+            `[Message] AI shortened from ${personalizedMessage.length} to ${shortened.length} chars — retrying`,
+          );
           sendResult = await chrome.tabs.sendMessage(currentListingTabId, {
             action: 'sendMessage',
-            message: personalizedMessage.substring(0, limit),
+            message: shortened,
+            formValues: formValues,
+            autoSend: isAutoSend,
+          });
+        } else {
+          console.warn(`[Message] AI shorten returned ${shortened?.length} chars (limit ${limit}) — hard truncating`);
+          sendResult = await chrome.tabs.sendMessage(currentListingTabId, {
+            action: 'sendMessage',
+            message: (shortened || personalizedMessage).substring(0, limit),
             formValues: formValues,
             autoSend: isAutoSend,
           });

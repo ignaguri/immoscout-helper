@@ -1,18 +1,18 @@
 import * as C from '../shared/constants';
 import { capSeenListings } from '../shared/utils';
+import { humanDelay } from './helpers';
+import { type Listing, sendActivityLog } from './listings';
+import { handleNewListing } from './messaging';
+import { checkRateLimit } from './rate-limit';
 import {
   isMonitoring,
   isProcessingQueue,
   queueAbortRequested,
-  userTriggeredProcessing,
   setIsProcessingQueue,
   setQueueAbortRequested,
   setUserTriggeredProcessing,
+  userTriggeredProcessing,
 } from './state';
-import { humanDelay } from './helpers';
-import { checkRateLimit } from './rate-limit';
-import { handleNewListing } from './messaging';
-import { sendActivityLog, type Listing } from './listings';
 
 export interface QueueItem {
   id: string;

@@ -1,20 +1,20 @@
+import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
-import { generatePersonalizedMessage } from '../shared/utils';
-import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage, getProvider } from '../shared/ai-router';
 import { buildShortenPrompt } from '../shared/prompts';
+import { generatePersonalizedMessage } from '../shared/utils';
+import { logActivity } from './activity';
+import { type FormValues, tryAIAnalysis, trySolveCaptcha } from './ai';
+import { humanDelay, waitForTabLoad } from './helpers';
+import { type Listing, sendActivityLog } from './listings';
+import type { QueueItem } from './queue';
 import {
+  incrementMessageCount,
   isMonitoring,
   isProcessingQueue,
-  messageCount,
   lastMessageTime,
-  incrementMessageCount,
+  messageCount,
   setLastMessageTime,
 } from './state';
-import { waitForTabLoad, humanDelay } from './helpers';
-import { tryAIAnalysis, trySolveCaptcha, type FormValues } from './ai';
-import { logActivity } from './activity';
-import { sendActivityLog, type Listing } from './listings';
-import type { QueueItem } from './queue';
 
 export interface HandleListingResult {
   success: boolean;
@@ -258,7 +258,10 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
             const shortenResult: any = await shortenResponse.json();
             shortened = shortenResult.message;
             if (shortenResult.usage) {
-              shortenUsage = { promptTokens: shortenResult.usage.promptTokens || 0, completionTokens: shortenResult.usage.completionTokens || 0 };
+              shortenUsage = {
+                promptTokens: shortenResult.usage.promptTokens || 0,
+                completionTokens: shortenResult.usage.completionTokens || 0,
+              };
             }
           } else {
             console.error(`[Message] Shorten API returned ${shortenResponse.status}`);

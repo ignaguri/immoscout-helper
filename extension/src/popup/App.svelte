@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onMount } from 'svelte';
-import { ALARM_NAME } from '../shared/constants';
 import { PROVIDERS } from '../shared/ai-router';
+import { ALARM_NAME } from '../shared/constants';
 import { getStatus, startMonitoring, stopMonitoring } from './lib/messages';
 import type { PopupSettings } from './lib/storage';
 import {
@@ -13,9 +13,9 @@ import {
 } from './lib/storage';
 import ActivityTab from './tabs/ActivityTab.svelte';
 import ConversationsTab from './tabs/ConversationsTab.svelte';
+import HelpTab from './tabs/HelpTab.svelte';
 import ProfileTab from './tabs/ProfileTab.svelte';
 import QueueTab from './tabs/QueueTab.svelte';
-import HelpTab from './tabs/HelpTab.svelte';
 import SettingsTab from './tabs/SettingsTab.svelte';
 
 // State
@@ -217,9 +217,11 @@ async function handleToggle() {
     const needsServer = settings.aiMode === 'server' && !settings.aiServerUrl;
     if (needsKey || needsServer) {
       const providerLabel = (PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini).label;
-      alert(needsKey
-        ? `Please configure your ${providerLabel} API key in Settings`
-        : 'Please configure your AI server URL in Settings');
+      alert(
+        needsKey
+          ? `Please configure your ${providerLabel} API key in Settings`
+          : 'Please configure your AI server URL in Settings',
+      );
       activeTab = 'settings';
       return;
     }

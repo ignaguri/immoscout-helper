@@ -1,11 +1,7 @@
 <script lang="ts">
-import type { ConversationEntry } from '../../shared/types';
-import {
-  generateDocuments,
-  regenerateDraft,
-  sendConversationReply,
-} from '../lib/messages';
 import { MESSENGER_BASE_URL } from '../../shared/constants';
+import type { ConversationEntry } from '../../shared/types';
+import { generateDocuments, regenerateDraft, sendConversationReply } from '../lib/messages';
 
 let {
   conversation,

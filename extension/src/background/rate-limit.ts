@@ -1,12 +1,12 @@
 import * as C from '../shared/constants';
+import type { RateLimitResult } from '../shared/types';
 import {
+  lastMessageTime,
   messageCount,
   messageCountResetTime,
-  lastMessageTime,
   setMessageCount,
   setMessageCountResetTime,
 } from './state';
-import type { RateLimitResult } from '../shared/types';
 
 export async function checkRateLimit(): Promise<RateLimitResult> {
   const now = Date.now();

@@ -1,5 +1,5 @@
 // OpenAI provider — thin wrapper around the OpenAI Chat Completions API.
-import type { AIProvider, AIOptions, AIResult } from './ai-provider';
+import type { AIOptions, AIProvider, AIResult } from './ai-provider';
 
 const OPENAI_API_BASE = 'https://api.openai.com/v1';
 const DEFAULT_MODEL = 'gpt-4o-mini';
@@ -106,7 +106,7 @@ export const openaiProvider: AIProvider = {
   id: 'openai',
   label: 'OpenAI',
   defaultModel: DEFAULT_MODEL,
-  pricing: { input: 0.15, output: 0.60 }, // USD per 1M tokens (GPT-4o-mini)
+  pricing: { input: 0.15, output: 0.6 }, // USD per 1M tokens (GPT-4o-mini)
   keyUrl: 'https://platform.openai.com/api-keys',
   generateText,
   generateWithImage,

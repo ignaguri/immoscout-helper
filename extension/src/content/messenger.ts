@@ -1,8 +1,8 @@
 // Conversation reply and appointment handling on the ImmoScout messenger page
 
 import type { FillReplyResult, HandleAppointmentResult } from '../shared/types';
+import { findElement, randomDelay, setReactValue, sleep } from './dom-helpers';
 import * as S from './selectors';
-import { findElement, setReactValue, sleep, randomDelay } from './dom-helpers';
 
 export async function fillConversationReply(message: string): Promise<FillReplyResult> {
   if (!message) return { success: false, error: 'No message provided' };
@@ -97,10 +97,7 @@ export async function handleAppointment(
         '[data-testid^="conversation-list-item"], [class*="conversationList"] a, [class*="ConversationList"] a',
       );
       for (const item of convItems) {
-        if (
-          (item as HTMLAnchorElement).href?.includes(convId || '') ||
-          item.querySelector(`[href*="${convId}"]`)
-        ) {
+        if ((item as HTMLAnchorElement).href?.includes(convId || '') || item.querySelector(`[href*="${convId}"]`)) {
           (item as HTMLElement).click();
           console.log('[IS24] Clicked conversation list item');
           clicked = true;

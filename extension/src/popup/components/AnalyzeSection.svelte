@@ -1,12 +1,12 @@
 <script lang="ts">
 import { PROVIDERS } from '../../shared/ai-router';
 import {
-  buildScoringPrompt,
   buildMessagePrompt,
-  formatListingForPrompt,
-  parseScoreJSON,
+  buildScoringPrompt,
   CAPTCHA_SYSTEM_PROMPT,
   CAPTCHA_USER_PROMPT,
+  formatListingForPrompt,
+  parseScoreJSON,
 } from '../../shared/prompts';
 import type { PopupSettings } from '../lib/storage';
 import { trackTokenUsage } from '../lib/storage';
@@ -127,7 +127,11 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
         }
         const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
         const result = await provider.generateWithImage(
-          apiKey, CAPTCHA_SYSTEM_PROMPT, match[2], match[1], CAPTCHA_USER_PROMPT,
+          apiKey,
+          CAPTCHA_SYSTEM_PROMPT,
+          match[2],
+          match[1],
+          CAPTCHA_USER_PROMPT,
           { maxTokens: 32 },
         );
         const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
@@ -231,7 +235,8 @@ async function handleAnalyze() {
         // Direct provider mode — build prompts locally
         const userProfile = { ...formValues, aboutMe };
         const listingText = formatListingForPrompt(listingDetails);
-        let totalPromptTokens = 0, totalCompletionTokens = 0;
+        let totalPromptTokens = 0,
+          totalCompletionTokens = 0;
         const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
 
         // Score
@@ -253,7 +258,12 @@ async function handleAnalyze() {
         let message: string | undefined;
         try {
           const msgPrompt = buildMessagePrompt(userProfile, landlordInfo, settings.messageTemplate || '', profile);
-          const msgResult = await provider.generateText(apiKey!, msgPrompt, `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`, { maxTokens: 4096 });
+          const msgResult = await provider.generateText(
+            apiKey!,
+            msgPrompt,
+            `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`,
+            { maxTokens: 4096 },
+          );
           message = msgResult.text.trim() || undefined;
           totalPromptTokens += msgResult.usage.promptTokens;
           totalCompletionTokens += msgResult.usage.completionTokens;
@@ -262,7 +272,15 @@ async function handleAnalyze() {
         }
 
         await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
-        result = { score, reason, summary, flags, message, skip: false, usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens } };
+        result = {
+          score,
+          reason,
+          summary,
+          flags,
+          message,
+          skip: false,
+          usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+        };
       } else {
         // Server mode
         const payload = {

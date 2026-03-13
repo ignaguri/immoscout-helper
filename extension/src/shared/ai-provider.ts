@@ -23,12 +23,7 @@ export interface AIProvider {
   readonly pricing: { input: number; output: number }; // USD per 1M tokens
   readonly keyUrl: string; // URL where users get an API key
 
-  generateText(
-    apiKey: string,
-    systemPrompt: string,
-    userPrompt: string,
-    opts?: AIOptions,
-  ): Promise<AIResult>;
+  generateText(apiKey: string, systemPrompt: string, userPrompt: string, opts?: AIOptions): Promise<AIResult>;
 
   generateWithImage(
     apiKey: string,

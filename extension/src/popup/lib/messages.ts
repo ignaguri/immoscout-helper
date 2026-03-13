@@ -1,10 +1,5 @@
 // Typed chrome.runtime.sendMessage wrappers
-import type {
-  QueueItem,
-  QueueStatusResponse,
-  CaptureQueueResponse,
-  AppointmentInfo,
-} from '../../shared/types';
+import type { AppointmentInfo, CaptureQueueResponse, QueueItem, QueueStatusResponse } from '../../shared/types';
 
 export async function sendAction(action: string, data?: Record<string, unknown>): Promise<unknown> {
   return chrome.runtime.sendMessage({ action, ...data });

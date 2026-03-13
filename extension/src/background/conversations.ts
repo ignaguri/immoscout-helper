@@ -1,10 +1,10 @@
+import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
+import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';
-import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage, getProvider } from '../shared/ai-router';
-import { buildReplyPrompt, buildConversationText } from '../shared/prompts';
-import type { ConversationApiResponse } from './sync';
 import { sendActivityLog } from './listings';
+import type { ConversationApiResponse } from './sync';
 
 export type { ConversationEntry, ConversationMessage };
 
@@ -303,7 +303,10 @@ export async function generateDraftReply(
       const result: any = await response.json();
       reply = result.reply || null;
       if (result.usage) {
-        replyUsage = { promptTokens: result.usage.promptTokens || 0, completionTokens: result.usage.completionTokens || 0 };
+        replyUsage = {
+          promptTokens: result.usage.promptTokens || 0,
+          completionTokens: result.usage.completionTokens || 0,
+        };
       }
     } else {
       console.warn('[Conversations] No valid AI configuration for draft reply');

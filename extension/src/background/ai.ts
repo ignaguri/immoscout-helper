@@ -1,12 +1,19 @@
-import * as C from '../shared/constants';
-import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage, getProvider, type AIConfig } from '../shared/ai-router';
 import {
-  buildScoringPrompt,
+  type AIConfig,
+  canUseDirect,
+  canUseServer,
+  getAIConfig,
+  getProvider,
+  trackTokenUsage,
+} from '../shared/ai-router';
+import * as C from '../shared/constants';
+import {
   buildMessagePrompt,
-  formatListingForPrompt,
-  parseScoreJSON,
+  buildScoringPrompt,
   CAPTCHA_SYSTEM_PROMPT,
   CAPTCHA_USER_PROMPT,
+  formatListingForPrompt,
+  parseScoreJSON,
 } from '../shared/prompts';
 import { waitForTabLoad } from './helpers';
 
@@ -150,12 +157,21 @@ async function tryAIAnalysisDirect(
 
   // If score below threshold, skip message generation
   if (score < config.minScore) {
-    console.log(`[AI/Direct] Score ${score}/${config.minScore} — skipping${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`);
+    console.log(
+      `[AI/Direct] Score ${score}/${config.minScore} — skipping${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
+    );
     statsUpdates[C.AI_LISTINGS_SKIPPED_KEY] =
       ((await chrome.storage.local.get([C.AI_LISTINGS_SKIPPED_KEY]))[C.AI_LISTINGS_SKIPPED_KEY] || 0) + 1;
     await chrome.storage.local.set(statsUpdates);
     await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
-    return { score, reason, summary, flags, skip: true, usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens } };
+    return {
+      score,
+      reason,
+      summary,
+      flags,
+      skip: true,
+      usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+    };
   }
 
   await chrome.storage.local.set(statsUpdates);
@@ -185,8 +201,18 @@ async function tryAIAnalysisDirect(
   }
 
   await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
-  console.log(`[AI/Direct] Score ${score}/10 — message ${message ? 'generated' : 'fallback'}${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`);
-  return { score, reason, summary, flags, message: message || undefined, skip: false, usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens } };
+  console.log(
+    `[AI/Direct] Score ${score}/10 — message ${message ? 'generated' : 'fallback'}${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
+  );
+  return {
+    score,
+    reason,
+    summary,
+    flags,
+    message: message || undefined,
+    skip: false,
+    usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+  };
 }
 
 // ── Server mode (existing) ──
@@ -262,7 +288,9 @@ async function tryAIAnalysisServer(
     }
     await chrome.storage.local.set(updates);
 
-    console.log(`[AI/Server] Score: ${result.score}/10, Skip: ${result.skip}, Message: ${result.message ? 'yes' : 'no'}`);
+    console.log(
+      `[AI/Server] Score: ${result.score}/10, Skip: ${result.skip}, Message: ${result.message ? 'yes' : 'no'}`,
+    );
     return result;
   } catch (e: any) {
     clearTimeout(timeout);
@@ -290,10 +318,28 @@ export async function tryAIAnalysis(
     }
 
     if (canUseDirect(config)) {
-      return await tryAIAnalysisDirect(config, tabId, landlordTitle, landlordName, isPrivateLandlord, formValues, messageTemplate, isTenantNetwork);
+      return await tryAIAnalysisDirect(
+        config,
+        tabId,
+        landlordTitle,
+        landlordName,
+        isPrivateLandlord,
+        formValues,
+        messageTemplate,
+        isTenantNetwork,
+      );
     }
     if (canUseServer(config)) {
-      return await tryAIAnalysisServer(config, tabId, landlordTitle, landlordName, isPrivateLandlord, formValues, messageTemplate, isTenantNetwork);
+      return await tryAIAnalysisServer(
+        config,
+        tabId,
+        landlordTitle,
+        landlordName,
+        isPrivateLandlord,
+        formValues,
+        messageTemplate,
+        isTenantNetwork,
+      );
     }
 
     console.warn('[AI] No valid AI configuration (need API key for direct mode or server URL for server mode)');
@@ -438,7 +484,10 @@ export async function trySolveCaptcha(
         const result: any = await response.json();
         captchaText = result.text || null;
         if (result.usage) {
-          captchaUsage = { promptTokens: result.usage.promptTokens || 0, completionTokens: result.usage.completionTokens || 0 };
+          captchaUsage = {
+            promptTokens: result.usage.promptTokens || 0,
+            completionTokens: result.usage.completionTokens || 0,
+          };
         }
       }
 

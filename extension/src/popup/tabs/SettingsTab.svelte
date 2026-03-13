@@ -1,9 +1,9 @@
 <script lang="ts">
-import { clearSeenListings } from '../lib/messages';
+import { PROVIDERS } from '../../shared/ai-router';
 import CollapsibleSection from '../components/CollapsibleSection.svelte';
+import { clearSeenListings } from '../lib/messages';
 import type { PopupSettings } from '../lib/storage';
 import { resetAiUsage, saveAllSettings } from '../lib/storage';
-import { PROVIDERS } from '../../shared/ai-router';
 
 let {
   settings = $bindable(),

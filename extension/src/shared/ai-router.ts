@@ -1,7 +1,8 @@
 // Shared AI routing helper — determines whether to use direct or server mode,
 // and which provider to use in direct mode.
-import * as C from './constants';
+
 import type { AIProvider, ProviderId } from './ai-provider';
+import * as C from './constants';
 import { geminiProvider } from './gemini';
 import { openaiProvider } from './openai';
 

@@ -1,8 +1,9 @@
 <script lang="ts">
 import { generatePersonalizedMessage } from '../../shared/utils';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
+import AnalyzeSection from '../components/AnalyzeSection.svelte';
 import type { PopupSettings } from '../lib/storage';
-import { clearActivityLog, saveAllSettings, trackTokenUsage } from '../lib/storage';
+import { clearActivityLog, saveAllSettings } from '../lib/storage';
 
 let {
   settings = $bindable(),
@@ -24,24 +25,9 @@ let {
   lastAnalyzeContext: any;
 } = $props();
 
-let analyzeNotes = $state('');
-let analyzeBtnText = $state('Analyze Current Listing');
-let analyzeBtnDisabled = $state(false);
 let sendCurrentBtnText = $state('Send Template Message');
 let sendCurrentBtnDisabled = $state(false);
-let sendAnalyzedBtnText = $state('Send This Message');
-let sendAnalyzedBtnDisabled = $state(false);
-let copyBtnText = $state('Copy');
-let showExtractedData = $state(false);
-let extractedDataText = $state('');
-let analyzeMessageText = $state('');
 let logBoxEl: HTMLDivElement | undefined = $state();
-
-$effect(() => {
-  if (analyzeResult?.message) {
-    analyzeMessageText = analyzeResult.message;
-  }
-});
 
 // Auto-scroll activity log when entries change
 $effect(() => {
@@ -96,35 +82,6 @@ function getFormValues() {
     incomeRange: settings.formIncomeRange || '1.500 - 2.000',
     documents: settings.formDocuments || 'Vorhanden',
   };
-}
-
-function buildProfileFromSettings() {
-  const parseList = (val: string) =>
-    val
-      ? val
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
-  return {
-    name: settings.profileName || undefined,
-    age: settings.profileAge ? parseInt(settings.profileAge, 10) : undefined,
-    occupation: settings.profileOccupation || undefined,
-    languages: parseList(settings.profileLanguages),
-    movingReason: settings.profileMovingReason || undefined,
-    currentNeighborhood: settings.profileCurrentNeighborhood || undefined,
-    idealApartment: settings.profileIdealApartment || undefined,
-    dealbreakers: parseList(settings.profileDealbreakers),
-    strengths: parseList(settings.profileStrengths),
-    maxWarmmiete: settings.profileMaxWarmmiete ? parseInt(settings.profileMaxWarmmiete, 10) : undefined,
-  };
-}
-
-function getScoreColor(score: number): string {
-  if (score >= 8) return '#28a745';
-  if (score >= 6) return '#5cb85c';
-  if (score >= 4) return '#f0ad4e';
-  return '#dc3545';
 }
 
 async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolean; messageSent?: boolean }> {
@@ -268,226 +225,9 @@ async function handleSendTemplate() {
   }
 }
 
-async function handleAnalyze() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab.url?.includes('immobilienscout24.de/expose/')) {
-      showTestResult('Please open a listing on ImmoScout24 first!\n\nURL should contain "/expose/"', true);
-      return;
-    }
-    const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
-    const apiKey = settings.aiApiKey || undefined;
-    const profile = buildProfileFromSettings();
-
-    analyzeBtnDisabled = true;
-    analyzeBtnText = 'Analyzing...';
-    analyzeResult = null;
-    testResultVisible = false;
-
-    let listingDetails: any, landlordInfo: any;
-    try {
-      listingDetails = await chrome.tabs.sendMessage(tab.id!, { action: 'extractListingDetails' });
-      const nameResponse = await chrome.tabs.sendMessage(tab.id!, { action: 'extractLandlordName' });
-      landlordInfo = {
-        title: nameResponse?.title || null,
-        name: nameResponse?.name || null,
-        isPrivate: nameResponse?.isPrivate || false,
-      };
-    } catch {
-      analyzeBtnDisabled = false;
-      analyzeBtnText = 'Analyze Current Listing';
-      showTestResult('Could not read listing. Please refresh the page and try again.', true);
-      return;
-    }
-    if (!listingDetails) {
-      analyzeBtnDisabled = false;
-      analyzeBtnText = 'Analyze Current Listing';
-      showTestResult('No listing data found on this page.', true);
-      return;
-    }
-
-    const formValues = getFormValues();
-    const aboutMe = settings.aiAboutMe || '';
-    const notes = analyzeNotes.trim();
-    const payload = {
-      listingDetails,
-      landlordInfo,
-      userProfile: { ...formValues, aboutMe },
-      messageTemplate: settings.messageTemplate || '',
-      minScore: 0,
-      userNotes: notes || undefined,
-      apiKey,
-      profile,
-    };
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    let result: any;
-    try {
-      const response = await fetch(`${serverUrl}/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!response.ok) throw new Error(`Server returned ${response.status}`);
-      result = await response.json();
-
-      if (result.usage) {
-        await trackTokenUsage(result.usage.promptTokens || 0, result.usage.completionTokens || 0);
-      }
-    } catch (e: any) {
-      clearTimeout(timeout);
-      analyzeBtnDisabled = false;
-      analyzeBtnText = 'Analyze Current Listing';
-      const msg = e.name === 'AbortError' ? 'Request timed out (30s)' : e.message;
-      showTestResult(`AI server error: ${msg}\n\nMake sure the server is running at ${serverUrl}`, true);
-      return;
-    }
-
-    analyzeBtnDisabled = false;
-    analyzeBtnText = 'Analyze Current Listing';
-
-    const score = result.score || 0;
-    const exposeMatch = tab.url!.match(/\/expose\/(\d+)/);
-    lastAnalyzeContext = {
-      listingId: exposeMatch ? exposeMatch[1] : 'unknown',
-      title: listingDetails.title || 'Untitled',
-      address: listingDetails.address || '',
-      url: tab.url,
-      score,
-      reason: result.reason || '',
-      landlord: landlordInfo.name || '',
-    };
-
-    // Build extracted data text
-    extractedDataText = Object.entries(listingDetails)
-      .filter(([k, v]) => k !== 'rawText' && v)
-      .map(([k, v]) => {
-        if (typeof v === 'object') return `${k}: ${JSON.stringify(v)}`;
-        const str = String(v);
-        return `${k}: ${str.length > 80 ? `${str.substring(0, 80)}...` : str}`;
-      })
-      .join('\n');
-
-    analyzeResult = { ...result, score, listingTitle: listingDetails.title || 'Untitled listing' };
-    if (result.message) analyzeMessageText = result.message;
-  } catch (error: any) {
-    analyzeBtnDisabled = false;
-    analyzeBtnText = 'Analyze Current Listing';
-    let errorMsg = `Error: ${error.message}`;
-    if (error.message.includes('Receiving end does not exist')) {
-      errorMsg += '\n\nPlease refresh the listing page and try again.';
-    }
-    showTestResult(errorMsg, true);
-  }
-}
-
-async function handleSendAnalyzed() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab.url?.includes('immobilienscout24.de/expose/')) {
-      showTestResult('Please open a listing on ImmoScout24 first!', true);
-      return;
-    }
-    const message = analyzeMessageText.trim();
-    if (!message) {
-      showTestResult('No message to send.', true);
-      return;
-    }
-
-    sendAnalyzedBtnDisabled = true;
-    sendAnalyzedBtnText = 'Sending...';
-    showTestResult('Sending AI message...\n---', false);
-
-    const formValues = getFormValues();
-    const isAutoSend = settings.autoSendMode !== 'manual';
-    let sendResult = await chrome.tabs.sendMessage(tab.id!, {
-      action: 'sendMessage',
-      message,
-      formValues,
-      autoSend: isAutoSend,
-    });
-
-    if (sendResult && !sendResult.success && sendResult.captchaBlocked) {
-      const captchaResult = await trySolveCaptchaFromPopup(tab.id!);
-      if (captchaResult.messageSent) {
-        sendResult = { success: true, messageSent: message };
-      } else if (captchaResult.solved) {
-        try {
-          sendResult = await chrome.tabs.sendMessage(tab.id!, {
-            action: 'sendMessage',
-            message,
-            formValues,
-            autoSend: isAutoSend,
-          });
-        } catch (e: any) {
-          appendToResult(`Retry failed: ${e.message}`);
-        }
-      }
-    }
-
-    sendAnalyzedBtnDisabled = false;
-    sendAnalyzedBtnText = 'Send This Message';
-
-    if (sendResult?.success) {
-      appendToResult('\nMessage sent successfully!');
-      testResultIsError = false;
-      if (lastAnalyzeContext) {
-        const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
-        try {
-          await fetch(`${serverUrl}/log`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...lastAnalyzeContext, action: 'sent' }),
-          });
-        } catch {
-          /* logging is best-effort */
-        }
-      }
-    } else {
-      appendToResult(`\n${sendResult?.error || 'Unknown error'}`);
-      testResultIsError = true;
-    }
-  } catch (error: any) {
-    sendAnalyzedBtnDisabled = false;
-    sendAnalyzedBtnText = 'Send This Message';
-    let errorMsg = `Error: ${error.message}`;
-    if (error.message.includes('Receiving end does not exist')) {
-      errorMsg += '\n\nPlease refresh the listing page and try again.';
-    }
-    showTestResult(errorMsg, true);
-  }
-}
-
-function handleCopyAnalyzed() {
-  navigator.clipboard.writeText(analyzeMessageText).then(() => {
-    copyBtnText = '✓';
-    setTimeout(() => {
-      copyBtnText = 'Copy';
-    }, 1500);
-  });
-}
-
 async function handleClearActivity() {
   await clearActivityLog();
   activityLog = [];
-}
-
-const flagLabels: Record<string, string> = {
-  'abl\u00f6se-risk': 'Abl\u00f6se Risk',
-  'swap-only': 'Swap Only',
-  'suspicious-price': 'Suspicious Price',
-  'wbs-required': 'WBS Required',
-  befristet: 'Fixed-Term',
-  indexmiete: 'Index-Linked Rent',
-  'high-energy-costs': 'High Energy Costs',
-  unrenovated: 'Unrenovated',
-};
-
-function isFlagWarning(f: string): boolean {
-  return ['abl\u00f6se-risk', 'swap-only', 'suspicious-price'].includes(f);
 }
 </script>
 
@@ -540,58 +280,16 @@ function isFlagWarning(f: string): boolean {
 
 <div class="section-title">Test</div>
 
-<div class="field">
-  <label for="analyzeNotes">Notes for AI (optional)</label>
-  <input
-    type="text"
-    id="analyzeNotes"
-    bind:value={analyzeNotes}
-    placeholder="e.g. I prefer ground floor apartments"
-  />
-</div>
-
-<button class="btn btn-test" disabled={analyzeBtnDisabled} onclick={handleAnalyze}>
-  {analyzeBtnText}
-</button>
-
-{#if analyzeResult}
-  <div class="analyze-result">
-    <div class="analyze-header">
-      <span class="score-badge" style="background: {getScoreColor(analyzeResult.score)};">
-        {analyzeResult.score}
-      </span>
-      <span class="analyze-title">{analyzeResult.listingTitle}</span>
-    </div>
-    <div class="analyze-reason">{analyzeResult.reason || ''}</div>
-    {#if analyzeResult.summary}
-      <div class="analyze-summary">{analyzeResult.summary}</div>
-    {/if}
-    {#if analyzeResult.flags && analyzeResult.flags.length > 0}
-      <div class="analyze-flags">
-        {#each analyzeResult.flags as flag}
-          <span class="flag-badge" style="background: {isFlagWarning(flag) ? '#dc3545' : '#f0ad4e'};">
-            {flagLabels[flag] || flag}
-          </span>
-        {/each}
-      </div>
-    {/if}
-    {#if analyzeResult.message}
-      <div class="analyze-msg-section">
-        <textarea class="analyze-message" bind:value={analyzeMessageText}></textarea>
-        <div class="analyze-btn-row">
-          <button class="btn btn-test" disabled={sendAnalyzedBtnDisabled} onclick={handleSendAnalyzed}>{sendAnalyzedBtnText}</button>
-          <button class="btn btn-secondary" onclick={handleCopyAnalyzed}>{copyBtnText}</button>
-        </div>
-      </div>
-    {/if}
-    <button class="btn btn-secondary" style="font-size:11px;" onclick={() => showExtractedData = !showExtractedData}>
-      {showExtractedData ? 'Hide extracted data' : 'Show extracted data'}
-    </button>
-    {#if showExtractedData}
-      <pre class="extracted-data">{extractedDataText}</pre>
-    {/if}
-  </div>
-{/if}
+<AnalyzeSection
+  {settings}
+  bind:testResultVisible
+  bind:testResultContent
+  bind:testResultIsError
+  bind:analyzeResult
+  bind:lastAnalyzeContext
+  {appendToResult}
+  {showTestResult}
+/>
 
 {#if testResultVisible}
   <div
@@ -634,104 +332,5 @@ function isFlagWarning(f: string): boolean {
     word-break: break-word;
     font-family: 'SF Mono', Monaco, monospace;
     margin: 0;
-  }
-
-  .analyze-result {
-    margin-top: 12px;
-    padding: 12px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-  }
-
-  .analyze-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-
-  .score-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 700;
-    color: white;
-  }
-
-  .analyze-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: #333;
-  }
-
-  .analyze-reason {
-    font-size: 12px;
-    color: #555;
-    margin-bottom: 6px;
-  }
-
-  .analyze-summary {
-    font-size: 11px;
-    color: #666;
-    background: #fff;
-    padding: 8px;
-    border-radius: 4px;
-    margin-bottom: 8px;
-    border: 1px solid #eee;
-  }
-
-  .analyze-flags {
-    margin-bottom: 8px;
-  }
-
-  .flag-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 600;
-    color: white;
-    margin-right: 4px;
-    margin-top: 4px;
-  }
-
-  .analyze-msg-section {
-    margin-top: 8px;
-  }
-
-  .analyze-message {
-    width: 100%;
-    min-height: 80px;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 12px;
-    font-family: inherit;
-    resize: vertical;
-    margin-bottom: 6px;
-  }
-
-  .analyze-btn-row {
-    display: flex;
-    gap: 6px;
-  }
-
-  .analyze-btn-row .btn {
-    flex: 1;
-    margin-top: 0;
-  }
-
-  .extracted-data {
-    font-size: 10px;
-    background: #f0f0f0;
-    padding: 8px;
-    border-radius: 4px;
-    white-space: pre-wrap;
-    word-break: break-word;
-    margin-top: 6px;
-    max-height: 150px;
-    overflow-y: auto;
   }
 </style>

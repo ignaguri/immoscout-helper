@@ -1,8 +1,11 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { resolve } from 'path';
-import { cpSync, readFileSync, writeFileSync, existsSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { cpSync } from 'fs';
 import { build as viteBuild } from 'vite';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Plugin to build background and content as separate IIFE bundles after the main build
 function buildExtensionScripts() {
@@ -64,7 +67,7 @@ export default defineConfig({
   plugins: [svelte(), buildExtensionScripts()],
   build: {
     outDir: 'dist',
-    emptyDirFirst: true,
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'popup.html'),

@@ -140,7 +140,7 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
         const response = await fetch(`${serverUrl}/captcha`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey }),
+          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey, provider: settings.aiProvider }),
           signal: controller.signal,
         });
         clearTimeout(timeout);

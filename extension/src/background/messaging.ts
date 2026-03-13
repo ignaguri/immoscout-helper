@@ -252,7 +252,12 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
           const shortenResponse = await fetch(`${shortenConfig.serverUrl}/shorten`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: personalizedMessage, maxLength: limit, apiKey: shortenConfig.apiKey }),
+            body: JSON.stringify({
+              message: personalizedMessage,
+              maxLength: limit,
+              apiKey: shortenConfig.apiKey,
+              provider: shortenConfig.provider,
+            }),
           });
           if (shortenResponse.ok) {
             const shortenResult: any = await shortenResponse.json();

@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "../node_modules/.bin/biome check .",
+    "lint:fix": "../node_modules/.bin/biome check --write ."
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",

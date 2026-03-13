@@ -1,6 +1,6 @@
 <script lang="ts">
 import { generatePersonalizedMessage } from '../../shared/utils';
-import { geminiGenerateWithImage } from '../../shared/gemini';
+import { PROVIDERS } from '../../shared/ai-router';
 import { CAPTCHA_SYSTEM_PROMPT, CAPTCHA_USER_PROMPT } from '../../shared/prompts';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
 import AnalyzeSection from '../components/AnalyzeSection.svelte';
@@ -117,9 +117,10 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
           appendToResult('Invalid captcha image format');
           return { solved: false };
         }
-        const result = await geminiGenerateWithImage(
+        const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
+        const result = await provider.generateWithImage(
           apiKey, CAPTCHA_SYSTEM_PROMPT, match[2], match[1], CAPTCHA_USER_PROMPT,
-          { maxTokens: 32, thinkingBudget: 0 },
+          { maxTokens: 32 },
         );
         const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
         captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;

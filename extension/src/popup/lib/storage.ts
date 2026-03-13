@@ -4,6 +4,7 @@ import {
   AI_API_KEY_KEY,
   AI_MIN_SCORE_KEY,
   AI_MODE_KEY,
+  AI_PROVIDER_KEY,
   AI_SERVER_URL_KEY,
   AI_USAGE_COMPLETION_TOKENS_KEY,
   AI_USAGE_PROMPT_TOKENS_KEY,
@@ -103,6 +104,7 @@ export interface PopupSettings {
   formDocuments: string;
   // AI
   aiMode: 'direct' | 'server';
+  aiProvider: 'gemini' | 'openai';
   aiApiKey: string;
   aiServerUrl: string;
   aiMinScore: number;
@@ -128,6 +130,7 @@ const ALL_SETTINGS_KEYS = [
   FORM_INCOME_RANGE_KEY,
   FORM_DOCUMENTS_KEY,
   AI_MODE_KEY,
+  AI_PROVIDER_KEY,
   AI_API_KEY_KEY,
   AI_SERVER_URL_KEY,
   AI_MIN_SCORE_KEY,
@@ -195,6 +198,7 @@ export async function loadAllSettings(): Promise<PopupSettings> {
     formIncomeRange: result[FORM_INCOME_RANGE_KEY] || '1.500 - 2.000',
     formDocuments: result[FORM_DOCUMENTS_KEY] || 'Vorhanden',
     aiMode: result[AI_MODE_KEY] || 'direct',
+    aiProvider: result[AI_PROVIDER_KEY] || 'gemini',
     aiApiKey: result[AI_API_KEY_KEY] || '',
     aiServerUrl: result[AI_SERVER_URL_KEY] || 'http://localhost:3456',
     aiMinScore: result[AI_MIN_SCORE_KEY] ?? 5,
@@ -242,6 +246,7 @@ export async function saveAllSettings(s: PopupSettings): Promise<void> {
     [FORM_INCOME_RANGE_KEY]: s.formIncomeRange || '1.500 - 2.000',
     [FORM_DOCUMENTS_KEY]: s.formDocuments || 'Vorhanden',
     [AI_MODE_KEY]: s.aiMode || 'direct',
+    [AI_PROVIDER_KEY]: s.aiProvider || 'gemini',
     [AI_API_KEY_KEY]: s.aiApiKey.trim(),
     [AI_SERVER_URL_KEY]: s.aiServerUrl.trim() || 'http://localhost:3456',
     [AI_MIN_SCORE_KEY]: Math.max(1, Math.min(10, s.aiMinScore || 5)),

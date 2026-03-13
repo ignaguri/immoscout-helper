@@ -1,8 +1,7 @@
 import * as C from '../shared/constants';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';
-import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage } from '../shared/ai-router';
-import { geminiGenerateText } from '../shared/gemini';
+import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage, getProvider } from '../shared/ai-router';
 import { buildReplyPrompt, buildConversationText } from '../shared/prompts';
 import type { ConversationApiResponse } from './sync';
 import { sendActivityLog } from './listings';
@@ -267,7 +266,7 @@ export async function generateDraftReply(
     let replyUsage = { promptTokens: 0, completionTokens: 0 };
 
     if (canUseDirect(config) && config.apiKey) {
-      // Direct Gemini mode
+      // Direct provider mode
       const systemPrompt = buildReplyPrompt(userProfile, landlordInfo, profile);
       const conversationText = buildConversationText(
         conversation.messages,
@@ -275,7 +274,8 @@ export async function generateDraftReply(
         undefined,
         userContext || undefined,
       );
-      const result = await geminiGenerateText(config.apiKey, systemPrompt, conversationText, { maxTokens: 2048 });
+      const provider = getProvider(config);
+      const result = await provider.generateText(config.apiKey, systemPrompt, conversationText, { maxTokens: 2048 });
       reply = result.text.trim() || null;
       replyUsage = result.usage;
     } else if (canUseServer(config)) {

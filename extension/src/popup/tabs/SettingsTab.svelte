@@ -187,7 +187,7 @@ function toggleApiKey() {
     </div>
     {#if settings.aiMode === 'direct'}
       <div class="hint">
-        <a href="https://aistudio.google.com/app/apikeys" target="_blank" rel="noopener">Get a free API key from Google AI Studio</a>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free API key from Google AI Studio</a>
       </div>
     {/if}
   </div>

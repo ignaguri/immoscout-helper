@@ -1,0 +1,117 @@
+// Background service worker entry point for ImmoScout24 Auto Reloader
+import * as C from '../shared/constants';
+import {
+  isMonitoring,
+  setIsMonitoring,
+  setLastMessageTime,
+  setMessageCount,
+  setMessageCountResetTime,
+  setIsProcessingQueue,
+  messageCountResetTime,
+} from './state';
+import { scheduleNextAlarm } from './helpers';
+import { initializeStorage } from './storage';
+import { updateCheckInterval } from './monitoring';
+import { checkForNewListings } from './listings';
+import { checkForNewReplies } from './conversations';
+import { registerMessageHandler, registerNotificationHandler } from './message-handler';
+
+// Open side panel when extension icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel.open({ windowId: tab.windowId });
+});
+
+// Register message and notification handlers
+registerMessageHandler();
+registerNotificationHandler();
+
+// ============================================================================
+// INITIALIZATION & LIFECYCLE
+// ============================================================================
+
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log('Apartment Messenger installed');
+  await initializeStorage();
+  // Reset rate limit on extension install/reload so we start fresh
+  setMessageCount(0);
+  setMessageCountResetTime(Date.now() + 3600000);
+  setLastMessageTime(0);
+  await chrome.storage.local.set({
+    [C.RATE_MESSAGE_COUNT_KEY]: 0,
+    [C.RATE_COUNT_RESET_TIME_KEY]: messageCountResetTime,
+    [C.RATE_LAST_MESSAGE_TIME_KEY]: 0,
+  });
+  console.log('Rate limit reset on install/reload');
+
+  // Start conversation reply checking alarm (runs even when monitoring is off)
+  chrome.alarms.create(C.CONVERSATIONS_ALARM_NAME, { periodInMinutes: 5 });
+  console.log('[Conversations] Reply checking alarm started (every 5 min)');
+});
+
+chrome.runtime.onStartup.addListener(async () => {
+  console.log('Service worker started, checking monitoring state...');
+  await restoreMonitoringState();
+  // Ensure conversation alarm is running
+  chrome.alarms.create(C.CONVERSATIONS_ALARM_NAME, { periodInMinutes: 5 });
+});
+
+(async () => {
+  console.log('Service worker activated, checking monitoring state...');
+  await restoreMonitoringState();
+})();
+
+async function restoreMonitoringState(): Promise<void> {
+  const stored: Record<string, any> = await chrome.storage.local.get([
+    C.MONITORING_STATE_KEY,
+    C.RATE_LAST_MESSAGE_TIME_KEY,
+    C.RATE_MESSAGE_COUNT_KEY,
+    C.RATE_COUNT_RESET_TIME_KEY,
+    C.QUEUE_PROCESSING_KEY,
+  ]);
+
+  // Restore rate limit state
+  setLastMessageTime(stored[C.RATE_LAST_MESSAGE_TIME_KEY] || 0);
+  setMessageCount(stored[C.RATE_MESSAGE_COUNT_KEY] || 0);
+  setMessageCountResetTime(stored[C.RATE_COUNT_RESET_TIME_KEY] || Date.now() + 3600000);
+
+  // Clear stale queue processing flag (SW was killed mid-run)
+  if (stored[C.QUEUE_PROCESSING_KEY]) {
+    setIsProcessingQueue(false);
+    await chrome.storage.local.set({ [C.QUEUE_PROCESSING_KEY]: false });
+    console.log('[Queue] Cleared stale processing flag from previous SW session');
+  }
+
+  if (stored[C.MONITORING_STATE_KEY]) {
+    console.log('Restoring monitoring state: was monitoring');
+    setIsMonitoring(true);
+    await updateCheckInterval();
+    await scheduleNextAlarm();
+    console.log('Alarm restored with jitter');
+  } else {
+    console.log('No saved monitoring state - monitoring is off');
+  }
+}
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === C.ALARM_NAME) {
+    console.log(`[${new Date().toLocaleTimeString()}] Alarm triggered - checking for new listings...`);
+    if (isMonitoring) {
+      try {
+        await checkForNewListings();
+      } catch (error) {
+        console.error('Error in alarm check:', error);
+      }
+      // Reschedule with jitter for next cycle
+      if (isMonitoring) {
+        await scheduleNextAlarm();
+      }
+    }
+  } else if (alarm.name === C.CONVERSATIONS_ALARM_NAME) {
+    console.log(`[${new Date().toLocaleTimeString()}] Conversation alarm triggered - checking for replies...`);
+    try {
+      await checkForNewReplies();
+    } catch (error) {
+      console.error('[Conversations] Error checking replies:', error);
+    }
+  }
+});

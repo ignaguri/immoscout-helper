@@ -1,6 +1,12 @@
 // Typed chrome.runtime.sendMessage wrappers
+import type {
+  QueueItem,
+  QueueStatusResponse,
+  CaptureQueueResponse,
+  AppointmentInfo,
+} from '../../shared/types';
 
-export async function sendAction(action: string, data?: Record<string, any>): Promise<any> {
+export async function sendAction(action: string, data?: Record<string, unknown>): Promise<unknown> {
   return chrome.runtime.sendMessage({ action, ...data });
 }
 
@@ -34,19 +40,13 @@ export async function updateInterval(interval: number): Promise<void> {
   await chrome.runtime.sendMessage({ action: 'updateInterval', interval });
 }
 
-export async function getQueueStatus(): Promise<{
-  queue: any[];
-  isProcessing: boolean;
-}> {
+export async function getQueueStatus(): Promise<QueueStatusResponse> {
   return chrome.runtime.sendMessage({ action: 'getQueueStatus' });
 }
 
-export async function captureQueueItems(listings: any[]): Promise<{
-  success: boolean;
-  added: number;
-  total: number;
-  error?: string;
-}> {
+export async function captureQueueItems(
+  listings: Pick<QueueItem, 'id' | 'url' | 'title'>[],
+): Promise<CaptureQueueResponse> {
   return chrome.runtime.sendMessage({ action: 'captureQueueItems', listings });
 }
 
@@ -81,7 +81,7 @@ export async function respondToAppointment(
   conversationId: string,
   response: string,
   userContext: string,
-  appointment: { date: string; time: string; location: string },
+  appointment: AppointmentInfo,
 ): Promise<{ success: boolean; error?: string }> {
   return chrome.runtime.sendMessage({
     action: 'respondToAppointment',

@@ -1,0 +1,219 @@
+import * as C from '../shared/constants';
+import { capSeenListings } from '../shared/utils';
+import {
+  isMonitoring,
+  isProcessingQueue,
+  queueAbortRequested,
+  userTriggeredProcessing,
+  setIsProcessingQueue,
+  setQueueAbortRequested,
+  setUserTriggeredProcessing,
+} from './state';
+import { humanDelay } from './helpers';
+import { checkRateLimit } from './rate-limit';
+import { handleNewListing } from './messaging';
+import { sendActivityLog, type Listing } from './listings';
+
+export interface QueueItem {
+  id: string;
+  url: string;
+  title: string;
+  source: string;
+  addedAt: number;
+  retries: number;
+}
+
+// Enqueue listings into the shared queue (used by both auto-discovery and manual capture)
+export async function enqueueListings(listings: Listing[], source: string): Promise<number> {
+  if (!listings || listings.length === 0) return 0;
+
+  // Deduplicate input by ID
+  const dedupMap = new Map<string, Listing>();
+  for (const listing of listings) {
+    const id = String(listing.id || '')
+      .toLowerCase()
+      .trim();
+    if (id && listing.url && !dedupMap.has(id)) {
+      dedupMap.set(id, listing);
+    }
+  }
+
+  const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.QUEUE_KEY]);
+
+  const seenSet = new Set((stored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
+  const queueSet = new Set((stored[C.QUEUE_KEY] || []).map((item: QueueItem) => String(item.id).toLowerCase().trim()));
+
+  const addedAt = Date.now();
+  const newItems: QueueItem[] = [];
+
+  for (const [id, listing] of dedupMap) {
+    if (!seenSet.has(id) && !queueSet.has(id)) {
+      newItems.push({
+        id,
+        url: listing.url,
+        title: listing.title || '',
+        source,
+        addedAt,
+        retries: 0,
+      });
+    }
+  }
+
+  if (newItems.length === 0) {
+    console.log(`[Queue] No new items to enqueue (${dedupMap.size} input, all seen or already queued)`);
+    return 0;
+  }
+
+  const updatedQueue = [...(stored[C.QUEUE_KEY] || []), ...newItems];
+  await chrome.storage.local.set({ [C.QUEUE_KEY]: updatedQueue });
+
+  console.log(
+    `[Queue] Enqueued ${newItems.length} ${source} items (${dedupMap.size - newItems.length} filtered as seen/duplicate)`,
+  );
+  await sendActivityLog({
+    message: `Enqueued ${newItems.length} ${source} listing${newItems.length !== 1 ? 's' : ''} (${updatedQueue.length} total in queue)`,
+  });
+
+  return newItems.length;
+}
+
+// Unified queue processor — drains the shared queue (FIFO)
+export async function processQueue(): Promise<void> {
+  if (isProcessingQueue) {
+    console.log('[Queue] Already processing — skipping');
+    return;
+  }
+
+  // Guard: only process when monitoring or user triggered
+  if (!isMonitoring && !userTriggeredProcessing) {
+    console.log('[Queue] Not monitoring and no user trigger — skipping');
+    return;
+  }
+
+  setIsProcessingQueue(true);
+  setQueueAbortRequested(false);
+  await chrome.storage.local.set({ [C.QUEUE_PROCESSING_KEY]: true });
+
+  console.log('[Queue] Starting unified queue processing');
+
+  try {
+    while (!queueAbortRequested) {
+      if (!isMonitoring && !userTriggeredProcessing) break;
+
+      const stored: Record<string, any> = await chrome.storage.local.get([C.QUEUE_KEY]);
+      const queue: QueueItem[] = stored[C.QUEUE_KEY] || [];
+
+      if (queue.length === 0) {
+        console.log('[Queue] Queue empty — processing complete');
+        await sendActivityLog({ message: 'Queue empty — processing complete' });
+        break;
+      }
+
+      const item = queue[0];
+      const remaining = queue.slice(1);
+      const normalizedId = String(item.id).toLowerCase().trim();
+
+      // Skip if already in seen list
+      const seenStored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
+      const seenSet = new Set((seenStored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
+      if (seenSet.has(normalizedId)) {
+        console.log(`[Queue] ${normalizedId} already seen — removing from queue`);
+        await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+        await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (already contacted)` });
+        continue;
+      }
+
+      // Skip if max retries exceeded
+      if (item.retries >= C.QUEUE_MAX_RETRIES) {
+        console.log(`[Queue] ${normalizedId} exceeded max retries (${item.retries}) — dropping`);
+        await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+        await sendActivityLog({
+          message: `Dropped ${item.title || normalizedId} (failed ${item.retries}x)`,
+          type: 'wait',
+        });
+        continue;
+      }
+
+      await sendActivityLog({ current: { id: normalizedId, title: item.title || 'untitled', url: item.url } });
+
+      // Check rate limit
+      const rateLimitCheck = await checkRateLimit();
+      if (!rateLimitCheck.allowed) {
+        const waitSec = Math.round(rateLimitCheck.waitTime! / 1000);
+        console.log(`[Queue] Rate limit — waiting ${waitSec}s`);
+        await sendActivityLog({ message: `Rate limit — waiting ${waitSec}s...`, type: 'wait' });
+        await new Promise((resolve) => setTimeout(resolve, rateLimitCheck.waitTime!));
+        if (queueAbortRequested) break;
+        const recheck = await checkRateLimit();
+        if (!recheck.allowed) {
+          console.log('[Queue] Rate limit still exceeded — pausing');
+          break;
+        }
+      }
+
+      // Process the listing
+      try {
+        const result = await handleNewListing(item);
+
+        if (result?.success) {
+          // Success: remove from queue, mark as seen
+          const freshSeen: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
+          const freshList: string[] = freshSeen[C.STORAGE_KEY] || [];
+          const freshSet = new Set(freshList.map((id: string) => String(id).toLowerCase().trim()));
+
+          if (!freshSet.has(normalizedId)) {
+            const updatedSeen = capSeenListings([...freshList, normalizedId]);
+            await chrome.storage.local.set({ [C.STORAGE_KEY]: updatedSeen, [C.QUEUE_KEY]: remaining });
+          } else {
+            await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+          }
+
+          console.log(`[Queue] Processed ${normalizedId} — ${remaining.length} remaining`);
+          await sendActivityLog({
+            lastResult: result.skipped ? 'skipped' : 'success',
+            lastId: item.id,
+            lastTitle: item.title || '',
+          });
+        } else {
+          // Failure: increment retries, move to end
+          const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
+          await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, updatedItem] });
+          console.log(
+            `[Queue] ${normalizedId} failed (attempt ${updatedItem.retries}/${C.QUEUE_MAX_RETRIES}) — moved to end`,
+          );
+          await sendActivityLog({
+            lastResult: 'failed',
+            lastId: item.id,
+            lastTitle: item.title || '',
+            error: result?.error,
+          });
+        }
+      } catch (error: any) {
+        console.error('[Queue] Error processing listing:', error);
+        const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
+        await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, updatedItem] });
+        await sendActivityLog({
+          lastResult: 'failed',
+          lastId: item.id,
+          lastTitle: item.title || '',
+          error: error.message,
+        });
+      }
+
+      // Human delay between listings
+      const delay = humanDelay(2000, 1000);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  } finally {
+    setIsProcessingQueue(false);
+    setQueueAbortRequested(false);
+    setUserTriggeredProcessing(false);
+    await chrome.storage.local.set({ [C.QUEUE_PROCESSING_KEY]: false });
+    console.log('[Queue] Processing loop exited');
+    try {
+      await chrome.runtime.sendMessage({ action: 'queueDone' });
+    } catch (_e) {
+      console.debug('[Queue] Could not notify popup of queue completion (likely closed)');
+    }
+  }
+}

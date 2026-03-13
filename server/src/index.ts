@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { execFile } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGoogleGenerativeAI, google } from '@ai-sdk/google';
@@ -258,6 +258,24 @@ app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: 
     writeFileSync(captchaPath, imageBuffer);
     console.log(`[Captcha] Image saved: ${captchaPath}`);
 
+    // Cleanup old captcha images when count exceeds threshold
+    const MAX_CAPTCHA_FILES = 100;
+    try {
+      const files = readdirSync(captchaDir)
+        .filter((f) => f.startsWith('captcha-'))
+        .sort();
+      if (files.length > MAX_CAPTCHA_FILES) {
+        const toDelete = files.slice(0, files.length - MAX_CAPTCHA_FILES);
+        for (const f of toDelete) {
+          try {
+            unlinkSync(join(captchaDir, f));
+          } catch {}
+        }
+        console.log(`[Captcha] Cleaned up ${toDelete.length} old images`);
+      }
+    } catch {}
+
+
     const { text, usage: captchaUsage } = await generateText({
       model,
       system:
@@ -488,6 +506,10 @@ app.post('/documents/generate', async (req: Request<{}, unknown, DocumentsReques
 
 // Activity log endpoint
 app.post('/log', (req: Request<{}, unknown, LogEntryBody>, res: Response) => {
+  if (!req.body.action || !req.body.listingId) {
+    return res.status(400).json({ error: 'action and listingId are required' });
+  }
+
   const entry = {
     timestamp: new Date().toISOString(),
     ...req.body,

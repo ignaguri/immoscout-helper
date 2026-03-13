@@ -57,7 +57,6 @@ let settings: PopupSettings = $state({
   formIncomeRange: '1.500 - 2.000',
   formDocuments: 'Vorhanden',
   aiMode: 'direct',
-  aiEnabled: false,
   aiApiKey: '',
   aiServerUrl: 'http://localhost:3456',
   aiMinScore: 5,
@@ -218,9 +217,13 @@ async function handleToggle() {
       activeTab = 'activity';
       return;
     }
-    if (!settings.messageTemplate.trim()) {
-      alert('Please enter a message');
-      activeTab = 'activity';
+    const needsKey = settings.aiMode === 'direct' && !settings.aiApiKey;
+    const needsServer = settings.aiMode === 'server' && !settings.aiServerUrl;
+    if (needsKey || needsServer) {
+      alert(needsKey
+        ? 'Please configure your Gemini API key in Settings'
+        : 'Please configure your AI server URL in Settings');
+      activeTab = 'settings';
       return;
     }
     await saveAllSettings(settings);
@@ -781,7 +784,7 @@ onMount(() => {
     font-size: 11px;
     padding: 4px 10px;
     border-radius: 12px;
-    margin-top: 8px;
+    margin-bottom: 12px;
   }
 
   :global(.ai-status.connected) {
@@ -865,7 +868,7 @@ onMount(() => {
 
   /* Setup instructions box */
   :global(.setup-box) {
-    margin-top: 10px;
+    margin-bottom: 12px;
     padding: 12px;
     background: #f0f7ff;
     border: 1px solid #c8dff5;

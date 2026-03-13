@@ -10,7 +10,7 @@
       <span class="step-num">1</span>
       <div>
         <strong>Set up AI</strong>
-        <p>Go to <strong>Settings</strong> &rarr; enable <strong>AI Analysis</strong> &rarr; paste your <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Gemini API key</a> (free). Check the status dot turns green.</p>
+        <p>Go to <strong>Settings</strong> &rarr; paste your <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Gemini API key</a> (free). Check the status dot turns green.</p>
       </div>
     </div>
     <div class="help-step">
@@ -23,8 +23,8 @@
     <div class="help-step">
       <span class="step-num">3</span>
       <div>
-        <strong>Write your message</strong>
-        <p>Write a template in the <strong>Activity</strong> tab. Use <code>{'{name}'}</code> and the AI will personalize it per landlord.</p>
+        <strong>Customize your style (optional)</strong>
+        <p>Open <strong>Settings</strong> &rarr; <strong>Message Style Guide</strong> to write a sample message. The AI uses it as tone inspiration. Use <code>{'{name}'}</code> for landlord greeting.</p>
       </div>
     </div>
     <div class="help-step">
@@ -73,7 +73,7 @@
       <span class="step-num">4</span>
       <div>
         <strong>Paste it in Settings</strong>
-        <p>Go to <strong>Settings</strong> &rarr; enable <strong>AI Analysis</strong> &rarr; paste the key in the <strong>Gemini API Key</strong> field. The green dot confirms it works.</p>
+        <p>Go to <strong>Settings</strong> &rarr; paste the key in the <strong>Gemini API Key</strong> field. The green dot confirms it works.</p>
       </div>
     </div>
   </div>

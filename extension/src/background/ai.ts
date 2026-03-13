@@ -284,7 +284,10 @@ export async function tryAIAnalysis(
 ): Promise<AIAnalysisResult | null> {
   try {
     const config = await getAIConfig();
-    if (!config.enabled) return null;
+    if (!config.enabled) {
+      console.warn('[AI] Not configured — skipping analysis');
+      return null;
+    }
 
     if (canUseDirect(config)) {
       return await tryAIAnalysisDirect(config, tabId, landlordTitle, landlordName, isPrivateLandlord, formValues, messageTemplate, isTenantNetwork);

@@ -193,6 +193,9 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
     }
 
     // Use AI message if available, otherwise fall back to template
+    if (!aiResult?.message) {
+      console.warn('[Messaging] AI did not generate a message — falling back to template');
+    }
     const personalizedMessage =
       aiResult?.message ||
       generatePersonalizedMessage(stored[C.MESSAGE_TEMPLATE_KEY] || '', landlordTitle, landlordName, isTenantNetwork);
@@ -293,15 +296,9 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
     // Check for captcha after form submission
     if (sendResult && !sendResult.success && sendResult.error) {
       await sendActivityLog({ message: 'Captcha detected, solving...', type: 'wait' });
-      const aiSettings: Record<string, any> = await chrome.storage.local.get([
-        C.AI_ENABLED_KEY,
-        C.AI_API_KEY_KEY,
-        C.AI_SERVER_URL_KEY,
-      ]);
-      if (aiSettings[C.AI_ENABLED_KEY]) {
-        const serverUrl: string = aiSettings[C.AI_SERVER_URL_KEY] || 'http://localhost:3456';
-        const captchaApiKey: string | undefined = aiSettings[C.AI_API_KEY_KEY] || undefined;
-        const captchaResult = await trySolveCaptcha(currentListingTabId, serverUrl, captchaApiKey);
+      const captchaConfig = await getAIConfig();
+      if (captchaConfig.enabled) {
+        const captchaResult = await trySolveCaptcha(currentListingTabId, captchaConfig.serverUrl, captchaConfig.apiKey);
         console.log('[Captcha] Result:', JSON.stringify(captchaResult));
         if (captchaResult && typeof captchaResult !== 'boolean' && captchaResult.messageSent) {
           // Captcha solved AND message confirmed sent

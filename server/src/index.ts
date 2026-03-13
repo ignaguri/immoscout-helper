@@ -301,7 +301,7 @@ REGELN:
 
 // Reply generation endpoint
 app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Response) => {
-  const { conversationHistory, userProfile, landlordInfo, listingTitle, apiKey, profile, appointmentAction } = req.body;
+  const { conversationHistory, userProfile, landlordInfo, listingTitle, apiKey, profile, appointmentAction, userContext } = req.body;
 
   if (!conversationHistory || !conversationHistory.length) {
     return res.status(400).json({ error: 'conversationHistory is required and must not be empty' });
@@ -339,7 +339,10 @@ app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Resp
       appointmentContext = parts;
     }
 
-    const prompt = `${listingTitle ? `WOHNUNG: ${listingTitle}\n\n` : ''}GESPRÄCHSVERLAUF:\n\n${conversationText}\n\n${appointmentContext ? appointmentContext : 'Schreibe die nächste Antwort des Bewerbers.'}`;
+    const userInstruction = userContext
+      ? `\nKONTEXT/ANWEISUNGEN VOM NUTZER: ${userContext}\nBerücksichtige diese Anweisungen in deiner Antwort.`
+      : '';
+    const prompt = `${listingTitle ? `WOHNUNG: ${listingTitle}\n\n` : ''}GESPRÄCHSVERLAUF:\n\n${conversationText}\n\n${appointmentContext ? appointmentContext : `${userInstruction}\nSchreibe die nächste Antwort des Bewerbers.`}`;
 
     const { text, usage: replyUsage } = await generateText({
       model,

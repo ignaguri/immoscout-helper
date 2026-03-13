@@ -114,6 +114,7 @@ export interface ReplyRequestBody {
   apiKey?: string;
   profile?: Profile;
   appointmentAction?: AppointmentAction;
+  userContext?: string;
 }
 
 export interface ScoreResult {

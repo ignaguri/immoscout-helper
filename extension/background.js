@@ -663,7 +663,7 @@ async function fetchConversationMessages(conversationId) {
 }
 
 // Generate a draft reply using the AI server
-async function generateDraftReply(conversation, serverUrl, apiKey) {
+async function generateDraftReply(conversation, serverUrl, apiKey, userContext = '') {
   if (!conversation.messages || conversation.messages.length === 0) return;
 
   try {
@@ -696,6 +696,7 @@ async function generateDraftReply(conversation, serverUrl, apiKey) {
           name: conversation.landlordName
         },
         listingTitle: conversation.listingTitle,
+        userContext: userContext || undefined,
         apiKey: apiKey || undefined,
         profile: {
           name: profileData[PROFILE_NAME_KEY],
@@ -2255,7 +2256,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'regenerateDraft') {
     (async () => {
       try {
-        const { conversationId } = request;
+        const { conversationId, userContext } = request;
         const { [CONVERSATIONS_KEY]: conversations, [AI_SERVER_URL_KEY]: serverUrl, [AI_API_KEY_KEY]: apiKey } =
           await chrome.storage.local.get([CONVERSATIONS_KEY, AI_SERVER_URL_KEY, AI_API_KEY_KEY]);
         if (!conversations || !serverUrl) {
@@ -2273,7 +2274,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Notify popup of status change
         try { await chrome.runtime.sendMessage({ action: 'conversationUpdate' }); } catch (e) {}
 
-        await generateDraftReply(conv, serverUrl, apiKey);
+        await generateDraftReply(conv, serverUrl, apiKey, userContext);
         sendResponse({ success: true });
       } catch (error) {
         sendResponse({ success: false, error: error.message });

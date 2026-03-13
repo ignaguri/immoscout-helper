@@ -103,7 +103,7 @@ export interface PopupSettings {
   formIncomeRange: string;
   formDocuments: string;
   // AI
-  aiMode: string; // 'direct' | 'server'
+  aiMode: 'direct' | 'server';
   aiEnabled: boolean;
   aiApiKey: string;
   aiServerUrl: string;

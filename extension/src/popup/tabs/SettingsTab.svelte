@@ -63,30 +63,32 @@ async function checkHealth() {
       aiServerConnected = false;
       return;
     }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${settings.aiApiKey}`,
         { signal: controller.signal },
       );
-      clearTimeout(timeout);
       aiServerConnected = response.ok;
     } catch {
       aiServerConnected = false;
+    } finally {
+      clearTimeout(timeout);
     }
   } else {
     // Server mode: check /health endpoint
     const url = settings.aiServerUrl || 'http://localhost:3456';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
       const response = await fetch(`${url}/health`, { signal: controller.signal });
-      clearTimeout(timeout);
       const data = await response.json();
       aiServerConnected = data.status === 'ok';
     } catch {
       aiServerConnected = false;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 }
@@ -221,7 +223,7 @@ function toggleApiKey() {
 
   <div class="ai-status" class:connected={aiServerConnected} class:disconnected={!aiServerConnected}>
     <span class="dot"></span>
-    <span>{aiServerConnected ? 'Connected' : (settings.aiMode === 'direct' ? 'Invalid API key' : 'Server unreachable')}</span>
+    <span>{aiServerConnected ? 'Connected' : (settings.aiMode === 'direct' ? (settings.aiApiKey ? 'Invalid API key or unreachable' : 'API key required') : 'Server unreachable')}</span>
   </div>
 
   {#if !aiServerConnected && settings.aiEnabled && settings.aiMode === 'server'}

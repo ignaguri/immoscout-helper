@@ -129,7 +129,7 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
           { maxTokens: 32, thinkingBudget: 0 },
         );
         const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
-        captchaText = answer && answer.length >= 4 ? answer : null;
+        captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;
         await trackTokenUsage(result.usage.promptTokens, result.usage.completionTokens);
         if (!captchaText) {
           appendToResult(`AI could not solve captcha (raw: "${result.text.trim()}")`);

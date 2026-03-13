@@ -1,5 +1,5 @@
 <script lang="ts">
-  const version = '1.0.0';
+  const version = chrome.runtime.getManifest().version;
 </script>
 
 <div class="help-tab">

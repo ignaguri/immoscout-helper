@@ -91,14 +91,19 @@ async function generateWithImage(
 }
 
 async function validateKey(apiKey: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const response = await fetch(`${OPENAI_API_BASE}/models`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
     });
     return response.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

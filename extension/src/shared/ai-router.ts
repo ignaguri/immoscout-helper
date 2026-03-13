@@ -25,7 +25,8 @@ export const PROVIDERS: Record<ProviderId, AIProvider> = {
 const AI_CONFIG_KEYS = [
   C.AI_MODE_KEY,
   C.AI_PROVIDER_KEY,
-  C.AI_API_KEY_KEY,
+  C.AI_API_KEY_GEMINI_KEY,
+  C.AI_API_KEY_OPENAI_KEY,
   C.AI_SERVER_URL_KEY,
   C.AI_MIN_SCORE_KEY,
   C.AI_ABOUT_ME_KEY,
@@ -35,7 +36,12 @@ export async function getAIConfig(): Promise<AIConfig> {
   const stored: Record<string, any> = await chrome.storage.local.get(AI_CONFIG_KEYS);
   const mode: AIMode = stored[C.AI_MODE_KEY] || 'direct';
   const provider: ProviderId = stored[C.AI_PROVIDER_KEY] || 'gemini';
-  const apiKey = stored[C.AI_API_KEY_KEY] || undefined;
+
+  const providerKeyMap: Record<ProviderId, string> = {
+    gemini: stored[C.AI_API_KEY_GEMINI_KEY] || '',
+    openai: stored[C.AI_API_KEY_OPENAI_KEY] || '',
+  };
+  const apiKey = providerKeyMap[provider] || undefined;
   const serverUrl = stored[C.AI_SERVER_URL_KEY] || 'http://localhost:3456';
   const config: AIConfig = {
     mode,

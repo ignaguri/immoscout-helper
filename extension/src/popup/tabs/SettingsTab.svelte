@@ -33,6 +33,13 @@ let copySetupText = $state('Copy command');
 // Active provider metadata (reactive to settings.aiProvider)
 let activeProvider = $derived(PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini);
 
+// Per-provider key accessors
+let currentApiKey = $derived(settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai);
+function setApiKey(val: string) {
+  if (settings.aiProvider === 'gemini') settings.aiApiKeyGemini = val;
+  else settings.aiApiKeyOpenai = val;
+}
+
 // Cost calculation using the active provider's pricing
 let aiCost = $derived(
   `$${((aiPromptTokens * activeProvider.pricing.input) / 1_000_000 + (aiCompletionTokens * activeProvider.pricing.output) / 1_000_000).toFixed(4)}`,
@@ -61,12 +68,12 @@ async function handleCheckIntervalChange() {
 async function checkHealth() {
   if (settings.aiMode === 'direct') {
     // Direct mode: validate API key via the active provider
-    if (!settings.aiApiKey) {
+    if (!currentApiKey) {
       aiServerConnected = false;
       return;
     }
     try {
-      aiServerConnected = await activeProvider.validateKey(settings.aiApiKey);
+      aiServerConnected = await activeProvider.validateKey(currentApiKey);
     } catch {
       aiServerConnected = false;
     }
@@ -94,7 +101,7 @@ async function handleAiModeChange() {
 
 async function handleProviderChange() {
   await autoSave();
-  if (settings.aiMode === 'direct' && settings.aiApiKey) {
+  if (settings.aiMode === 'direct' && currentApiKey) {
     checkHealth();
   } else {
     aiServerConnected = false;
@@ -165,7 +172,7 @@ function toggleApiKey() {
 <div class="ai-settings-group">
   <div class="ai-status" class:connected={aiServerConnected} class:disconnected={!aiServerConnected}>
     <span class="dot"></span>
-    <span>{aiServerConnected ? 'Connected' : (settings.aiMode === 'direct' ? (settings.aiApiKey ? 'Invalid API key or unreachable' : 'Paste your API key to get started') : 'Server unreachable')}</span>
+    <span>{aiServerConnected ? 'Connected' : (settings.aiMode === 'direct' ? (currentApiKey ? 'Invalid API key or unreachable' : 'Paste your API key to get started') : 'Server unreachable')}</span>
   </div>
 
   {#if !aiServerConnected && settings.aiMode === 'server'}
@@ -203,8 +210,8 @@ function toggleApiKey() {
       <input
         type={showApiKey ? 'text' : 'password'}
         id="aiApiKey"
-        bind:value={settings.aiApiKey}
-        oninput={autoSave}
+        value={currentApiKey}
+        oninput={(e) => { setApiKey((e.target as HTMLInputElement).value); autoSave(); }}
         onblur={() => { autoSave(); checkHealth(); }}
         placeholder={settings.aiMode === 'direct' ? `Paste your ${activeProvider.label} API key` : 'Optional — passed to server'}
       />

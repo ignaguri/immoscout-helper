@@ -1,4 +1,7 @@
 import * as C from '../shared/constants';
+import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage } from '../shared/ai-router';
+import { geminiGenerateText } from '../shared/gemini';
+import { buildReplyPrompt, buildConversationText } from '../shared/prompts';
 import {
   isMonitoring,
   currentCheckInterval,
@@ -256,54 +259,70 @@ export function registerMessageHandler(): void {
 
             // Generate AI courtesy message
             let courtesyMessage = '';
-            const aiStored: Record<string, any> = await chrome.storage.local.get([C.AI_SERVER_URL_KEY, C.AI_API_KEY_KEY]);
-            const serverUrl: string | undefined = aiStored[C.AI_SERVER_URL_KEY];
-            const apiKey: string | undefined = aiStored[C.AI_API_KEY_KEY];
-            if (serverUrl) {
-              try {
-                const profile = await getProfile();
-                const formData: Record<string, any> = await chrome.storage.local.get([
-                  C.AI_ABOUT_ME_KEY, C.FORM_ADULTS_KEY, C.FORM_CHILDREN_KEY,
-                  C.FORM_PETS_KEY, C.FORM_SMOKER_KEY, C.FORM_INCOME_KEY,
-                  C.FORM_INCOME_RANGE_KEY, C.FORM_PHONE_KEY,
-                ]);
+            try {
+              const aiConfig = await getAIConfig();
+              const profile = await getProfile();
+              const formData: Record<string, any> = await chrome.storage.local.get([
+                C.AI_ABOUT_ME_KEY, C.FORM_ADULTS_KEY, C.FORM_CHILDREN_KEY,
+                C.FORM_PETS_KEY, C.FORM_SMOKER_KEY, C.FORM_INCOME_KEY,
+                C.FORM_INCOME_RANGE_KEY, C.FORM_PHONE_KEY,
+              ]);
 
-                const resp = await fetch(`${serverUrl}/reply`, {
+              const userProfile = {
+                adults: formData[C.FORM_ADULTS_KEY],
+                children: formData[C.FORM_CHILDREN_KEY],
+                pets: formData[C.FORM_PETS_KEY],
+                smoker: formData[C.FORM_SMOKER_KEY],
+                income: formData[C.FORM_INCOME_KEY],
+                incomeRange: formData[C.FORM_INCOME_RANGE_KEY],
+                aboutMe: formData[C.AI_ABOUT_ME_KEY],
+                phone: formData[C.FORM_PHONE_KEY],
+              };
+
+              const landlordInfo = { name: conv.landlordName };
+              const appointmentAction = {
+                type: apptResponse as 'accept' | 'reject' | 'alternative',
+                date: appointment?.date,
+                time: appointment?.time,
+                location: appointment?.location,
+                userContext: userContext || undefined,
+              };
+
+              if (canUseDirect(aiConfig) && aiConfig.apiKey) {
+                const systemPrompt = buildReplyPrompt(userProfile, landlordInfo, profile);
+                const conversationText = buildConversationText(
+                  conv.messages || [],
+                  conv.listingTitle || undefined,
+                  appointmentAction,
+                );
+                const result = await geminiGenerateText(aiConfig.apiKey, systemPrompt, conversationText, { maxTokens: 2048 });
+                courtesyMessage = result.text.trim();
+                await trackTokenUsage(result.usage.promptTokens, result.usage.completionTokens);
+              } else if (canUseServer(aiConfig)) {
+                const resp = await fetch(`${aiConfig.serverUrl}/reply`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     conversationHistory: conv.messages || [],
-                    userProfile: {
-                      adults: formData[C.FORM_ADULTS_KEY],
-                      children: formData[C.FORM_CHILDREN_KEY],
-                      pets: formData[C.FORM_PETS_KEY],
-                      smoker: formData[C.FORM_SMOKER_KEY],
-                      income: formData[C.FORM_INCOME_KEY],
-                      incomeRange: formData[C.FORM_INCOME_RANGE_KEY],
-                      aboutMe: formData[C.AI_ABOUT_ME_KEY],
-                      phone: formData[C.FORM_PHONE_KEY],
-                    },
-                    landlordInfo: { name: conv.landlordName },
+                    userProfile,
+                    landlordInfo,
                     listingTitle: conv.listingTitle,
-                    apiKey: apiKey || undefined,
+                    apiKey: aiConfig.apiKey || undefined,
                     profile,
-                    appointmentAction: {
-                      type: apptResponse,
-                      date: appointment?.date,
-                      time: appointment?.time,
-                      location: appointment?.location,
-                      userContext: userContext || undefined,
-                    },
+                    appointmentAction,
                   }),
                 });
 
                 if (resp.ok) {
                   const result: any = await resp.json();
                   courtesyMessage = result.reply || '';
+                  if (result.usage) {
+                    await trackTokenUsage(result.usage.promptTokens || 0, result.usage.completionTokens || 0);
+                  }
                 }
-              } catch (e: any) {
-                console.warn(`[Appointments] AI draft failed:`, e.message);
               }
+            } catch (e: any) {
+              console.warn(`[Appointments] AI draft failed:`, e.message);
             }
 
             // Open the messenger conversation page
@@ -508,13 +527,16 @@ export function registerMessageHandler(): void {
         (async () => {
           try {
             const { conversationId, userContext } = request;
-            const draftStored: Record<string, any> = await chrome.storage.local.get([
-              C.CONVERSATIONS_KEY,
-              C.AI_SERVER_URL_KEY,
-              C.AI_API_KEY_KEY,
-            ]);
-            if (!draftStored[C.CONVERSATIONS_KEY] || !draftStored[C.AI_SERVER_URL_KEY]) {
-              sendResponse({ success: false, error: 'No conversations or AI server URL' });
+            const aiConfig = await getAIConfig();
+            const draftStored: Record<string, any> = await chrome.storage.local.get([C.CONVERSATIONS_KEY]);
+            if (!draftStored[C.CONVERSATIONS_KEY]) {
+              sendResponse({ success: false, error: 'No conversations found' });
+              return;
+            }
+
+            // Check that we have a valid AI configuration
+            if (!canUseDirect(aiConfig) && !canUseServer(aiConfig)) {
+              sendResponse({ success: false, error: 'No valid AI configuration (need API key or server URL)' });
               return;
             }
 
@@ -534,7 +556,7 @@ export function registerMessageHandler(): void {
               console.debug('[MessageHandler] Could not notify popup of draft status change');
             }
 
-            await generateDraftReply(conv, draftStored[C.AI_SERVER_URL_KEY], draftStored[C.AI_API_KEY_KEY], userContext);
+            await generateDraftReply(conv, aiConfig.serverUrl, aiConfig.apiKey, userContext);
             sendResponse({ success: true });
           } catch (error: any) {
             sendResponse({ success: false, error: error.message });

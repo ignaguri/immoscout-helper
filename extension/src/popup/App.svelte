@@ -55,6 +55,7 @@ let settings: PopupSettings = $state({
   formEmployment: 'Angestellte:r',
   formIncomeRange: '1.500 - 2.000',
   formDocuments: 'Vorhanden',
+  aiMode: 'direct',
   aiEnabled: false,
   aiApiKey: '',
   aiServerUrl: 'http://localhost:3456',
@@ -167,16 +168,37 @@ async function updateAiStats() {
 }
 
 async function checkAiServerHealth() {
-  const url = settings.aiServerUrl || 'http://localhost:3456';
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    const response = await fetch(`${url}/health`, { signal: controller.signal });
-    clearTimeout(timeout);
-    const data = await response.json();
-    aiServerConnected = data.status === 'ok';
-  } catch {
-    aiServerConnected = false;
+  if (settings.aiMode === 'direct') {
+    // Direct mode: validate API key via Gemini model metadata endpoint
+    if (!settings.aiApiKey) {
+      aiServerConnected = false;
+      return;
+    }
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${settings.aiApiKey}`,
+        { signal: controller.signal },
+      );
+      clearTimeout(timeout);
+      aiServerConnected = response.ok;
+    } catch {
+      aiServerConnected = false;
+    }
+  } else {
+    // Server mode: check /health endpoint
+    const url = settings.aiServerUrl || 'http://localhost:3456';
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const response = await fetch(`${url}/health`, { signal: controller.signal });
+      clearTimeout(timeout);
+      const data = await response.json();
+      aiServerConnected = data.status === 'ok';
+    } catch {
+      aiServerConnected = false;
+    }
   }
 }
 

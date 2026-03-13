@@ -108,7 +108,7 @@ const tabs = [
   { id: 'queue', label: 'Queue' },
   { id: 'replies', label: 'Replies' },
   { id: 'settings', label: 'Settings' },
-  { id: 'help', label: '?' },
+  { id: 'help', label: 'Help' },
 ];
 
 // Status badge

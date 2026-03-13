@@ -290,6 +290,7 @@ export async function generateDraftReply(
           listingTitle: conversation.listingTitle,
           userContext: userContext || undefined,
           apiKey: apiKey || undefined,
+          provider: config.provider,
           profile,
         }),
       });

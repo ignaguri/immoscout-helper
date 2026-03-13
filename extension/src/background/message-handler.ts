@@ -319,6 +319,7 @@ export function registerMessageHandler(): void {
                     landlordInfo,
                     listingTitle: conv.listingTitle,
                     apiKey: aiConfig.apiKey || undefined,
+                    provider: aiConfig.provider,
                     profile,
                     appointmentAction,
                   }),

@@ -14,7 +14,6 @@ export interface AIConfig {
 
 const AI_CONFIG_KEYS = [
   C.AI_MODE_KEY,
-  C.AI_ENABLED_KEY,
   C.AI_API_KEY_KEY,
   C.AI_SERVER_URL_KEY,
   C.AI_MIN_SCORE_KEY,
@@ -24,14 +23,18 @@ const AI_CONFIG_KEYS = [
 export async function getAIConfig(): Promise<AIConfig> {
   const stored: Record<string, any> = await chrome.storage.local.get(AI_CONFIG_KEYS);
   const mode: AIMode = stored[C.AI_MODE_KEY] || 'direct';
-  return {
+  const apiKey = stored[C.AI_API_KEY_KEY] || undefined;
+  const serverUrl = stored[C.AI_SERVER_URL_KEY] || 'http://localhost:3456';
+  const config: AIConfig = {
     mode,
-    apiKey: stored[C.AI_API_KEY_KEY] || undefined,
-    serverUrl: stored[C.AI_SERVER_URL_KEY] || 'http://localhost:3456',
-    enabled: stored[C.AI_ENABLED_KEY] || false,
+    apiKey,
+    serverUrl,
+    enabled: false, // derived below
     minScore: stored[C.AI_MIN_SCORE_KEY] || 5,
     aboutMe: stored[C.AI_ABOUT_ME_KEY] || '',
   };
+  config.enabled = canUseDirect(config) || canUseServer(config);
+  return config;
 }
 
 /** Whether direct mode can be used (needs API key) */

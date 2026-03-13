@@ -1,5 +1,6 @@
 <script lang="ts">
 import { clearSeenListings } from '../lib/messages';
+import CollapsibleSection from '../components/CollapsibleSection.svelte';
 import type { PopupSettings } from '../lib/storage';
 import { resetAiUsage, saveAllSettings } from '../lib/storage';
 
@@ -34,11 +35,6 @@ let aiCost = $derived(`$${((aiPromptTokens * 0.15) / 1_000_000 + (aiCompletionTo
 async function autoSave() {
   if (!settingsLoaded) return;
   await saveAllSettings(settings);
-}
-
-async function handleAiEnabledChange() {
-  await autoSave();
-  checkHealth();
 }
 
 async function handleCheckIntervalChange() {
@@ -159,12 +155,21 @@ function toggleApiKey() {
 
 <div class="section-title">AI Scoring</div>
 
-<div class="toggle-row">
-  <input type="checkbox" id="aiEnabled" bind:checked={settings.aiEnabled} onchange={handleAiEnabledChange} />
-  <label for="aiEnabled">Enable AI Analysis</label>
-</div>
+<div class="ai-settings-group">
+  <div class="ai-status" class:connected={aiServerConnected} class:disconnected={!aiServerConnected}>
+    <span class="dot"></span>
+    <span>{aiServerConnected ? 'Connected' : (settings.aiMode === 'direct' ? (settings.aiApiKey ? 'Invalid API key or unreachable' : 'Paste your API key to get started') : 'Server unreachable')}</span>
+  </div>
 
-<div class="ai-settings-group" class:disabled={!settings.aiEnabled}>
+  {#if !aiServerConnected && settings.aiMode === 'server'}
+    <div class="setup-box">
+      <strong>Setup Instructions</strong>
+      The AI server needs to be running locally.
+      <code>cd server && npm install && npm start</code>
+      <button class="copy-cmd" onclick={handleCopySetup}>{copySetupText}</button>
+    </div>
+  {/if}
+
   <div class="field">
     <label for="aiMode">AI Mode</label>
     <select id="aiMode" bind:value={settings.aiMode} onchange={handleAiModeChange}>
@@ -209,31 +214,32 @@ function toggleApiKey() {
     <div class="hint">Listings scoring below this will be skipped</div>
   </div>
 
-  <div class="field">
-    <label for="aiAboutMe">About Me (for AI context)</label>
-    <textarea
-      id="aiAboutMe"
-      bind:value={settings.aiAboutMe}
-      oninput={autoSave}
-      onblur={autoSave}
-      placeholder="Tell the AI about yourself..."
-      style="min-height:60px;"
-    ></textarea>
-  </div>
-
-  <div class="ai-status" class:connected={aiServerConnected} class:disconnected={!aiServerConnected}>
-    <span class="dot"></span>
-    <span>{aiServerConnected ? 'Connected' : (settings.aiMode === 'direct' ? (settings.aiApiKey ? 'Invalid API key or unreachable' : 'API key required') : 'Server unreachable')}</span>
-  </div>
-
-  {#if !aiServerConnected && settings.aiEnabled && settings.aiMode === 'server'}
-    <div class="setup-box">
-      <strong>Setup Instructions</strong>
-      The AI server needs to be running locally.
-      <code>cd server && npm install && npm start</code>
-      <button class="copy-cmd" onclick={handleCopySetup}>{copySetupText}</button>
+  <CollapsibleSection title="Message Style Guide" open={true}>
+    <div class="field">
+      <label for="aiAboutMe">About Me (for AI context)</label>
+      <textarea
+        id="aiAboutMe"
+        bind:value={settings.aiAboutMe}
+        oninput={autoSave}
+        onblur={autoSave}
+        placeholder="Tell the AI about yourself..."
+        style="min-height:60px;"
+      ></textarea>
     </div>
-  {/if}
+
+    <div class="field">
+      <label for="messageTemplate">Message Template</label>
+      <textarea
+        id="messageTemplate"
+        bind:value={settings.messageTemplate}
+        oninput={autoSave}
+        onblur={autoSave}
+        placeholder="Sehr geehrte(r) {'{name}'},&#10;&#10;ich interessiere mich..."
+        style="min-height:80px;"
+      ></textarea>
+      <div class="hint">Write a sample message to guide the AI's tone and style. The AI uses this as inspiration, not as the actual message. Use {'{name}'} for landlord greeting.</div>
+    </div>
+  </CollapsibleSection>
 
   <div class="section-title">AI Usage</div>
 

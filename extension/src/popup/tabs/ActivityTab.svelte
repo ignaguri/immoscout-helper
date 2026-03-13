@@ -274,18 +274,6 @@ async function handleClearActivity() {
 </div>
 
 <div class="field">
-  <label for="messageTemplate">Message Template</label>
-  <textarea
-    id="messageTemplate"
-    bind:value={settings.messageTemplate}
-    oninput={autoSave}
-    onblur={autoSave}
-    placeholder="Sehr geehrte(r) {name},&#10;&#10;ich interessiere mich..."
-  ></textarea>
-  <div class="hint">Use &#123;name&#125; for personalized greeting</div>
-</div>
-
-<div class="field">
   <label for="autoSendMode">Send Mode</label>
   <select id="autoSendMode" bind:value={settings.autoSendMode} onchange={autoSave}>
     <option value="auto">Auto (fill + submit)</option>

@@ -99,9 +99,10 @@ async function handleSendReply() {
 async function handleRegenerate() {
   regenBtnDisabled = true;
   regenBtnText = 'Generating...';
+  const userContext = draftText.trim();
   draftText = '';
   try {
-    await regenerateDraft(conversation.conversationId, draftText.trim() || '');
+    await regenerateDraft(conversation.conversationId, userContext);
   } catch {
     regenBtnText = 'Error';
   }

@@ -59,7 +59,8 @@ let settings: PopupSettings = $state({
   formDocuments: 'Vorhanden',
   aiMode: 'direct',
   aiProvider: 'gemini',
-  aiApiKey: '',
+  aiApiKeyGemini: '',
+  aiApiKeyOpenai: '',
   aiServerUrl: 'http://localhost:3456',
   aiMinScore: 5,
   aiAboutMe: '',
@@ -172,23 +173,15 @@ async function updateAiStats() {
 
 async function checkAiServerHealth() {
   if (settings.aiMode === 'direct') {
-    // Direct mode: validate API key via Gemini model metadata endpoint
-    if (!settings.aiApiKey) {
+    const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
+    if (!currentApiKey) {
       aiServerConnected = false;
       return;
     }
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${settings.aiApiKey}`,
-        { signal: controller.signal },
-      );
-      aiServerConnected = response.ok;
+      aiServerConnected = await (PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini).validateKey(currentApiKey);
     } catch {
       aiServerConnected = false;
-    } finally {
-      clearTimeout(timeout);
     }
   } else {
     // Server mode: check /health endpoint
@@ -219,7 +212,8 @@ async function handleToggle() {
       activeTab = 'activity';
       return;
     }
-    const needsKey = settings.aiMode === 'direct' && !settings.aiApiKey;
+    const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
+    const needsKey = settings.aiMode === 'direct' && !currentApiKey;
     const needsServer = settings.aiMode === 'server' && !settings.aiServerUrl;
     if (needsKey || needsServer) {
       const providerLabel = (PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini).label;

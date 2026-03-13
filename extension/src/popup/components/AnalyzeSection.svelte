@@ -93,9 +93,10 @@ function getFormValues() {
 }
 
 async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolean; messageSent?: boolean }> {
-  const isDirect = settings.aiMode === 'direct' && !!settings.aiApiKey;
+  const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
+  const isDirect = settings.aiMode === 'direct' && !!currentApiKey;
   const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
-  const apiKey = settings.aiApiKey || undefined;
+  const apiKey = currentApiKey || undefined;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     appendToResult(`Captcha detected - solving (attempt ${attempt}/2)...`);
@@ -188,7 +189,8 @@ async function handleAnalyze() {
       return;
     }
     const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
-    const apiKey = settings.aiApiKey || undefined;
+    const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
+    const apiKey = currentApiKey || undefined;
     const profile = buildProfileFromSettings();
 
     analyzeBtnDisabled = true;

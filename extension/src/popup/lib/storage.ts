@@ -1,7 +1,8 @@
 import {
   ACTIVITY_LOG_KEY,
   AI_ABOUT_ME_KEY,
-  AI_API_KEY_KEY,
+  AI_API_KEY_GEMINI_KEY,
+  AI_API_KEY_OPENAI_KEY,
   AI_MIN_SCORE_KEY,
   AI_MODE_KEY,
   AI_PROVIDER_KEY,
@@ -105,7 +106,8 @@ export interface PopupSettings {
   // AI
   aiMode: 'direct' | 'server';
   aiProvider: 'gemini' | 'openai';
-  aiApiKey: string;
+  aiApiKeyGemini: string;
+  aiApiKeyOpenai: string;
   aiServerUrl: string;
   aiMinScore: number;
   aiAboutMe: string;
@@ -131,7 +133,8 @@ const ALL_SETTINGS_KEYS = [
   FORM_DOCUMENTS_KEY,
   AI_MODE_KEY,
   AI_PROVIDER_KEY,
-  AI_API_KEY_KEY,
+  AI_API_KEY_GEMINI_KEY,
+  AI_API_KEY_OPENAI_KEY,
   AI_SERVER_URL_KEY,
   AI_MIN_SCORE_KEY,
   AI_ABOUT_ME_KEY,
@@ -199,7 +202,8 @@ export async function loadAllSettings(): Promise<PopupSettings> {
     formDocuments: result[FORM_DOCUMENTS_KEY] || 'Vorhanden',
     aiMode: result[AI_MODE_KEY] || 'direct',
     aiProvider: result[AI_PROVIDER_KEY] || 'gemini',
-    aiApiKey: result[AI_API_KEY_KEY] || '',
+    aiApiKeyGemini: result[AI_API_KEY_GEMINI_KEY] || '',
+    aiApiKeyOpenai: result[AI_API_KEY_OPENAI_KEY] || '',
     aiServerUrl: result[AI_SERVER_URL_KEY] || 'http://localhost:3456',
     aiMinScore: result[AI_MIN_SCORE_KEY] ?? 5,
     aiAboutMe: result[AI_ABOUT_ME_KEY] || '',
@@ -247,7 +251,8 @@ export async function saveAllSettings(s: PopupSettings): Promise<void> {
     [FORM_DOCUMENTS_KEY]: s.formDocuments || 'Vorhanden',
     [AI_MODE_KEY]: s.aiMode || 'direct',
     [AI_PROVIDER_KEY]: s.aiProvider || 'gemini',
-    [AI_API_KEY_KEY]: s.aiApiKey.trim(),
+    [AI_API_KEY_GEMINI_KEY]: s.aiApiKeyGemini.trim(),
+    [AI_API_KEY_OPENAI_KEY]: s.aiApiKeyOpenai.trim(),
     [AI_SERVER_URL_KEY]: s.aiServerUrl.trim() || 'http://localhost:3456',
     [AI_MIN_SCORE_KEY]: Math.max(1, Math.min(10, s.aiMinScore || 5)),
     [AI_ABOUT_ME_KEY]: s.aiAboutMe,

@@ -88,3 +88,29 @@ export const CONVERSATIONS_CAP = 100;
 
 // Caps
 export const SEEN_LISTINGS_CAP = 5000;
+
+// Timing constants (milliseconds)
+export const HUMAN_DELAY_MIN = 1500;
+export const HUMAN_DELAY_MAX = 4000;
+export const TAB_LOAD_TIMEOUT = 15000;
+export const CAPTCHA_WAIT_MS = 3000;
+export const CAPTCHA_POLL_TIMEOUT_MS = 8000;
+export const FORM_LOAD_WAIT_MS = 3000;
+export const REACT_RENDER_WAIT_MS = 3000;
+export const AI_ANALYSIS_TIMEOUT_MS = 30000;
+export const CAPTCHA_SOLVE_TIMEOUT_MS = 15000;
+export const CONTENT_SCRIPT_RETRY_MS = 1000;
+export const RAW_TEXT_CAP = 8000;
+
+// Retry / pagination limits
+export const MAX_SEARCH_PAGES = 3;
+export const MAX_CONVERSATION_PAGES = 2;
+export const MAX_CAPTCHA_ATTEMPTS = 2;
+export const MAX_CONTACT_RETRIES = 3;
+export const MAX_CONVERSATION_SYNC = 2000;
+export const TYPING_CHUNK_MIN = 20;
+export const TYPING_CHUNK_MAX = 49;
+
+// Shared paths & URLs
+export const ICON_PATH = 'icons/icon128.png';
+export const MESSENGER_BASE_URL = 'https://www.immobilienscout24.de/messenger/conversations/';

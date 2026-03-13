@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"cd server && npm run dev\" \"cd extension && npm run dev\"",
+    "build": "cd extension && npm run build && cd ../server && npm run build",
+    "typecheck": "cd extension && npm run check && cd ../server && npx tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.6",
+    "concurrently": "^9.0.0"
+  }
+}

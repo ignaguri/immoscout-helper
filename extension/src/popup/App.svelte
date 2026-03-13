@@ -1,6 +1,7 @@
 <script lang="ts">
 import { onMount } from 'svelte';
 import { ALARM_NAME } from '../shared/constants';
+import { PROVIDERS } from '../shared/ai-router';
 import { getStatus, startMonitoring, stopMonitoring } from './lib/messages';
 import type { PopupSettings } from './lib/storage';
 import {
@@ -57,6 +58,7 @@ let settings: PopupSettings = $state({
   formIncomeRange: '1.500 - 2.000',
   formDocuments: 'Vorhanden',
   aiMode: 'direct',
+  aiProvider: 'gemini',
   aiApiKey: '',
   aiServerUrl: 'http://localhost:3456',
   aiMinScore: 5,
@@ -220,8 +222,9 @@ async function handleToggle() {
     const needsKey = settings.aiMode === 'direct' && !settings.aiApiKey;
     const needsServer = settings.aiMode === 'server' && !settings.aiServerUrl;
     if (needsKey || needsServer) {
+      const providerLabel = (PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini).label;
       alert(needsKey
-        ? 'Please configure your Gemini API key in Settings'
+        ? `Please configure your ${providerLabel} API key in Settings`
         : 'Please configure your AI server URL in Settings');
       activeTab = 'settings';
       return;

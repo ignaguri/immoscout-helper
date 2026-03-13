@@ -1,6 +1,5 @@
 import * as C from '../shared/constants';
-import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage, type AIConfig } from '../shared/ai-router';
-import { geminiGenerateText, geminiGenerateWithImage } from '../shared/gemini';
+import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage, getProvider, type AIConfig } from '../shared/ai-router';
 import {
   buildScoringPrompt,
   buildMessagePrompt,
@@ -120,9 +119,9 @@ async function tryAIAnalysisDirect(
 
   try {
     const scoringPrompt = buildScoringPrompt(userProfile, profile);
-    const result = await geminiGenerateText(apiKey, scoringPrompt, `Bewerte dieses Inserat:\n\n${listingText}`, {
+    const provider = getProvider(config);
+    const result = await provider.generateText(apiKey, scoringPrompt, `Bewerte dieses Inserat:\n\n${listingText}`, {
       maxTokens: 1024,
-      thinkingBudget: 0,
     });
     totalPromptTokens += result.usage.promptTokens;
     totalCompletionTokens += result.usage.completionTokens;
@@ -171,7 +170,8 @@ async function tryAIAnalysisDirect(
       isTenantNetwork,
     };
     const messagePrompt = buildMessagePrompt(userProfile, landlordInfo, messageTemplate, profile);
-    const msgResult = await geminiGenerateText(
+    const provider = getProvider(config);
+    const msgResult = await provider.generateText(
       apiKey,
       messagePrompt,
       `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`,
@@ -399,7 +399,7 @@ export async function trySolveCaptcha(
       let captchaUsage = { promptTokens: 0, completionTokens: 0 };
 
       if (canUseDirect(config) && config.apiKey) {
-        // Direct mode: call Gemini vision API
+        // Direct mode: call provider vision API
         const match = detection.imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
         if (!match) {
           console.error('[Captcha] Invalid base64 image format');
@@ -408,13 +408,14 @@ export async function trySolveCaptcha(
         const mimeType = match[1];
         const rawBase64 = match[2];
 
-        const result = await geminiGenerateWithImage(
+        const provider = getProvider(config);
+        const result = await provider.generateWithImage(
           config.apiKey,
           CAPTCHA_SYSTEM_PROMPT,
           rawBase64,
           mimeType,
           CAPTCHA_USER_PROMPT,
-          { maxTokens: 32, thinkingBudget: 0 },
+          { maxTokens: 32 },
         );
         const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
         captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;

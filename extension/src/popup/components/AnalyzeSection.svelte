@@ -1,5 +1,5 @@
 <script lang="ts">
-import { geminiGenerateText, geminiGenerateWithImage } from '../../shared/gemini';
+import { PROVIDERS } from '../../shared/ai-router';
 import {
   buildScoringPrompt,
   buildMessagePrompt,
@@ -118,15 +118,16 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
       let captchaText: string | null = null;
 
       if (isDirect && apiKey) {
-        // Direct Gemini mode
+        // Direct provider mode
         const match = detection.imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
         if (!match) {
           appendToResult('Invalid captcha image format');
           return { solved: false };
         }
-        const result = await geminiGenerateWithImage(
+        const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
+        const result = await provider.generateWithImage(
           apiKey, CAPTCHA_SYSTEM_PROMPT, match[2], match[1], CAPTCHA_USER_PROMPT,
-          { maxTokens: 32, thinkingBudget: 0 },
+          { maxTokens: 32 },
         );
         const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
         captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;
@@ -225,17 +226,18 @@ async function handleAnalyze() {
     let result: any;
     try {
       if (isDirect) {
-        // Direct Gemini mode — build prompts locally
+        // Direct provider mode — build prompts locally
         const userProfile = { ...formValues, aboutMe };
         const listingText = formatListingForPrompt(listingDetails);
         let totalPromptTokens = 0, totalCompletionTokens = 0;
+        const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
 
         // Score
         const scoringPrompt = buildScoringPrompt(userProfile, profile);
         const userPrompt = notes
           ? `Bewerte dieses Inserat:\n\n${listingText}\n\nNotizen: ${notes}`
           : `Bewerte dieses Inserat:\n\n${listingText}`;
-        const scoreResult = await geminiGenerateText(apiKey!, scoringPrompt, userPrompt, { maxTokens: 1024, thinkingBudget: 0 });
+        const scoreResult = await provider.generateText(apiKey!, scoringPrompt, userPrompt, { maxTokens: 1024 });
         totalPromptTokens += scoreResult.usage.promptTokens;
         totalCompletionTokens += scoreResult.usage.completionTokens;
 
@@ -249,7 +251,7 @@ async function handleAnalyze() {
         let message: string | undefined;
         try {
           const msgPrompt = buildMessagePrompt(userProfile, landlordInfo, settings.messageTemplate || '', profile);
-          const msgResult = await geminiGenerateText(apiKey!, msgPrompt, `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`, { maxTokens: 4096 });
+          const msgResult = await provider.generateText(apiKey!, msgPrompt, `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`, { maxTokens: 4096 });
           message = msgResult.text.trim() || undefined;
           totalPromptTokens += msgResult.usage.promptTokens;
           totalCompletionTokens += msgResult.usage.completionTokens;

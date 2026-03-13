@@ -3,6 +3,7 @@ import { clearSeenListings } from '../lib/messages';
 import CollapsibleSection from '../components/CollapsibleSection.svelte';
 import type { PopupSettings } from '../lib/storage';
 import { resetAiUsage, saveAllSettings } from '../lib/storage';
+import { PROVIDERS } from '../../shared/ai-router';
 
 let {
   settings = $bindable(),
@@ -29,8 +30,13 @@ let {
 let showApiKey = $state(false);
 let copySetupText = $state('Copy command');
 
-// Cost calculation: Gemini 2.5 Flash pricing: $0.15/1M input, $0.60/1M output
-let aiCost = $derived(`$${((aiPromptTokens * 0.15) / 1_000_000 + (aiCompletionTokens * 0.6) / 1_000_000).toFixed(4)}`);
+// Active provider metadata (reactive to settings.aiProvider)
+let activeProvider = $derived(PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini);
+
+// Cost calculation using the active provider's pricing
+let aiCost = $derived(
+  `$${((aiPromptTokens * activeProvider.pricing.input) / 1_000_000 + (aiCompletionTokens * activeProvider.pricing.output) / 1_000_000).toFixed(4)}`,
+);
 
 async function autoSave() {
   if (!settingsLoaded) return;
@@ -54,23 +60,15 @@ async function handleCheckIntervalChange() {
 
 async function checkHealth() {
   if (settings.aiMode === 'direct') {
-    // Direct mode: validate API key
+    // Direct mode: validate API key via the active provider
     if (!settings.aiApiKey) {
       aiServerConnected = false;
       return;
     }
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${settings.aiApiKey}`,
-        { signal: controller.signal },
-      );
-      aiServerConnected = response.ok;
+      aiServerConnected = await activeProvider.validateKey(settings.aiApiKey);
     } catch {
       aiServerConnected = false;
-    } finally {
-      clearTimeout(timeout);
     }
   } else {
     // Server mode: check /health endpoint
@@ -92,6 +90,15 @@ async function checkHealth() {
 async function handleAiModeChange() {
   await autoSave();
   checkHealth();
+}
+
+async function handleProviderChange() {
+  await autoSave();
+  if (settings.aiMode === 'direct' && settings.aiApiKey) {
+    checkHealth();
+  } else {
+    aiServerConnected = false;
+  }
 }
 
 async function handleClearSeen() {
@@ -173,14 +180,25 @@ function toggleApiKey() {
   <div class="field">
     <label for="aiMode">AI Mode</label>
     <select id="aiMode" bind:value={settings.aiMode} onchange={handleAiModeChange}>
-      <option value="direct">Direct (Gemini API)</option>
+      <option value="direct">Direct (API key)</option>
       <option value="server">Server (local)</option>
     </select>
-    <div class="hint">{settings.aiMode === 'direct' ? 'Calls Gemini API directly — no server needed' : 'Uses local Express server for AI calls'}</div>
+    <div class="hint">{settings.aiMode === 'direct' ? 'Calls the AI provider directly — no server needed' : 'Uses local Express server for AI calls'}</div>
   </div>
 
+  {#if settings.aiMode === 'direct'}
+    <div class="field">
+      <label for="aiProvider">AI Provider</label>
+      <select id="aiProvider" bind:value={settings.aiProvider} onchange={handleProviderChange}>
+        {#each Object.values(PROVIDERS) as provider}
+          <option value={provider.id}>{provider.label}</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
+
   <div class="field">
-    <label for="aiApiKey">{settings.aiMode === 'direct' ? 'Gemini API Key' : 'API Key (optional)'}</label>
+    <label for="aiApiKey">{settings.aiMode === 'direct' ? `${activeProvider.label} API Key` : 'API Key (optional)'}</label>
     <div class="password-field">
       <input
         type={showApiKey ? 'text' : 'password'}
@@ -188,7 +206,7 @@ function toggleApiKey() {
         bind:value={settings.aiApiKey}
         oninput={autoSave}
         onblur={() => { autoSave(); checkHealth(); }}
-        placeholder={settings.aiMode === 'direct' ? 'Paste your Gemini API key' : 'Optional — passed to server'}
+        placeholder={settings.aiMode === 'direct' ? `Paste your ${activeProvider.label} API key` : 'Optional — passed to server'}
       />
       <button class="password-toggle" onclick={toggleApiKey}>
         {showApiKey ? 'hide' : 'show'}

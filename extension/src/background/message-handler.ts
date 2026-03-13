@@ -1,6 +1,5 @@
 import * as C from '../shared/constants';
-import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage } from '../shared/ai-router';
-import { geminiGenerateText } from '../shared/gemini';
+import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage, getProvider } from '../shared/ai-router';
 import { buildReplyPrompt, buildConversationText } from '../shared/prompts';
 import {
   isMonitoring,
@@ -295,7 +294,8 @@ export function registerMessageHandler(): void {
                   conv.listingTitle || undefined,
                   appointmentAction,
                 );
-                const result = await geminiGenerateText(aiConfig.apiKey, systemPrompt, conversationText, { maxTokens: 2048 });
+                const provider = getProvider(aiConfig);
+                const result = await provider.generateText(aiConfig.apiKey, systemPrompt, conversationText, { maxTokens: 2048 });
                 courtesyMessage = result.text.trim();
                 await trackTokenUsage(result.usage.promptTokens, result.usage.completionTokens);
               } else if (canUseServer(aiConfig)) {

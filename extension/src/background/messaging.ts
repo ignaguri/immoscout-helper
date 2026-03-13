@@ -1,7 +1,6 @@
 import * as C from '../shared/constants';
 import { generatePersonalizedMessage } from '../shared/utils';
-import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage } from '../shared/ai-router';
-import { geminiGenerateText } from '../shared/gemini';
+import { getAIConfig, canUseDirect, canUseServer, trackTokenUsage, getProvider } from '../shared/ai-router';
 import { buildShortenPrompt } from '../shared/prompts';
 import {
   isMonitoring,
@@ -237,13 +236,14 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         let shortenUsage = { promptTokens: 0, completionTokens: 0 };
 
         if (canUseDirect(shortenConfig) && shortenConfig.apiKey) {
-          // Direct Gemini mode
+          // Direct provider mode
           const systemPrompt = buildShortenPrompt(limit);
-          const result = await geminiGenerateText(
+          const provider = getProvider(shortenConfig);
+          const result = await provider.generateText(
             shortenConfig.apiKey,
             systemPrompt,
             `Kürze diese Nachricht auf maximal ${limit} Zeichen:\n\n${personalizedMessage}`,
-            { maxTokens: 4096, thinkingBudget: 0 },
+            { maxTokens: 4096 },
           );
           shortened = result.text.trim();
           shortenUsage = result.usage;

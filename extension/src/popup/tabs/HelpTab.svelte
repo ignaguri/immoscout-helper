@@ -107,6 +107,46 @@
     <li>Check the <strong>Activity</strong> log to see what the extension is doing in real time.</li>
   </ul>
 
+  <div class="section-title" id="api-key-guide">Getting Your API Key</div>
+
+  <p>The extension uses Google's <strong>Gemini AI</strong> to score listings, write messages, solve captchas, and draft replies. You need a free API key to use it.</p>
+
+  <div class="help-steps" style="margin-top: 10px;">
+    <div class="help-step">
+      <span class="step-num">1</span>
+      <div>
+        <strong>Open Google AI Studio</strong>
+        <p>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com/app/apikey</a>. Sign in with your Google account.</p>
+      </div>
+    </div>
+    <div class="help-step">
+      <span class="step-num">2</span>
+      <div>
+        <strong>Create an API key</strong>
+        <p>Click <strong>"Create API key"</strong>. If prompted, select any Google Cloud project (or let it create one for you).</p>
+      </div>
+    </div>
+    <div class="help-step">
+      <span class="step-num">3</span>
+      <div>
+        <strong>Copy the key</strong>
+        <p>Your key will look like <code>AIza...</code>. Click the copy button next to it.</p>
+      </div>
+    </div>
+    <div class="help-step">
+      <span class="step-num">4</span>
+      <div>
+        <strong>Paste it in Settings</strong>
+        <p>Go to <strong>Settings</strong> &rarr; enable <strong>AI Analysis</strong> &rarr; paste the key in the <strong>Gemini API Key</strong> field. The green dot confirms it works.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-box" style="margin-top: 12px;">
+    <strong>Is it free?</strong>
+    <p>Yes. Gemini API has a generous free tier. This extension uses the <strong>Gemini 2.5 Flash</strong> model which is very affordable. Typical usage costs fractions of a cent. You can check your usage in the Settings tab under "AI Usage".</p>
+  </div>
+
   <div class="section-title">AI Modes</div>
 
   <div class="mode-box">
@@ -222,6 +262,18 @@
 
   .mode p {
     margin: 2px 0 0 0;
+  }
+
+  .info-box {
+    padding: 10px 12px;
+    background: #f0f7ff;
+    border: 1px solid #c8dff5;
+    border-radius: 6px;
+  }
+
+  .info-box strong {
+    display: block;
+    margin-bottom: 2px;
   }
 
   .version-info {

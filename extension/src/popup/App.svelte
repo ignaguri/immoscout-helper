@@ -431,6 +431,7 @@ onMount(() => {
           bind:aiStatsSkipped
           bind:aiPromptTokens
           bind:aiCompletionTokens
+          onNavigate={(tab) => activeTab = tab}
         />
       </div>
     {:else if activeTab === 'help'}

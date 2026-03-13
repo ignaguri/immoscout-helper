@@ -12,6 +12,7 @@ let {
   aiStatsSkipped = $bindable(),
   aiPromptTokens = $bindable(),
   aiCompletionTokens = $bindable(),
+  onNavigate = (_tab: string) => {},
 }: {
   settings: PopupSettings;
   settingsLoaded: boolean;
@@ -21,6 +22,7 @@ let {
   aiStatsSkipped: number;
   aiPromptTokens: number;
   aiCompletionTokens: number;
+  onNavigate?: (tab: string) => void;
 } = $props();
 
 let showApiKey = $state(false);
@@ -187,7 +189,7 @@ function toggleApiKey() {
     </div>
     {#if settings.aiMode === 'direct'}
       <div class="hint">
-        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free API key from Google AI Studio</a>
+        <button type="button" class="internal-link" onclick={() => onNavigate('help')}>How do I get an API key?</button>
       </div>
     {/if}
   </div>
@@ -289,5 +291,18 @@ function toggleApiKey() {
     color: #555;
     margin-bottom: 8px;
     line-height: 1.6;
+  }
+
+  .internal-link {
+    all: unset;
+    color: #3dbda8;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 11px;
+    font-family: inherit;
+  }
+
+  .internal-link:hover {
+    color: #2a9d8f;
   }
 </style>

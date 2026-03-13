@@ -1,5 +1,6 @@
 <script lang="ts">
 import { clearSeenListings } from '../lib/messages';
+import CollapsibleSection from '../components/CollapsibleSection.svelte';
 import type { PopupSettings } from '../lib/storage';
 import { resetAiUsage, saveAllSettings } from '../lib/storage';
 
@@ -12,6 +13,7 @@ let {
   aiStatsSkipped = $bindable(),
   aiPromptTokens = $bindable(),
   aiCompletionTokens = $bindable(),
+  onNavigate = (_tab: string) => {},
 }: {
   settings: PopupSettings;
   settingsLoaded: boolean;
@@ -21,6 +23,7 @@ let {
   aiStatsSkipped: number;
   aiPromptTokens: number;
   aiCompletionTokens: number;
+  onNavigate?: (tab: string) => void;
 } = $props();
 
 let showApiKey = $state(false);
@@ -32,11 +35,6 @@ let aiCost = $derived(`$${((aiPromptTokens * 0.15) / 1_000_000 + (aiCompletionTo
 async function autoSave() {
   if (!settingsLoaded) return;
   await saveAllSettings(settings);
-}
-
-async function handleAiEnabledChange() {
-  await autoSave();
-  checkHealth();
 }
 
 async function handleCheckIntervalChange() {
@@ -55,17 +53,45 @@ async function handleCheckIntervalChange() {
 }
 
 async function checkHealth() {
-  const url = settings.aiServerUrl || 'http://localhost:3456';
-  try {
+  if (settings.aiMode === 'direct') {
+    // Direct mode: validate API key
+    if (!settings.aiApiKey) {
+      aiServerConnected = false;
+      return;
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${settings.aiApiKey}`,
+        { signal: controller.signal },
+      );
+      aiServerConnected = response.ok;
+    } catch {
+      aiServerConnected = false;
+    } finally {
+      clearTimeout(timeout);
+    }
+  } else {
+    // Server mode: check /health endpoint
+    const url = settings.aiServerUrl || 'http://localhost:3456';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const response = await fetch(`${url}/health`, { signal: controller.signal });
-    clearTimeout(timeout);
-    const data = await response.json();
-    aiServerConnected = data.status === 'ok';
-  } catch {
-    aiServerConnected = false;
+    try {
+      const response = await fetch(`${url}/health`, { signal: controller.signal });
+      const data = await response.json();
+      aiServerConnected = data.status === 'ok';
+    } catch {
+      aiServerConnected = false;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+}
+
+async function handleAiModeChange() {
+  await autoSave();
+  checkHealth();
 }
 
 async function handleClearSeen() {
@@ -129,58 +155,13 @@ function toggleApiKey() {
 
 <div class="section-title">AI Scoring</div>
 
-<div class="toggle-row">
-  <input type="checkbox" id="aiEnabled" bind:checked={settings.aiEnabled} onchange={handleAiEnabledChange} />
-  <label for="aiEnabled">Enable AI Analysis</label>
-</div>
-
-<div class="ai-settings-group" class:disabled={!settings.aiEnabled}>
-  <div class="field">
-    <label for="aiApiKey">API Key (optional)</label>
-    <div class="password-field">
-      <input
-        type={showApiKey ? 'text' : 'password'}
-        id="aiApiKey"
-        bind:value={settings.aiApiKey}
-        oninput={autoSave}
-        onblur={autoSave}
-        placeholder="Your Gemini API key"
-      />
-      <button class="password-toggle" onclick={toggleApiKey}>
-        {showApiKey ? 'hide' : 'show'}
-      </button>
-    </div>
-  </div>
-
-  <div class="field">
-    <label for="aiServerUrl">Server URL</label>
-    <input type="url" id="aiServerUrl" bind:value={settings.aiServerUrl} oninput={autoSave} onblur={autoSave} placeholder="http://localhost:3456" />
-  </div>
-
-  <div class="field">
-    <label for="aiMinScore">Min Score (1-10)</label>
-    <input type="number" id="aiMinScore" bind:value={settings.aiMinScore} oninput={autoSave} onblur={autoSave} min="1" max="10" />
-    <div class="hint">Listings scoring below this will be skipped</div>
-  </div>
-
-  <div class="field">
-    <label for="aiAboutMe">About Me (for AI context)</label>
-    <textarea
-      id="aiAboutMe"
-      bind:value={settings.aiAboutMe}
-      oninput={autoSave}
-      onblur={autoSave}
-      placeholder="Tell the AI about yourself..."
-      style="min-height:60px;"
-    ></textarea>
-  </div>
-
+<div class="ai-settings-group">
   <div class="ai-status" class:connected={aiServerConnected} class:disconnected={!aiServerConnected}>
     <span class="dot"></span>
-    <span>{aiServerConnected ? 'Connected' : 'Unreachable'}</span>
+    <span>{aiServerConnected ? 'Connected' : (settings.aiMode === 'direct' ? (settings.aiApiKey ? 'Invalid API key or unreachable' : 'Paste your API key to get started') : 'Server unreachable')}</span>
   </div>
 
-  {#if !aiServerConnected && settings.aiEnabled}
+  {#if !aiServerConnected && settings.aiMode === 'server'}
     <div class="setup-box">
       <strong>Setup Instructions</strong>
       The AI server needs to be running locally.
@@ -188,6 +169,77 @@ function toggleApiKey() {
       <button class="copy-cmd" onclick={handleCopySetup}>{copySetupText}</button>
     </div>
   {/if}
+
+  <div class="field">
+    <label for="aiMode">AI Mode</label>
+    <select id="aiMode" bind:value={settings.aiMode} onchange={handleAiModeChange}>
+      <option value="direct">Direct (Gemini API)</option>
+      <option value="server">Server (local)</option>
+    </select>
+    <div class="hint">{settings.aiMode === 'direct' ? 'Calls Gemini API directly — no server needed' : 'Uses local Express server for AI calls'}</div>
+  </div>
+
+  <div class="field">
+    <label for="aiApiKey">{settings.aiMode === 'direct' ? 'Gemini API Key' : 'API Key (optional)'}</label>
+    <div class="password-field">
+      <input
+        type={showApiKey ? 'text' : 'password'}
+        id="aiApiKey"
+        bind:value={settings.aiApiKey}
+        oninput={autoSave}
+        onblur={() => { autoSave(); checkHealth(); }}
+        placeholder={settings.aiMode === 'direct' ? 'Paste your Gemini API key' : 'Optional — passed to server'}
+      />
+      <button class="password-toggle" onclick={toggleApiKey}>
+        {showApiKey ? 'hide' : 'show'}
+      </button>
+    </div>
+    {#if settings.aiMode === 'direct'}
+      <div class="hint">
+        <button type="button" class="internal-link" onclick={() => onNavigate('help')}>How do I get an API key?</button>
+      </div>
+    {/if}
+  </div>
+
+  {#if settings.aiMode === 'server'}
+    <div class="field">
+      <label for="aiServerUrl">Server URL</label>
+      <input type="url" id="aiServerUrl" bind:value={settings.aiServerUrl} oninput={autoSave} onblur={() => { autoSave(); checkHealth(); }} placeholder="http://localhost:3456" />
+    </div>
+  {/if}
+
+  <div class="field">
+    <label for="aiMinScore">Min Score (1-10)</label>
+    <input type="number" id="aiMinScore" bind:value={settings.aiMinScore} oninput={autoSave} onblur={autoSave} min="1" max="10" />
+    <div class="hint">Listings scoring below this will be skipped</div>
+  </div>
+
+  <CollapsibleSection title="Message Style Guide" open={true}>
+    <div class="field">
+      <label for="aiAboutMe">About Me (for AI context)</label>
+      <textarea
+        id="aiAboutMe"
+        bind:value={settings.aiAboutMe}
+        oninput={autoSave}
+        onblur={autoSave}
+        placeholder="Tell the AI about yourself..."
+        style="min-height:60px;"
+      ></textarea>
+    </div>
+
+    <div class="field">
+      <label for="messageTemplate">Message Template</label>
+      <textarea
+        id="messageTemplate"
+        bind:value={settings.messageTemplate}
+        oninput={autoSave}
+        onblur={autoSave}
+        placeholder="Sehr geehrte(r) {'{name}'},&#10;&#10;ich interessiere mich..."
+        style="min-height:80px;"
+      ></textarea>
+      <div class="hint">Write a sample message to guide the AI's tone and style. The AI uses this as inspiration, not as the actual message. Use {'{name}'} for landlord greeting.</div>
+    </div>
+  </CollapsibleSection>
 
   <div class="section-title">AI Usage</div>
 
@@ -247,5 +299,18 @@ function toggleApiKey() {
     color: #555;
     margin-bottom: 8px;
     line-height: 1.6;
+  }
+
+  .internal-link {
+    all: unset;
+    color: #3dbda8;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 11px;
+    font-family: inherit;
+  }
+
+  .internal-link:hover {
+    color: #2a9d8f;
   }
 </style>

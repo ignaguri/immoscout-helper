@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install dependencies
+        run: cd extension && npm ci
+
+      - name: Build extension
+        run: cd extension && npm run build
+
+      - name: Create ZIP
+        run: |
+          cd extension/dist
+          zip -r ../../apartment-messenger-${{ github.ref_name }}.zip .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apartment-messenger-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            1. Download `apartment-messenger-${{ github.ref_name }}.zip` below
+            2. Unzip the file
+            3. Open `chrome://extensions/` in Chrome
+            4. Enable **Developer mode** (top right)
+            5. Click **Load unpacked** and select the unzipped folder
+            6. Open the extension side panel → Settings → Paste your [Gemini API key](https://aistudio.google.com/app/apikey)
+            7. Done!

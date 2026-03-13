@@ -14,7 +14,8 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "https://www.immobilienscout24.de/*"
+    "https://www.immobilienscout24.de/*",
+    "https://generativelanguage.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js"

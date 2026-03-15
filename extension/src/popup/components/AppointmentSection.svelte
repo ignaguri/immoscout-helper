@@ -124,7 +124,7 @@ async function handleAppointmentResponse(response: string, _btnLabel: string) {
   </div>
   {#if conversation.appointmentStatus === 'accepted'}
     <div class="cal-buttons">
-      <button class="cal-btn" onclick={() => window.open(buildGoogleCalendarUrl(conversation), '_blank')}>
+      <button class="cal-btn" onclick={() => window.open(buildGoogleCalendarUrl(conversation), '_blank', 'noopener,noreferrer')}>
         📅 Google Calendar
       </button>
       <button class="cal-btn" onclick={() => downloadICS(conversation)}>

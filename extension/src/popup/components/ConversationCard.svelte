@@ -65,7 +65,8 @@ let timeStr = $derived(
       <div class="conv-landlord">{conversation.landlordName || 'Unknown'}</div>
       <div class="conv-listing">{conversation.listingTitle || conversation.referenceId || ''}</div>
       {#if conversation.appointment && conversation.appointmentStatus}
-        {@const apptStart = conversation.appointment.start ? new Date(conversation.appointment.start) : null}
+        {@const apptStartRaw = conversation.appointment.start ? new Date(conversation.appointment.start) : null}
+        {@const apptStart = apptStartRaw && !isNaN(apptStartRaw.getTime()) ? apptStartRaw : null}
         {@const isPast = apptStart ? apptStart < new Date() : false}
         {@const apptBadgeLabels: Record<string, string> = {
           pending: '📅 Viewing pending',

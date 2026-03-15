@@ -23,12 +23,21 @@ function parseDate(dateStr: string, timeStr: string): Date | null {
   return isNaN(date.getTime()) ? null : date;
 }
 
-// Format a Date to Google Calendar/ICS format: YYYYMMDDTHHmmSS
+// Format a Date to Google Calendar format (local time): YYYYMMDDTHHmmSS
 function formatDatetime(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return (
     `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
     `T${pad(date.getHours())}${pad(date.getMinutes())}00`
+  );
+}
+
+// Format a Date to ICS format in UTC: YYYYMMDDTHHmmSSZ
+function formatDatetimeUTC(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}` +
+    `T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}00Z`
   );
 }
 
@@ -109,12 +118,16 @@ export function buildGoogleCalendarUrl(conv: ConversationEntry): string {
 export function downloadICS(conv: ConversationEntry): void {
   const { title, location, description, start, end } = buildEventData(conv);
 
-  const now = formatDatetime(new Date());
-  const dtstart = start ? formatDatetime(start) : now;
-  const dtend = end ? formatDatetime(end) : dtstart;
+  const now = formatDatetimeUTC(new Date());
+  const dtstart = start ? formatDatetimeUTC(start) : now;
+  const dtend = end ? formatDatetimeUTC(end) : dtstart;
 
-  // Escape special chars for ICS text fields
-  const esc = (s: string) => s.replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+  // Escape special chars per RFC 5545: backslashes first, then others
+  const esc = (s: string) =>
+    s.replace(/\\/g, '\\\\')
+     .replace(/\r\n|\r|\n/g, '\\n')
+     .replace(/,/g, '\\,')
+     .replace(/;/g, '\\;');
 
   const ics = [
     'BEGIN:VCALENDAR',
@@ -138,5 +151,6 @@ export function downloadICS(conv: ConversationEntry): void {
   a.href = url;
   a.download = `besichtigung-${conv.conversationId}.ics`;
   a.click();
-  URL.revokeObjectURL(url);
+  // Delay revoke to ensure the browser has started the download
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

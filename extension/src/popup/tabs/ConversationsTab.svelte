@@ -26,9 +26,9 @@ let relevantConversations = $derived(
         c.hasUnreadReply ||
         c.messages.length > 0 ||
         c.draftReply ||
-        c.appointment !== null,
+        c.appointment != null,
     )
-    .filter((c) => !appointmentsOnly || c.appointment !== null)
+    .filter((c) => !appointmentsOnly || c.appointment != null)
     .sort((a, b) => {
       if (a.hasUnreadReply && !b.hasUnreadReply) return -1;
       if (!a.hasUnreadReply && b.hasUnreadReply) return 1;
@@ -36,7 +36,7 @@ let relevantConversations = $derived(
     }),
 );
 
-let appointmentCount = $derived(conversations.filter((c) => c.appointment !== null).length);
+let appointmentCount = $derived(conversations.filter((c) => c.appointment != null).length);
 
 let lastCheckStr = $derived(lastCheckTime ? `Last check: ${new Date(lastCheckTime).toLocaleTimeString()}` : '');
 

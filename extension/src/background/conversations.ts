@@ -34,8 +34,8 @@ export async function checkForNewReplies(): Promise<void> {
       allConversations.push(...conversations);
       pageNum++;
 
-      // Only check first 2 pages for replies (most recent conversations)
-      if (pageNum >= 2) break;
+      // Safety cap to avoid unbounded fetching
+      if (allConversations.length >= 500) break;
 
       const lastTimestamp: string | undefined = conversations[conversations.length - 1]?.lastUpdateDateTime;
       if (!lastTimestamp) break;
@@ -85,8 +85,18 @@ export async function checkForNewReplies(): Promise<void> {
       // Check if this conversation has a new update
       const hasNewUpdate = !stored || stored.lastUpdateDateTime !== lastUpdate;
 
-      // Determine appointment status — preserve user's action if already set
-      const appointmentStatus: string | null = stored?.appointmentStatus || (appointment ? 'pending' : null);
+      // Determine appointment status — API state takes priority when definitive,
+      // falling back to stored (extension action), then defaulting to pending.
+      const apiState: string | undefined = appointment?.state;
+      const definiteApiStatus: string | null =
+        apiState === 'ACCEPT' ? 'accepted' :
+        apiState === 'DECLINE' ? 'rejected' :
+        apiState === 'RESCHEDULE' ? 'alternative_requested' :
+        null;
+      const appointmentStatus: string | null =
+        definiteApiStatus ||
+        stored?.appointmentStatus ||
+        (appointment ? 'pending' : null);
 
       // Build conversation entry
       const convEntry: ConversationEntry = {

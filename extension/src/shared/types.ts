@@ -157,15 +157,19 @@ export interface QueueItem {
   error?: string;
 }
 
-// Appointment info in conversations
+// Appointment info in conversations (matches ImmoScout API)
 export interface AppointmentInfo {
+  start?: string;            // ISO datetime, e.g. "2026-03-15T13:30:00Z"
+  duration?: number | string; // minutes (number from API) or legacy string
+  address?: string;
+  phoneNumber?: string | null;
+  state?: string;            // API state: ACCEPT | DECLINE | RESCHEDULE
+  // Legacy/fallback fields from older stored data
   date?: string;
   startDate?: string;
   time?: string;
   startTime?: string;
-  duration?: string;
   location?: string;
-  address?: string;
 }
 
 // Conversation entry stored in chrome.storage (used by background + popup)

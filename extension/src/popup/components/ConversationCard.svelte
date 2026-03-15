@@ -64,6 +64,26 @@ let timeStr = $derived(
     <div class="conv-header-content">
       <div class="conv-landlord">{conversation.landlordName || 'Unknown'}</div>
       <div class="conv-listing">{conversation.listingTitle || conversation.referenceId || ''}</div>
+      {#if conversation.appointment && conversation.appointmentStatus}
+        {@const apptStartRaw = conversation.appointment.start ? new Date(conversation.appointment.start) : null}
+        {@const apptStart = apptStartRaw && !isNaN(apptStartRaw.getTime()) ? apptStartRaw : null}
+        {@const isPast = apptStart ? apptStart < new Date() : false}
+        {@const apptBadgeLabels: Record<string, string> = {
+          pending: '📅 Viewing pending',
+          accepted: isPast ? '✓ Visit done' : '📅 Visit upcoming',
+          rejected: '✗ Visit rejected',
+          alternative_requested: '↺ Alternative requested',
+        }}
+        {@const apptBadgeColors: Record<string, string> = {
+          pending: '#e8eaff',
+          accepted: isPast ? '#e0e0e0' : '#d4edda',
+          rejected: '#f8d7da',
+          alternative_requested: '#fff3cd',
+        }}
+        <span class="appt-badge" style="background: {apptBadgeColors[conversation.appointmentStatus] || '#f0f0f0'}; {isPast && conversation.appointmentStatus === 'accepted' ? 'color: #888;' : ''}">
+          {apptBadgeLabels[conversation.appointmentStatus] || conversation.appointmentStatus}
+        </span>
+      {/if}
       <div class="conv-preview">{preview}</div>
     </div>
     <div class="conv-time">{timeStr}</div>
@@ -132,6 +152,16 @@ let timeStr = $derived(
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .appt-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 3px;
+    color: #333;
+    font-weight: 500;
   }
 
   .conv-preview {

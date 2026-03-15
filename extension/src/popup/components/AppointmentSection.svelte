@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { ConversationEntry } from '../../shared/types';
 import { respondToAppointment } from '../lib/messages';
+import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
 
 let {
   conversation,
@@ -13,16 +14,44 @@ let apptResultText = $state('');
 let apptResultStyle = $state('');
 let apptUserContext = $state('');
 
-let apptDate = $derived(conversation.appointment?.date || conversation.appointment?.startDate || '');
-let apptTime = $derived(conversation.appointment?.time || conversation.appointment?.startTime || '');
-let apptDuration = $derived(conversation.appointment?.duration || '');
-let apptLocation = $derived(conversation.appointment?.location || conversation.appointment?.address || '');
+let apptDate = $derived.by(() => {
+  const appt = conversation.appointment;
+  if (!appt) return '';
+  if (appt.start) {
+    const d = new Date(appt.start);
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  return appt.date || appt.startDate || '';
+});
+let apptTime = $derived.by(() => {
+  const appt = conversation.appointment;
+  if (!appt) return '';
+  if (appt.start) {
+    const d = new Date(appt.start);
+    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  }
+  return appt.time || appt.startTime || '';
+});
+let apptDuration = $derived.by(() => {
+  const appt = conversation.appointment;
+  if (!appt) return '';
+  if (typeof appt.duration === 'number') return `${appt.duration} min`;
+  return String(appt.duration || '');
+});
+let apptLocation = $derived(conversation.appointment?.address || conversation.appointment?.location || '');
 
 async function handleAppointmentResponse(response: string, _btnLabel: string) {
   const appt = conversation.appointment;
-  const apptDateVal = appt?.date || appt?.startDate || '';
-  const apptTimeVal = appt?.time || appt?.startTime || '';
-  const apptLocationVal = appt?.location || appt?.address || '';
+  let apptDateVal = appt?.date || appt?.startDate || '';
+  let apptTimeVal = appt?.time || appt?.startTime || '';
+  if (appt?.start) {
+    const d = new Date(appt.start);
+    if (!isNaN(d.getTime())) {
+      apptDateVal = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      apptTimeVal = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    }
+  }
+  const apptLocationVal = appt?.address || appt?.location || '';
 
   apptBtnsDisabled = true;
   apptResultText = 'Processing...';
@@ -93,6 +122,16 @@ async function handleAppointmentResponse(response: string, _btnLabel: string) {
   <div class="appt-status" style="background: {statusColors[conversation.appointmentStatus] || '#f0f0f0'};">
     Appointment: {statusLabels[conversation.appointmentStatus] || conversation.appointmentStatus}
   </div>
+  {#if conversation.appointmentStatus === 'accepted'}
+    <div class="cal-buttons">
+      <button class="cal-btn" onclick={() => window.open(buildGoogleCalendarUrl(conversation), '_blank', 'noopener,noreferrer')}>
+        📅 Google Calendar
+      </button>
+      <button class="cal-btn" onclick={() => downloadICS(conversation)}>
+        ⬇ Download .ics
+      </button>
+    </div>
+  {/if}
 {/if}
 
 <style>
@@ -163,5 +202,26 @@ async function handleAppointmentResponse(response: string, _btnLabel: string) {
     border-radius: 8px;
     font-size: 11px;
     color: #555;
+  }
+
+  .cal-buttons {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .cal-btn {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 10px;
+    background: #fff;
+    cursor: pointer;
+    color: #333;
+  }
+
+  .cal-btn:hover {
+    background: #f5f5f5;
   }
 </style>

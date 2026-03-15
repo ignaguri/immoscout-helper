@@ -87,7 +87,7 @@ export const CONVERSATIONS_LAST_CHECK_KEY = 'convLastCheck' as const;
 export const CONVERSATIONS_ALARM_NAME = 'checkConversations' as const;
 export const CONVERSATIONS_CHECK_INTERVAL_KEY = 'convCheckInterval' as const;
 export const CONV_UNREAD_COUNT_KEY = 'convUnreadCount' as const;
-export const CONVERSATIONS_CAP = 100;
+export const CONVERSATIONS_CAP = 200;
 
 // Caps
 export const SEEN_LISTINGS_CAP = 5000;

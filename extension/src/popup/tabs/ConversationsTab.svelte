@@ -16,6 +16,7 @@ let {
 let checkBtnText = $state('Check Now');
 let checkBtnDisabled = $state(false);
 let expandedConvId = $state<string | null>(null);
+let appointmentsOnly = $state(false);
 
 // Filter to relevant conversations
 let relevantConversations = $derived(
@@ -25,14 +26,17 @@ let relevantConversations = $derived(
         c.hasUnreadReply ||
         c.messages.length > 0 ||
         c.draftReply ||
-        (c.appointment && !['accepted', 'rejected'].includes(c.appointmentStatus)),
+        c.appointment != null,
     )
+    .filter((c) => !appointmentsOnly || c.appointment != null)
     .sort((a, b) => {
       if (a.hasUnreadReply && !b.hasUnreadReply) return -1;
       if (!a.hasUnreadReply && b.hasUnreadReply) return 1;
       return (b.lastUpdateDateTime || '').localeCompare(a.lastUpdateDateTime || '');
     }),
 );
+
+let appointmentCount = $derived(conversations.filter((c) => c.appointment != null).length);
 
 let lastCheckStr = $derived(lastCheckTime ? `Last check: ${new Date(lastCheckTime).toLocaleTimeString()}` : '');
 
@@ -65,6 +69,14 @@ function handleBadgeDecrement() {
   <button class="btn btn-test" disabled={checkBtnDisabled} onclick={handleCheckNow}>
     {checkBtnText}
   </button>
+  <button
+    class="btn-filter"
+    class:active={appointmentsOnly}
+    onclick={() => { appointmentsOnly = !appointmentsOnly; }}
+    title="Show only conversations with appointments"
+  >
+    📅{#if appointmentCount > 0}&nbsp;{appointmentCount}{/if}
+  </button>
   {#if lastCheckStr}
     <span class="last-check">{lastCheckStr}</span>
   {/if}
@@ -72,7 +84,11 @@ function handleBadgeDecrement() {
 
 {#if relevantConversations.length === 0}
   <div class="empty-state">
-    No conversations with replies yet. Start monitoring to send messages, then replies will appear here.
+    {#if appointmentsOnly}
+      No conversations with appointments found.
+    {:else}
+      No conversations with replies yet. Start monitoring to send messages, then replies will appear here.
+    {/if}
   </div>
 {:else}
   <div class="conv-list">
@@ -99,6 +115,31 @@ function handleBadgeDecrement() {
     width: auto;
     padding: 8px 16px;
     margin-top: 0;
+  }
+
+  .btn-filter {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    color: #555;
+    white-space: nowrap;
+  }
+
+  .btn-filter.active {
+    background: #e8eaff;
+    border-color: #aab0ff;
+    color: #333;
+  }
+
+  .btn-filter:hover {
+    background: #f5f5f5;
+  }
+
+  .btn-filter.active:hover {
+    background: #d8daff;
   }
 
   .last-check {

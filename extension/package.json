@@ -9,6 +9,9 @@
     "lint": "../node_modules/.bin/biome check .",
     "lint:fix": "../node_modules/.bin/biome check --write ."
   },
+  "dependencies": {
+    "@repo/shared-types": "*"
+  },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tsconfig/svelte": "^5.0.0",

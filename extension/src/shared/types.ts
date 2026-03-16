@@ -7,45 +7,9 @@ export interface Listing {
   index: number;
 }
 
-export interface LandlordInfo {
-  title: string | null;
-  name: string | null;
-  isPrivate: boolean;
-}
+import type { ConversationMessage } from '@repo/shared-types';
 
-export interface ListingDetails {
-  title?: string;
-  address?: string;
-  kaltmiete?: string;
-  warmmiete?: string;
-  nebenkosten?: string;
-  kaution?: string;
-  wohnflaeche?: string;
-  zimmer?: string;
-  etage?: string;
-  bezugsfrei?: string;
-  baujahr?: string;
-  objekttyp?: string;
-  heizungsart?: string;
-  energieverbrauch?: string;
-  energieeffizienzklasse?: string;
-  aufzug?: string;
-  balkon?: string;
-  garage?: string;
-  keller?: string;
-  haustiere?: string;
-  heizkosten?: string;
-  energietraeger?: string;
-  objektzustand?: string;
-  internet?: string;
-  rauchen?: string;
-  wbs?: string;
-  description?: string;
-  amenities?: string[];
-  extraAttributes?: Record<string, string>;
-  rawText?: string;
-  [key: string]: unknown;
-}
+export type { ConversationMessage, LandlordInfo, ListingDetails } from '@repo/shared-types';
 
 export interface ListingType {
   isTenantNetwork: boolean;
@@ -192,12 +156,6 @@ export interface ConversationEntry {
   messages: ConversationMessage[];
   draftReply: string | null;
   draftStatus: string;
-}
-
-export interface ConversationMessage {
-  role: 'user' | 'landlord';
-  text: string;
-  timestamp: string;
 }
 
 // Queue status response from background

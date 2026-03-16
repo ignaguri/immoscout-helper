@@ -183,11 +183,21 @@ export function applyOverlay(data: OverlayData): { applied: number } {
       e.stopPropagation();
       const title = getListingTitle(el);
       const url = getListingUrl(el, id);
-      chrome.runtime.sendMessage({ action: 'captureQueueItems', listings: [{ id, url, title, index: 0 }] }, () => {
-        queueBtn.textContent = 'Queued';
-        queueBtn.disabled = true;
-        skipBtn.remove();
-      });
+      chrome.runtime.sendMessage(
+        { action: 'captureQueueItems', listings: [{ id, url, title, index: 0 }] },
+        (response) => {
+          if (response?.success) {
+            queueBtn.textContent = 'Queued';
+            queueBtn.disabled = true;
+            skipBtn.remove();
+          } else {
+            queueBtn.textContent = 'Error';
+            setTimeout(() => {
+              queueBtn.textContent = 'Queue';
+            }, 2000);
+          }
+        },
+      );
     });
 
     const skipBtn = document.createElement('button');
@@ -196,13 +206,20 @@ export function applyOverlay(data: OverlayData): { applied: number } {
     skipBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      chrome.runtime.sendMessage({ action: 'blacklistListing', listingId: id }, () => {
-        clearOverlay(el);
-        ensureRelativePosition(el);
-        const badge = document.createElement('span');
-        badge.className = `${BADGE_CLASS} ${BADGE_CLASS}--blacklisted`;
-        badge.textContent = 'Skipped';
-        el.appendChild(badge);
+      chrome.runtime.sendMessage({ action: 'blacklistListing', listingId: id }, (response) => {
+        if (response?.success) {
+          clearOverlay(el);
+          ensureRelativePosition(el);
+          const badge = document.createElement('span');
+          badge.className = `${BADGE_CLASS} ${BADGE_CLASS}--blacklisted`;
+          badge.textContent = 'Skipped';
+          el.appendChild(badge);
+        } else {
+          skipBtn.textContent = 'Error';
+          setTimeout(() => {
+            skipBtn.textContent = 'Skip';
+          }, 2000);
+        }
       });
     });
 

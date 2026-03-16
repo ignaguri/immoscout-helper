@@ -11,7 +11,7 @@ export interface SearchTabResult {
 async function getSearchUrls(): Promise<string[]> {
   const stored: Record<string, any> = await chrome.storage.local.get([C.SEARCH_URLS_KEY, C.SEARCH_URL_KEY]);
   const urls: string[] = stored[C.SEARCH_URLS_KEY] || [];
-  if (urls.length > 0) return urls.filter((u) => u.trim());
+  if (urls.length > 0) return urls.map((u: string) => u.trim()).filter(Boolean);
 
   // Fallback: legacy single URL
   const legacy: string | undefined = stored[C.SEARCH_URL_KEY];

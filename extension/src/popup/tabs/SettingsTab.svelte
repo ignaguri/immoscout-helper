@@ -158,7 +158,7 @@ async function handleExport() {
     a.href = url;
     a.download = `immoscout-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (e: any) {
     alert(`Export failed: ${e.message}`);
   }
@@ -172,7 +172,7 @@ async function handleImport(e: Event) {
   try {
     const text = await file.text();
     const data = JSON.parse(text);
-    if (typeof data !== 'object' || data === null) throw new Error('Invalid backup format');
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error('Invalid backup format');
     if (!confirm('This will merge the backup into your current data. Existing values will be overwritten. Continue?'))
       return;
     await chrome.storage.local.set(data);

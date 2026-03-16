@@ -206,7 +206,7 @@ async function handleToggle() {
       isMonitoring = false;
     }
   } else {
-    if (!settings.searchUrl.trim()) {
+    if (!settings.searchUrls.some((u) => u.trim())) {
       alert('Please enter a search URL');
       activeTab = 'activity';
       return;

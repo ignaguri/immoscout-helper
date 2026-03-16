@@ -225,7 +225,7 @@ export async function saveAllSettings(s: PopupSettings): Promise<void> {
   // Save both legacy key (first URL) and multi-URL array
   const cleanUrls = s.searchUrls.map((u) => u.trim()).filter(Boolean);
   await chrome.storage.local.set({
-    [SEARCH_URL_KEY]: cleanUrls[0] || s.searchUrl.trim(),
+    [SEARCH_URL_KEY]: cleanUrls[0] || '',
     [SEARCH_URLS_KEY]: cleanUrls,
     [MESSAGE_TEMPLATE_KEY]: s.messageTemplate,
     [AUTO_SEND_MODE_KEY]: s.autoSendMode || 'auto',

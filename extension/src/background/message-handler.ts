@@ -1,6 +1,7 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { debug, error, log, warn } from '../shared/logger';
+import type { PendingApprovalItem } from '../shared/types';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import { getProfile } from './ai';
 import type { ConversationEntry } from './conversations';
@@ -12,7 +13,13 @@ import {
 } from './conversations';
 import { scheduleNextAlarm, waitForTabLoad } from './helpers';
 import type { Listing } from './listings';
+import { handleNewListing } from './messaging';
 import { startMonitoring, stopMonitoring, updateCheckInterval } from './monitoring';
+import {
+  approvePendingListing,
+  getPendingApprovalListings,
+  skipPendingListing,
+} from './pending-approval';
 import { enqueueListings, processQueue } from './queue';
 import {
   currentCheckInterval,
@@ -170,6 +177,56 @@ export function registerMessageHandler(): void {
             isProcessing: isProcessingQueue,
             queue: stored[C.QUEUE_KEY] || [],
           });
+        })();
+        return true;
+
+        // --- Pending approval handlers ---
+      } else if (request.action === 'getPendingApprovalListings') {
+        (async () => {
+          try {
+            const items = await getPendingApprovalListings();
+            sendResponse({ success: true, items });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      } else if (request.action === 'approvePendingListing') {
+        (async () => {
+          try {
+            const { id, url, title } = request as unknown as PendingApprovalItem;
+            if (!id || !url) {
+              sendResponse({ success: false, error: 'id and url required' });
+              return;
+            }
+            await approvePendingListing(id);
+            // Re-process the listing through the standard flow
+            setUserTriggeredProcessing(true);
+            let result: any;
+            try {
+              result = await handleNewListing({ id, url, title: title || '', index: 0 });
+            } finally {
+              setUserTriggeredProcessing(false);
+            }
+            sendResponse({ success: true, result });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      } else if (request.action === 'skipPendingListing') {
+        (async () => {
+          try {
+            const { id } = request;
+            if (!id) {
+              sendResponse({ success: false, error: 'id required' });
+              return;
+            }
+            await skipPendingListing(id);
+            sendResponse({ success: true });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
         })();
         return true;
 

@@ -82,6 +82,9 @@ export const QUEUE_KEY = 'manualQueue' as const;
 export const QUEUE_PROCESSING_KEY = 'isQueueProcessing' as const;
 export const QUEUE_MAX_RETRIES = 3;
 
+// Pending approval (tenant-recommendation listings requiring user confirmation)
+export const PENDING_APPROVAL_KEY = 'pendingApprovalListings' as const;
+
 // Blacklist
 export const BLACKLIST_KEY = 'blacklistedListings' as const;
 

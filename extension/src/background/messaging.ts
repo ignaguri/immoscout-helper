@@ -7,6 +7,7 @@ import { logActivity } from './activity';
 import { type FormValues, tryAIAnalysis, trySolveCaptcha } from './ai';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
+import { addToPendingApproval } from './pending-approval';
 import type { QueueItem } from './queue';
 import {
   incrementMessageCount,
@@ -15,12 +16,14 @@ import {
   lastMessageTime,
   messageCount,
   setLastMessageTime,
+  userTriggeredProcessing,
 } from './state';
 
 export interface HandleListingResult {
   success: boolean;
   listing?: Listing | QueueItem;
   skipped?: boolean;
+  pendingApproval?: boolean;
   error?: string;
 }
 
@@ -144,6 +147,32 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
     try {
       const listingType: any = await chrome.tabs.sendMessage(currentListingTabId, { action: 'detectListingType' });
       isTenantNetwork = listingType?.isTenantNetwork || false;
+
+      // Tenant-recommendation: current tenant posted the listing with an "Interesse bekunden" CTA.
+      // Checked top-level (independent of isTenantNetwork) to guard against React render race conditions
+      // where tenant-network DOM markers haven't appeared yet but the CTA button has.
+      // Skip this branch when user-triggered (i.e. the user just approved this listing from the popup).
+      if (listingType?.hasTenantCTA && !userTriggeredProcessing) {
+        log(`[PendingApproval] ${listing.id} is a tenant-recommendation listing — adding to pending approval`);
+        await addToPendingApproval({
+          id: listing.id,
+          url: listing.url,
+          title: (listing as any).title || '',
+          addedAt: Date.now(),
+        });
+        await sendActivityLog({
+          message: `Needs approval: ${listing.id} (tenant recommendation — requires user confirmation)`,
+          type: 'wait',
+        });
+        try {
+          await chrome.tabs.remove(currentListingTabId);
+        } catch (_e) {
+          debug('[Messaging] Tab cleanup failed after tenant-recommendation pending');
+        }
+        return { success: true, pendingApproval: true, listing };
+      }
+
+      // Pure tenant-network with no contact form — skip silently
       if (isTenantNetwork && !listingType?.hasContactForm) {
         log(`[Skip] ${listing.id} is a tenant-network listing with no contact form — marking as seen`);
         await sendActivityLog({ message: `Skipped ${listing.id} (tenant-network, no contact form)`, type: 'wait' });
@@ -153,9 +182,6 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
           debug('[Messaging] Tab cleanup failed after tenant-network skip');
         }
         return { success: true, listing, skipped: true };
-      }
-      if (isTenantNetwork) {
-        log(`[Info] ${listing.id} is a tenant-network listing with contact form — proceeding`);
       }
     } catch (_e) {
       debug('[Messaging] Listing type detection failed, proceeding with default');

@@ -5,8 +5,9 @@ import { generatePersonalizedMessage } from '../../shared/utils';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
 import AnalyzeSection from '../components/AnalyzeSection.svelte';
 import CollapsibleSection from '../components/CollapsibleSection.svelte';
-import { captureQueueItems, startQueueProcessing, stopQueueProcessing } from '../lib/messages';
+import { approvePendingListing, captureQueueItems, skipPendingListing, startQueueProcessing, stopQueueProcessing } from '../lib/messages';
 import type { PopupSettings } from '../lib/storage';
+import type { PendingApprovalItem } from '../../shared/types';
 import { clearActivityLog, clearQueue, loadQueue, saveAllSettings, trackTokenUsage } from '../lib/storage';
 
 let {
@@ -21,6 +22,7 @@ let {
   queue = $bindable(),
   isQueueProcessing = $bindable(),
   queueProgressLines = $bindable(),
+  pendingApproval = $bindable<PendingApprovalItem[]>([]),
   isMonitoring = false,
 }: {
   settings: PopupSettings;
@@ -34,6 +36,7 @@ let {
   queue: any[];
   isQueueProcessing: boolean;
   queueProgressLines: Array<{ text: string; type: string }>;
+  pendingApproval: PendingApprovalItem[];
   isMonitoring: boolean;
 } = $props();
 
@@ -294,6 +297,20 @@ async function handleSendTemplate() {
   }
 }
 
+async function handleApprove(item: PendingApprovalItem) {
+  const res = await approvePendingListing(item);
+  if (res?.success) {
+    pendingApproval = pendingApproval.filter((p) => p.id !== item.id);
+  }
+}
+
+async function handleSkipPending(id: string) {
+  const res = await skipPendingListing(id);
+  if (res?.success) {
+    pendingApproval = pendingApproval.filter((p) => p.id !== id);
+  }
+}
+
 async function handleCapture() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -427,6 +444,25 @@ async function handleClearActivity() {
     <option value="manual">Manual (fill only)</option>
   </select>
 </div>
+
+<!-- Pending Approval Section -->
+{#if pendingApproval.length > 0}
+<CollapsibleSection title={`Needs Approval (${pendingApproval.length})`} open={true}>
+  <div class="queue-list">
+    {#each pendingApproval as item, i}
+      {@const url = item.url || `https://www.immobilienscout24.de/expose/${item.id}`}
+      <div class="queue-item" class:bordered={i < pendingApproval.length - 1}>
+        <a href={url} target="_blank" rel="noopener noreferrer" style="color:#888; text-decoration:none;" title="Open listing">({item.id})</a>
+        {' '}{item.title || '—'}
+        <div class="pending-actions">
+          <button class="btn btn-test btn-pending-sm" onclick={() => handleApprove(item)}>Approve</button>
+          <button class="btn btn-secondary btn-pending-sm" onclick={() => handleSkipPending(item.id)}>Skip</button>
+        </div>
+      </div>
+    {/each}
+  </div>
+</CollapsibleSection>
+{/if}
 
 <!-- Queue Section -->
 <CollapsibleSection title={queueTitle} open={queueOpen}>
@@ -712,6 +748,19 @@ async function handleClearActivity() {
   .search-url-add :global(.btn) {
     flex-shrink: 0;
     width: auto;
+    margin-top: 0;
+  }
+
+  .pending-actions {
+    margin-top: 4px;
+    display: flex;
+    gap: 6px;
+  }
+
+  .btn-pending-sm {
+    width: auto;
+    padding: 3px 10px;
+    font-size: 11px;
     margin-top: 0;
   }
 </style>

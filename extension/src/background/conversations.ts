@@ -101,8 +101,10 @@ export async function checkForNewReplies(): Promise<void> {
         stored?.appointmentStatus ||
         (appointment ? 'pending' : null);
 
-      // Sticky flag: once we detect a landlord reply, it stays true forever
-      const hasLandlordReply: boolean = hasUnread || stored?.hasLandlordReply || false;
+      // Sticky flag: once we detect a landlord reply, it stays true forever.
+      // Backfill: also check stored messages for any landlord message.
+      const storedHasLandlordMsg = stored?.messages?.some((m: any) => m.role === 'landlord') || false;
+      const hasLandlordReply: boolean = hasUnread || stored?.hasLandlordReply || storedHasLandlordMsg;
 
       // Build conversation entry
       const convEntry: ConversationEntry = {

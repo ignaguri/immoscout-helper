@@ -502,7 +502,9 @@ export function registerMessageHandler(): void {
       } else if (request.action === 'blacklistListing') {
         (async () => {
           try {
-            const listingId = String(request.listingId || '').toLowerCase().trim();
+            const listingId = String(request.listingId || '')
+              .toLowerCase()
+              .trim();
             if (!listingId) {
               sendResponse({ success: false, error: 'No listing ID' });
               return;

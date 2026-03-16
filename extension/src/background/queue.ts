@@ -42,9 +42,7 @@ export async function enqueueListings(listings: Listing[], source: string): Prom
 
   const seenSet = new Set((stored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
   const queueSet = new Set((stored[C.QUEUE_KEY] || []).map((item: QueueItem) => String(item.id).toLowerCase().trim()));
-  const blacklistSet = new Set(
-    (stored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()),
-  );
+  const blacklistSet = new Set((stored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
 
   const addedAt = Date.now();
   const newItems: QueueItem[] = [];

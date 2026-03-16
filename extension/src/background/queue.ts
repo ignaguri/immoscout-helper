@@ -38,16 +38,19 @@ export async function enqueueListings(listings: Listing[], source: string): Prom
     }
   }
 
-  const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.QUEUE_KEY]);
+  const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.QUEUE_KEY, C.BLACKLIST_KEY]);
 
   const seenSet = new Set((stored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
   const queueSet = new Set((stored[C.QUEUE_KEY] || []).map((item: QueueItem) => String(item.id).toLowerCase().trim()));
+  const blacklistSet = new Set(
+    (stored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()),
+  );
 
   const addedAt = Date.now();
   const newItems: QueueItem[] = [];
 
   for (const [id, listing] of dedupMap) {
-    if (!seenSet.has(id) && !queueSet.has(id)) {
+    if (!seenSet.has(id) && !queueSet.has(id) && !blacklistSet.has(id)) {
       newItems.push({
         id,
         url: listing.url,
@@ -117,13 +120,23 @@ export async function processQueue(): Promise<void> {
       const remaining = queue.slice(1);
       const normalizedId = String(item.id).toLowerCase().trim();
 
-      // Skip if already in seen list
-      const seenStored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
+      // Skip if already in seen list or blacklisted
+      const seenStored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.BLACKLIST_KEY]);
       const seenSet = new Set((seenStored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
+      const blacklistSet = new Set(
+        (seenStored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()),
+      );
       if (seenSet.has(normalizedId)) {
         console.log(`[Queue] ${normalizedId} already seen — removing from queue`);
         await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
         await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (already contacted)` });
+        continue;
+      }
+      if (blacklistSet.has(normalizedId)) {
+        console.log(`[Queue] ${normalizedId} is blacklisted — removing from queue`);
+        await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+        await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (blacklisted)` });
+        queueSkippedCount++;
         continue;
       }
 

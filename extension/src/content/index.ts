@@ -9,6 +9,7 @@ import { simulateHumanEngagement } from './dom-helpers';
 import { detectListingType, extractLandlordName, extractListingDetails } from './listing-details';
 import { extractListings, extractPaginationInfo } from './listings';
 import { fillConversationReply, handleAppointment } from './messenger';
+import { applyOverlay } from './overlay';
 import * as S from './selectors';
 
 chrome.runtime.onMessage.addListener(
@@ -76,6 +77,10 @@ chrome.runtime.onMessage.addListener(
           .catch((error) => sendResponse({ success: false, error: (error as Error).message }));
         return true;
 
+      case 'applyOverlay':
+        sendResponse(applyOverlay(request as any));
+        break;
+
       case 'checkMessageSent':
         // Check if the current page shows a "message sent" confirmation
         {
@@ -104,3 +109,17 @@ chrome.runtime.onMessage.addListener(
 );
 
 console.log('[IS24] Content script loaded');
+
+// Auto-apply overlay on search results pages
+if (location.pathname.startsWith('/Suche/') || location.href.includes('searchType=')) {
+  // Fetch overlay data from background and apply
+  chrome.storage.local
+    .get(['seenListings', 'manualQueue', 'blacklistedListings'])
+    .then((stored) => {
+      const seenIds: string[] = stored.seenListings || [];
+      const queuedIds: string[] = (stored.manualQueue || []).map((item: any) => String(item.id));
+      const blacklistedIds: string[] = stored.blacklistedListings || [];
+      applyOverlay({ seenIds, queuedIds, blacklistedIds });
+    })
+    .catch((e) => console.debug('[IS24] Overlay auto-apply failed:', e));
+}

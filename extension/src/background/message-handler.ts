@@ -499,6 +499,26 @@ export function registerMessageHandler(): void {
           }
         })();
         return true;
+      } else if (request.action === 'blacklistListing') {
+        (async () => {
+          try {
+            const listingId = String(request.listingId || '').toLowerCase().trim();
+            if (!listingId) {
+              sendResponse({ success: false, error: 'No listing ID' });
+              return;
+            }
+            const stored: Record<string, any> = await chrome.storage.local.get([C.BLACKLIST_KEY]);
+            const blacklist: string[] = stored[C.BLACKLIST_KEY] || [];
+            if (!blacklist.includes(listingId)) {
+              blacklist.push(listingId);
+              await chrome.storage.local.set({ [C.BLACKLIST_KEY]: blacklist });
+            }
+            sendResponse({ success: true });
+          } catch (error: any) {
+            sendResponse({ success: false, error: error.message });
+          }
+        })();
+        return true;
       } else if (request.action === 'markConversationRead') {
         (async () => {
           try {

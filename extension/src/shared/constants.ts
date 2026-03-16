@@ -81,6 +81,9 @@ export const QUEUE_KEY = 'manualQueue' as const;
 export const QUEUE_PROCESSING_KEY = 'isQueueProcessing' as const;
 export const QUEUE_MAX_RETRIES = 3;
 
+// Blacklist
+export const BLACKLIST_KEY = 'blacklistedListings' as const;
+
 // Activity log
 export const ACTIVITY_LOG_KEY = 'activityLog' as const;
 export const ACTIVITY_LOG_CAP = 200;

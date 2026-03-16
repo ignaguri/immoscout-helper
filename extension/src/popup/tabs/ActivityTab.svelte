@@ -396,8 +396,7 @@ async function handleClearActivity() {
 </script>
 
 <div class="field">
-  <!-- svelte-ignore a11y_label_has_associated_control -->
-  <label>Search URLs</label>
+  <label for="newSearchUrl">Search URLs</label>
   {#if settings.searchUrls.length > 0}
     <div class="search-url-list">
       {#each settings.searchUrls as url, i}
@@ -411,6 +410,7 @@ async function handleClearActivity() {
   <div class="search-url-add">
     <input
       type="url"
+      id="newSearchUrl"
       bind:value={newUrlInput}
       placeholder="https://www.immobilienscout24.de/Suche/..."
       onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') addSearchUrl(); }}
@@ -463,6 +463,14 @@ async function handleClearActivity() {
       {/each}
     {/if}
   </div>
+
+  {#if queueProgressLines.length > 0}
+    <div class="queue-progress">
+      {#each queueProgressLines as line}
+        <div class="queue-progress-line {line.type}">{line.text}</div>
+      {/each}
+    </div>
+  {/if}
 
   <div class="queue-actions">
     {#if !isMonitoring}
@@ -602,6 +610,40 @@ async function handleClearActivity() {
 
   .queue-actions .btn {
     flex: 1;
+  }
+
+  .queue-progress {
+    background: #fafafa;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    padding: 8px 10px;
+    max-height: 120px;
+    overflow-y: auto;
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+
+  .queue-progress-line {
+    padding: 2px 0;
+    color: #555;
+  }
+
+  .queue-progress-line.header {
+    font-weight: 600;
+    color: #333;
+  }
+
+  .queue-progress-line.result-success {
+    color: #28a745;
+  }
+
+  .queue-progress-line.result-failed {
+    color: #dc3545;
+  }
+
+  .queue-progress-line.wait {
+    color: #888;
+    font-style: italic;
   }
 
   .btn-clear-log {

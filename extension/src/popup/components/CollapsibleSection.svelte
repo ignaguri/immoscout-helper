@@ -11,12 +11,7 @@ let {
   children: Snippet;
 } = $props();
 
-let isOpen = $state(false);
-
-// Sync from prop on mount
-$effect(() => {
-  isOpen = open;
-});
+let isOpen = $state(open);
 
 function toggle() {
   isOpen = !isOpen;

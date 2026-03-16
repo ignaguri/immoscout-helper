@@ -128,6 +128,7 @@ export async function processQueue(): Promise<void> {
         console.log(`[Queue] ${normalizedId} already seen — removing from queue`);
         await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
         await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (already contacted)` });
+        queueSkippedCount++;
         continue;
       }
       if (blacklistSet.has(normalizedId)) {
@@ -146,6 +147,7 @@ export async function processQueue(): Promise<void> {
           message: `Dropped ${item.title || normalizedId} (failed ${item.retries}x)`,
           type: 'wait',
         });
+        queueSkippedCount++;
         continue;
       }
 

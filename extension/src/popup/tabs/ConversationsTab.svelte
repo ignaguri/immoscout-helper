@@ -79,7 +79,7 @@ function handleBadgeDecrement() {
     onclick={() => { unreadOnly = !unreadOnly; displayLimit = PAGE_SIZE; }}
     title="Show only unread conversations"
   >
-    Unread{#if unreadFilterCount > 0}&nbsp;{unreadFilterCount}{/if}
+    Unread{#if unreadFilterCount > 0} ({unreadFilterCount}){/if}
   </button>
   <button
     class="btn-filter"
@@ -87,7 +87,7 @@ function handleBadgeDecrement() {
     onclick={() => { repliedOnly = !repliedOnly; displayLimit = PAGE_SIZE; }}
     title="Show only conversations where the landlord replied"
   >
-    Replied{#if repliedFilterCount > 0}&nbsp;{repliedFilterCount}{/if}
+    Replied{#if repliedFilterCount > 0} ({repliedFilterCount}){/if}
   </button>
   <button
     class="btn-filter"
@@ -95,7 +95,7 @@ function handleBadgeDecrement() {
     onclick={() => { appointmentsOnly = !appointmentsOnly; displayLimit = PAGE_SIZE; }}
     title="Show only conversations with appointments"
   >
-    📅{#if appointmentCount > 0}&nbsp;{appointmentCount}{/if}
+    📅{#if appointmentCount > 0} ({appointmentCount}){/if}
   </button>
   {#if lastCheckStr}
     <span class="last-check">{lastCheckStr}</span>
@@ -137,8 +137,9 @@ function handleBadgeDecrement() {
   .conv-controls {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
   }
 
   .conv-controls .btn {

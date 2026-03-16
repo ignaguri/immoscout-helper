@@ -63,7 +63,13 @@ let timeStr = $derived(
     {/if}
     <div class="conv-header-content">
       <div class="conv-landlord">{conversation.landlordName || 'Unknown'}</div>
-      <div class="conv-listing">{conversation.listingTitle || conversation.referenceId || ''}</div>
+      {#if conversation.referenceId}
+        <a class="conv-listing" href="https://www.immobilienscout24.de/expose/{conversation.referenceId}" target="_blank" onclick={(e) => e.stopPropagation()}>
+          {conversation.listingTitle || `Expose ${conversation.referenceId}`}
+        </a>
+      {:else if conversation.listingTitle}
+        <div class="conv-listing">{conversation.listingTitle}</div>
+      {/if}
       {#if conversation.appointment && conversation.appointmentStatus}
         {@const apptStartRaw = conversation.appointment.start ? new Date(conversation.appointment.start) : null}
         {@const apptStart = apptStartRaw && !isNaN(apptStartRaw.getTime()) ? apptStartRaw : null}
@@ -152,6 +158,13 @@ let timeStr = $derived(
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-decoration: none;
+    display: block;
+  }
+
+  a.conv-listing:hover {
+    color: #3dbda8;
+    text-decoration: underline;
   }
 
   .appt-badge {

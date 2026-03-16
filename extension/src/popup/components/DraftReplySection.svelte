@@ -36,9 +36,13 @@ $effect(() => {
   regenBtnText = conversation.draftReply ? 'Regenerate' : 'Generate';
 });
 
-// Pre-fill docs address from listing title
+// Pre-fill docs address when the form is opened (tracked by conversationId to avoid overwriting edits)
+let lastPrefilledId = $state('');
 $effect(() => {
-  docsAddress = conversation.listingTitle || '';
+  if (showDocsForm && conversation.conversationId !== lastPrefilledId) {
+    docsAddress = conversation.listingTitle || '';
+    lastPrefilledId = conversation.conversationId;
+  }
 });
 
 async function handleSendReply() {

@@ -66,7 +66,7 @@ let timeStr = $derived(
     <div class="conv-header-content">
       <div class="conv-landlord">{conversation.landlordName || 'Unknown'}</div>
       {#if conversation.referenceId}
-        <a class="conv-listing" href="https://www.immobilienscout24.de/expose/{conversation.referenceId}" target="_blank" onclick={(e) => e.stopPropagation()}>
+        <a class="conv-listing" href="https://www.immobilienscout24.de/expose/{conversation.referenceId}" target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()}>
           {conversation.listingTitle || `Expose ${conversation.referenceId}`}
         </a>
       {:else if conversation.listingTitle}
@@ -74,7 +74,7 @@ let timeStr = $derived(
       {/if}
       {#if conversation.appointment && conversation.appointmentStatus}
         {@const apptStartRaw = conversation.appointment.start ? new Date(conversation.appointment.start) : null}
-        {@const apptStart = apptStartRaw && !isNaN(apptStartRaw.getTime()) ? apptStartRaw : null}
+        {@const apptStart = apptStartRaw && !Number.isNaN(apptStartRaw.getTime()) ? apptStartRaw : null}
         {@const isPast = apptStart ? apptStart < new Date() : false}
         {@const apptBadgeLabels: Record<string, string> = {
           pending: '📅 Viewing pending',

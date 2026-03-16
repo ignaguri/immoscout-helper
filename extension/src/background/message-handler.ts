@@ -568,7 +568,7 @@ export function registerMessageHandler(): void {
               console.debug('[MessageHandler] Could not notify popup of draft status change');
             }
 
-            await generateDraftReply(conv, aiConfig.serverUrl, aiConfig.apiKey, userContext);
+            await generateDraftReply(conv, aiConfig.apiKey, userContext);
             sendResponse({ success: true });
           } catch (error: any) {
             sendResponse({ success: false, error: error.message });

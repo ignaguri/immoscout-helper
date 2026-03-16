@@ -17,6 +17,8 @@ let checkBtnText = $state('Check Now');
 let checkBtnDisabled = $state(false);
 let expandedConvId = $state<string | null>(null);
 let appointmentsOnly = $state(false);
+let displayLimit = $state(10);
+const PAGE_SIZE = 10;
 
 // Filter to relevant conversations
 let relevantConversations = $derived(
@@ -35,6 +37,9 @@ let relevantConversations = $derived(
       return (b.lastUpdateDateTime || '').localeCompare(a.lastUpdateDateTime || '');
     }),
 );
+
+let visibleConversations = $derived(relevantConversations.slice(0, displayLimit));
+let hasMore = $derived(relevantConversations.length > displayLimit);
 
 let appointmentCount = $derived(conversations.filter((c) => c.appointment != null).length);
 
@@ -91,8 +96,13 @@ function handleBadgeDecrement() {
     {/if}
   </div>
 {:else}
+  {#if relevantConversations.length > PAGE_SIZE}
+    <div class="showing-count">
+      Showing {visibleConversations.length} of {relevantConversations.length} conversations
+    </div>
+  {/if}
   <div class="conv-list">
-    {#each relevantConversations as conv (conv.conversationId)}
+    {#each visibleConversations as conv (conv.conversationId)}
       <ConversationCard
         conversation={conv}
         isExpanded={expandedConvId === conv.conversationId}
@@ -101,6 +111,11 @@ function handleBadgeDecrement() {
       />
     {/each}
   </div>
+  {#if hasMore}
+    <button class="btn btn-secondary load-more" onclick={() => { displayLimit += PAGE_SIZE; }}>
+      Load more
+    </button>
+  {/if}
 {/if}
 
 <style>
@@ -154,9 +169,19 @@ function handleBadgeDecrement() {
     font-size: 12px;
   }
 
+  .showing-count {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 8px;
+  }
+
   .conv-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .load-more {
+    margin-top: 12px;
   }
 </style>

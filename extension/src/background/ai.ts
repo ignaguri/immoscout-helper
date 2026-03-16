@@ -7,7 +7,7 @@ import {
   trackTokenUsage,
 } from '../shared/ai-router';
 import * as C from '../shared/constants';
-import { log, warn, error } from '../shared/logger';
+import { error, log, warn } from '../shared/logger';
 import {
   buildMessagePrompt,
   buildScoringPrompt,
@@ -290,9 +290,7 @@ async function tryAIAnalysisServer(
     }
     await chrome.storage.local.set(updates);
 
-    log(
-      `[AI/Server] Score: ${result.score}/10, Skip: ${result.skip}, Message: ${result.message ? 'yes' : 'no'}`,
-    );
+    log(`[AI/Server] Score: ${result.score}/10, Skip: ${result.skip}, Message: ${result.message ? 'yes' : 'no'}`);
     return result;
   } catch (e: any) {
     clearTimeout(timeout);

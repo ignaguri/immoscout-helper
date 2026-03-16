@@ -1,6 +1,6 @@
 // Background service worker entry point for ImmoScout24 Auto Reloader
 import * as C from '../shared/constants';
-import { log, error } from '../shared/logger';
+import { error, log } from '../shared/logger';
 import { checkForNewReplies } from './conversations';
 import { scheduleNextAlarm } from './helpers';
 import { checkForNewListings } from './listings';
@@ -19,7 +19,6 @@ import { initializeStorage } from './storage';
 
 // Open side panel when extension icon is clicked
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
-
 
 // Register message and notification handlers
 registerMessageHandler();

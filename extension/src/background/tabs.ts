@@ -1,5 +1,5 @@
 import * as C from '../shared/constants';
-import { log, debug, error } from '../shared/logger';
+import { debug, error, log } from '../shared/logger';
 import { waitForTabLoad } from './helpers';
 import { advanceSearchUrlIndex, searchUrlIndex } from './state';
 

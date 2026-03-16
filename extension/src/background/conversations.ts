@@ -1,12 +1,12 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
-import { log, debug, warn, error } from '../shared/logger';
 import type {
   IS24Conversation,
   IS24ConversationDetailResponse,
   IS24ConversationsResponse,
   IS24Message,
 } from '../shared/immoscout-api';
+import { debug, error, log, warn } from '../shared/logger';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';
@@ -201,9 +201,7 @@ export async function checkForNewReplies(): Promise<void> {
     if (newReplyCount > 0) {
       log(`[Conversations] Found ${newReplyCount} new replies (${totalUnread} total unread)`);
     } else {
-      log(
-        `[Conversations] No new replies (${allConversations.length} conversations checked, ${totalUnread} unread)`,
-      );
+      log(`[Conversations] No new replies (${allConversations.length} conversations checked, ${totalUnread} unread)`);
     }
 
     // Notify popup

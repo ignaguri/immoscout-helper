@@ -33,12 +33,15 @@ export async function checkForNewReplies(): Promise<void> {
 
       allConversations.push(...conversations);
       pageNum++;
+      console.log(
+        `[Conversations] Fetched page ${pageNum}: ${conversations.length} conversations (total: ${allConversations.length})`,
+      );
 
       // Safety cap to avoid unbounded fetching
       if (allConversations.length >= 500) break;
 
       const lastTimestamp: string | undefined = conversations[conversations.length - 1]?.lastUpdateDateTime;
-      if (!lastTimestamp) break;
+      if (!lastTimestamp || lastTimestamp === cursor) break;
       cursor = lastTimestamp;
     }
 
@@ -98,6 +101,9 @@ export async function checkForNewReplies(): Promise<void> {
         stored?.appointmentStatus ||
         (appointment ? 'pending' : null);
 
+      // Sticky flag: once we detect a landlord reply, it stays true forever
+      const hasLandlordReply: boolean = hasUnread || stored?.hasLandlordReply || false;
+
       // Build conversation entry
       const convEntry: ConversationEntry = {
         conversationId,
@@ -107,6 +113,7 @@ export async function checkForNewReplies(): Promise<void> {
         salutation,
         lastUpdateDateTime: lastUpdate,
         hasUnreadReply: hasUnread,
+        hasLandlordReply,
         lastMessagePreview,
         imageUrl,
         shortDetails,

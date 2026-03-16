@@ -181,6 +181,7 @@ export interface ConversationEntry {
   salutation: string;
   lastUpdateDateTime: string;
   hasUnreadReply: boolean;
+  hasLandlordReply: boolean;
   lastMessagePreview: string;
   imageUrl: string;
   shortDetails: Record<string, unknown>;

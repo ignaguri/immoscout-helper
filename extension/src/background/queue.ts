@@ -38,16 +38,17 @@ export async function enqueueListings(listings: Listing[], source: string): Prom
     }
   }
 
-  const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.QUEUE_KEY]);
+  const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.QUEUE_KEY, C.BLACKLIST_KEY]);
 
   const seenSet = new Set((stored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
   const queueSet = new Set((stored[C.QUEUE_KEY] || []).map((item: QueueItem) => String(item.id).toLowerCase().trim()));
+  const blacklistSet = new Set((stored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
 
   const addedAt = Date.now();
   const newItems: QueueItem[] = [];
 
   for (const [id, listing] of dedupMap) {
-    if (!seenSet.has(id) && !queueSet.has(id)) {
+    if (!seenSet.has(id) && !queueSet.has(id) && !blacklistSet.has(id)) {
       newItems.push({
         id,
         url: listing.url,
@@ -96,6 +97,10 @@ export async function processQueue(): Promise<void> {
 
   console.log('[Queue] Starting unified queue processing');
 
+  let queueSentCount = 0;
+  let queueFailedCount = 0;
+  let queueSkippedCount = 0;
+
   try {
     while (!queueAbortRequested) {
       if (!isMonitoring && !userTriggeredProcessing) break;
@@ -113,13 +118,24 @@ export async function processQueue(): Promise<void> {
       const remaining = queue.slice(1);
       const normalizedId = String(item.id).toLowerCase().trim();
 
-      // Skip if already in seen list
-      const seenStored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
+      // Skip if already in seen list or blacklisted
+      const seenStored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.BLACKLIST_KEY]);
       const seenSet = new Set((seenStored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
+      const blacklistSet = new Set(
+        (seenStored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()),
+      );
       if (seenSet.has(normalizedId)) {
         console.log(`[Queue] ${normalizedId} already seen — removing from queue`);
         await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
         await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (already contacted)` });
+        queueSkippedCount++;
+        continue;
+      }
+      if (blacklistSet.has(normalizedId)) {
+        console.log(`[Queue] ${normalizedId} is blacklisted — removing from queue`);
+        await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+        await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (blacklisted)` });
+        queueSkippedCount++;
         continue;
       }
 
@@ -131,6 +147,7 @@ export async function processQueue(): Promise<void> {
           message: `Dropped ${item.title || normalizedId} (failed ${item.retries}x)`,
           type: 'wait',
         });
+        queueSkippedCount++;
         continue;
       }
 
@@ -168,12 +185,21 @@ export async function processQueue(): Promise<void> {
             await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
           }
 
+          if (result.skipped) {
+            queueSkippedCount++;
+          } else {
+            queueSentCount++;
+          }
           console.log(`[Queue] Processed ${normalizedId} — ${remaining.length} remaining`);
           await sendActivityLog({
             lastResult: result.skipped ? 'skipped' : 'success',
             lastId: item.id,
             lastTitle: item.title || '',
           });
+        } else if (result?.error === 'duplicate-landlord-deferred') {
+          // Deferred due to duplicate landlord — move to end without incrementing retries
+          await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, item] });
+          console.log(`[Queue] ${normalizedId} deferred (duplicate landlord) — moved to end without retry increment`);
         } else {
           // Failure: increment retries, move to end
           const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
@@ -181,6 +207,7 @@ export async function processQueue(): Promise<void> {
           console.log(
             `[Queue] ${normalizedId} failed (attempt ${updatedItem.retries}/${C.QUEUE_MAX_RETRIES}) — moved to end`,
           );
+          queueFailedCount++;
           await sendActivityLog({
             lastResult: 'failed',
             lastId: item.id,
@@ -190,6 +217,7 @@ export async function processQueue(): Promise<void> {
         }
       } catch (error: any) {
         console.error('[Queue] Error processing listing:', error);
+        queueFailedCount++;
         const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
         await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, updatedItem] });
         await sendActivityLog({
@@ -210,6 +238,22 @@ export async function processQueue(): Promise<void> {
     setUserTriggeredProcessing(false);
     await chrome.storage.local.set({ [C.QUEUE_PROCESSING_KEY]: false });
     console.log('[Queue] Processing loop exited');
+
+    // Desktop notification with processing summary
+    const totalProcessed = queueSentCount + queueFailedCount + queueSkippedCount;
+    if (totalProcessed > 0) {
+      const parts: string[] = [];
+      if (queueSentCount > 0) parts.push(`${queueSentCount} sent`);
+      if (queueFailedCount > 0) parts.push(`${queueFailedCount} failed`);
+      if (queueSkippedCount > 0) parts.push(`${queueSkippedCount} skipped`);
+      chrome.notifications.create(`queue-done-${Date.now()}`, {
+        type: 'basic',
+        iconUrl: C.ICON_PATH,
+        title: 'Queue Processing Complete',
+        message: parts.join(', '),
+      });
+    }
+
     try {
       await chrome.runtime.sendMessage({ action: 'queueDone' });
     } catch (_e) {

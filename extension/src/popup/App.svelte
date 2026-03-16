@@ -15,12 +15,12 @@ import ActivityTab from './tabs/ActivityTab.svelte';
 import ConversationsTab from './tabs/ConversationsTab.svelte';
 import HelpTab from './tabs/HelpTab.svelte';
 import ProfileTab from './tabs/ProfileTab.svelte';
-import QueueTab from './tabs/QueueTab.svelte';
 import SettingsTab from './tabs/SettingsTab.svelte';
 
 // State
 let settings: PopupSettings = $state({
   searchUrl: '',
+  searchUrls: [],
   messageTemplate: '',
   autoSendMode: 'auto',
   checkInterval: 60,
@@ -107,7 +107,6 @@ let convUnreadCount = $state(0);
 const tabs = [
   { id: 'activity', label: 'Activity' },
   { id: 'profile', label: 'Profile' },
-  { id: 'queue', label: 'Queue' },
   { id: 'replies', label: 'Replies' },
   { id: 'settings', label: 'Settings' },
   { id: 'help', label: 'Help' },
@@ -207,7 +206,7 @@ async function handleToggle() {
       isMonitoring = false;
     }
   } else {
-    if (!settings.searchUrl.trim()) {
+    if (!settings.searchUrls.some((u) => u.trim())) {
       alert('Please enter a search URL');
       activeTab = 'activity';
       return;
@@ -419,19 +418,15 @@ onMount(() => {
           bind:testResultIsError
           bind:analyzeResult
           bind:lastAnalyzeContext
+          bind:queue
+          bind:isQueueProcessing
+          bind:queueProgressLines
+          {isMonitoring}
         />
       </div>
     {:else if activeTab === 'profile'}
       <div class="tab-content active">
         <ProfileTab bind:settings {settingsLoaded} />
-      </div>
-    {:else if activeTab === 'queue'}
-      <div class="tab-content active">
-        <QueueTab
-          bind:queue
-          bind:isQueueProcessing
-          bind:queueProgressLines
-        />
       </div>
     {:else if activeTab === 'replies'}
       <div class="tab-content active">

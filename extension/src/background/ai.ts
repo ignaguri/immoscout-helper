@@ -528,5 +528,11 @@ export async function trySolveCaptcha(
   }
 
   console.error('[Captcha] All attempts failed');
+  chrome.notifications.create(`captcha-fail-${Date.now()}`, {
+    type: 'basic',
+    iconUrl: C.ICON_PATH,
+    title: 'Captcha Failed',
+    message: 'All captcha attempts failed — manual intervention may be needed.',
+  });
   return false;
 }

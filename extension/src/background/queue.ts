@@ -174,6 +174,10 @@ export async function processQueue(): Promise<void> {
             lastId: item.id,
             lastTitle: item.title || '',
           });
+        } else if (result?.error === 'duplicate-landlord-deferred') {
+          // Deferred due to duplicate landlord — move to end without incrementing retries
+          await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, item] });
+          console.log(`[Queue] ${normalizedId} deferred (duplicate landlord) — moved to end without retry increment`);
         } else {
           // Failure: increment retries, move to end
           const updatedItem = { ...item, retries: (item.retries || 0) + 1 };

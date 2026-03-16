@@ -72,6 +72,10 @@ export const PROFILE_LANDLORD_EMAIL_KEY = 'profileLandlordEmail' as const;
 // Sync keys
 export const SYNCED_CONTACTED_KEY = 'syncedContactedCount' as const;
 
+// Landlord tracking
+export const CONTACTED_LANDLORDS_KEY = 'contactedLandlords' as const;
+export const DUPLICATE_LANDLORD_TIMEOUT_MS = 60000; // 1 minute
+
 // Queue keys
 export const QUEUE_KEY = 'manualQueue' as const;
 export const QUEUE_PROCESSING_KEY = 'isQueueProcessing' as const;

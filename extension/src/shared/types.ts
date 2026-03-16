@@ -30,7 +30,9 @@ export interface ListingDetails {
   energieverbrauch?: string;
   energieeffizienzklasse?: string;
   aufzug?: string;
+  balkon?: string;
   garage?: string;
+  keller?: string;
   haustiere?: string;
   heizkosten?: string;
   energietraeger?: string;
@@ -163,7 +165,7 @@ export interface AppointmentInfo {
   duration?: number | string; // minutes (number from API) or legacy string
   address?: string;
   phoneNumber?: string | null;
-  state?: string; // API state: ACCEPT | DECLINE | RESCHEDULE
+  state?: 'ACCEPT' | 'DECLINE' | 'RESCHEDULE';
   // Legacy/fallback fields from older stored data
   date?: string;
   startDate?: string;
@@ -184,7 +186,7 @@ export interface ConversationEntry {
   hasLandlordReply: boolean;
   lastMessagePreview: string;
   imageUrl: string;
-  shortDetails: Record<string, unknown>;
+  shortDetails: Record<string, string>;
   appointment: AppointmentInfo | null;
   appointmentStatus: string | null;
   messages: ConversationMessage[];

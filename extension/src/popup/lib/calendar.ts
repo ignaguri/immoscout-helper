@@ -1,5 +1,5 @@
-import type { ConversationEntry } from '../../shared/types';
 import { MESSENGER_BASE_URL } from '../../shared/constants';
+import type { ConversationEntry } from '../../shared/types';
 
 // Parse a date string to a Date object.
 // Tries ISO format first, then German DD.MM.YYYY format.
@@ -20,7 +20,7 @@ function parseDate(dateStr: string, timeStr: string): Date | null {
     date = new Date(`${dateStr} ${timeStr || ''}`);
   }
 
-  return isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 // Format a Date to Google Calendar format (local time): YYYYMMDDTHHmmSS
@@ -56,7 +56,7 @@ function buildEventData(conv: ConversationEntry): {
   let start: Date | null = null;
   if (appt?.start) {
     const d = new Date(appt.start);
-    start = isNaN(d.getTime()) ? null : d;
+    start = Number.isNaN(d.getTime()) ? null : d;
   } else {
     const dateStr = appt?.date || appt?.startDate || '';
     const timeStr = appt?.time || appt?.startTime || '';
@@ -73,8 +73,8 @@ function buildEventData(conv: ConversationEntry): {
     } else if (typeof appt?.duration === 'string') {
       const hourMatch = appt.duration.match(/(\d+)\s*h/i);
       const minMatch = appt.duration.match(/(\d+)\s*m/i);
-      const h = hourMatch ? parseInt(hourMatch[1]) : 0;
-      const m = minMatch ? parseInt(minMatch[1]) : 0;
+      const h = hourMatch ? parseInt(hourMatch[1], 10) : 0;
+      const m = minMatch ? parseInt(minMatch[1], 10) : 0;
       durationMinutes = h * 60 + m || 60;
     }
     end.setMinutes(end.getMinutes() + durationMinutes);
@@ -124,10 +124,11 @@ export function downloadICS(conv: ConversationEntry): void {
 
   // Escape special chars per RFC 5545: backslashes first, then others
   const esc = (s: string) =>
-    s.replace(/\\/g, '\\\\')
-     .replace(/\r\n|\r|\n/g, '\\n')
-     .replace(/,/g, '\\,')
-     .replace(/;/g, '\\;');
+    s
+      .replace(/\\/g, '\\\\')
+      .replace(/\r\n|\r|\n/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;');
 
   const ics = [
     'BEGIN:VCALENDAR',

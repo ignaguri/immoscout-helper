@@ -159,11 +159,11 @@ export interface QueueItem {
 
 // Appointment info in conversations (matches ImmoScout API)
 export interface AppointmentInfo {
-  start?: string;            // ISO datetime, e.g. "2026-03-15T13:30:00Z"
+  start?: string; // ISO datetime, e.g. "2026-03-15T13:30:00Z"
   duration?: number | string; // minutes (number from API) or legacy string
   address?: string;
   phoneNumber?: string | null;
-  state?: string;            // API state: ACCEPT | DECLINE | RESCHEDULE
+  state?: string; // API state: ACCEPT | DECLINE | RESCHEDULE
   // Legacy/fallback fields from older stored data
   date?: string;
   startDate?: string;
@@ -181,6 +181,7 @@ export interface ConversationEntry {
   salutation: string;
   lastUpdateDateTime: string;
   hasUnreadReply: boolean;
+  hasLandlordReply: boolean;
   lastMessagePreview: string;
   imageUrl: string;
   shortDetails: Record<string, unknown>;

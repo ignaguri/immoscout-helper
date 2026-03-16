@@ -5,8 +5,10 @@ import { generateDocuments, regenerateDraft, sendConversationReply } from '../li
 
 let {
   conversation,
+  aiMode = 'direct',
 }: {
   conversation: ConversationEntry;
+  aiMode?: string;
 } = $props();
 
 let draftText = $state('');
@@ -15,9 +17,13 @@ let sendBtnDisabled = $state(false);
 let sendBtnStyle = $state('');
 let regenBtnText = $state('Generate');
 let regenBtnDisabled = $state(false);
-let docsBtnText = $state('Docs');
+
+// Docs form state
+let showDocsForm = $state(false);
+let docsAddress = $state('');
+let docsBtnText = $state('Generate');
 let docsBtnDisabled = $state(false);
-let docsBtnStyle = $state('');
+let docsStatus = $state<'idle' | 'success' | 'error'>('idle');
 
 // Default move-in date to 1st of next month
 const nextMonth = new Date();
@@ -28,6 +34,15 @@ let moveInDate = $state(nextMonth.toISOString().split('T')[0]);
 $effect(() => {
   draftText = conversation.draftReply || '';
   regenBtnText = conversation.draftReply ? 'Regenerate' : 'Generate';
+});
+
+// Pre-fill docs address when the form is opened (tracked by conversationId to avoid overwriting edits)
+let lastPrefilledId = $state('');
+$effect(() => {
+  if (showDocsForm && conversation.conversationId !== lastPrefilledId) {
+    docsAddress = conversation.listingTitle || '';
+    lastPrefilledId = conversation.conversationId;
+  }
 });
 
 async function handleSendReply() {
@@ -84,27 +99,24 @@ function handleOpen() {
 async function handleGenerateDocs() {
   docsBtnDisabled = true;
   docsBtnText = 'Generating...';
+  docsStatus = 'idle';
   try {
-    const result = await generateDocuments(
-      conversation.conversationId,
-      conversation.listingTitle || '',
-      moveInDate || '',
-    );
+    const result = await generateDocuments(conversation.conversationId, docsAddress || '', moveInDate || '');
     if (result.success) {
       docsBtnText = 'Downloaded!';
-      docsBtnStyle = 'background: #e6fff5;';
+      docsStatus = 'success';
     } else {
       docsBtnText = 'Failed';
-      docsBtnStyle = 'background: #fff5f5;';
+      docsStatus = 'error';
     }
   } catch {
     docsBtnText = 'Error';
-    docsBtnStyle = 'background: #fff5f5;';
+    docsStatus = 'error';
   }
   setTimeout(() => {
     docsBtnDisabled = false;
-    docsBtnText = 'Docs';
-    docsBtnStyle = '';
+    docsBtnText = 'Generate';
+    docsStatus = 'idle';
   }, 5000);
 }
 </script>
@@ -122,30 +134,66 @@ async function handleGenerateDocs() {
       placeholder={conversation.draftReply ? 'Edit the draft or send as-is...' : 'Type your reply or click Generate for an AI draft...'}
     ></textarea>
     <div class="draft-buttons">
+      <button class="draft-btn open" onclick={handleOpen}>Open</button>
+      <button
+        class="draft-btn regen"
+        disabled={regenBtnDisabled}
+        onclick={handleRegenerate}
+      >{regenBtnText}</button>
       <button
         class="draft-btn send"
         disabled={sendBtnDisabled}
         style={sendBtnStyle}
         onclick={handleSendReply}
       >{sendBtnText}</button>
-      <button
-        class="draft-btn regen"
-        disabled={regenBtnDisabled}
-        onclick={handleRegenerate}
-      >{regenBtnText}</button>
-      <button class="draft-btn open" onclick={handleOpen}>Open</button>
-      <div class="movein-wrap">
-        <input type="date" class="movein-input" bind:value={moveInDate} title="Move-in date for Selbstauskunft" />
-        <span class="movein-label">Move-in date</span>
-      </div>
-      <button
-        class="draft-btn docs"
-        disabled={docsBtnDisabled}
-        style={docsBtnStyle}
-        title="Generate Selbstauskunft + supporting documents PDF"
-        onclick={handleGenerateDocs}
-      >{docsBtnText}</button>
     </div>
+    {#if aiMode === 'server'}
+      {#if !showDocsForm}
+        <button
+          class="draft-btn docs-toggle"
+          onclick={() => { showDocsForm = true; }}
+          title="Generate Selbstauskunft + supporting documents PDF"
+        >Generate Docs</button>
+      {:else}
+        <div class="docs-form">
+          <div class="docs-form-field">
+            <label class="docs-label" for="docs-address-{conversation.conversationId}">Address</label>
+            <input
+              id="docs-address-{conversation.conversationId}"
+              type="text"
+              class="docs-input"
+              bind:value={docsAddress}
+              placeholder="Listing address..."
+            />
+          </div>
+          <div class="docs-form-field">
+            <label class="docs-label" for="docs-movein-{conversation.conversationId}">Move-in date</label>
+            <input
+              id="docs-movein-{conversation.conversationId}"
+              type="date"
+              class="docs-input docs-date"
+              bind:value={moveInDate}
+            />
+          </div>
+          <div class="docs-form-actions">
+            <button
+              class="draft-btn docs-generate"
+              disabled={docsBtnDisabled}
+              onclick={handleGenerateDocs}
+            >{docsBtnText}</button>
+            <button
+              class="draft-btn docs-cancel"
+              onclick={() => { showDocsForm = false; docsStatus = 'idle'; }}
+            >Cancel</button>
+          </div>
+          {#if docsStatus === 'success'}
+            <div class="docs-feedback success">Documents downloaded!</div>
+          {:else if docsStatus === 'error'}
+            <div class="docs-feedback error">Generation failed. Is the server running?</div>
+          {/if}
+        </div>
+      {/if}
+    {/if}
   {/if}
 </div>
 
@@ -184,7 +232,6 @@ async function handleGenerateDocs() {
     display: flex;
     gap: 6px;
     margin-top: 6px;
-    flex-wrap: wrap;
     align-items: flex-start;
   }
 
@@ -204,32 +251,94 @@ async function handleGenerateDocs() {
   }
 
   .draft-btn.regen,
-  .draft-btn.open,
-  .draft-btn.docs {
+  .draft-btn.open {
     background: #f0f0f0;
     color: #333;
   }
 
   .draft-btn:disabled { opacity: 0.6; }
 
-  .movein-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+  /* Generate Docs toggle button */
+  .draft-btn.docs-toggle {
+    margin-top: 8px;
+    background: #f0f0f0;
+    color: #333;
+    width: 100%;
   }
 
-  .movein-input {
+  .draft-btn.docs-toggle:hover {
+    background: #e4e4e4;
+  }
+
+  /* Docs form */
+  .docs-form {
+    margin-top: 8px;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fafafa;
+  }
+
+  .docs-form-field {
+    margin-bottom: 8px;
+  }
+
+  .docs-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 3px;
+  }
+
+  .docs-input {
+    width: 100%;
     padding: 6px 8px;
     border: 1px solid #ddd;
     border-radius: 6px;
     font-size: 11px;
-    width: 120px;
+    font-family: inherit;
   }
 
-  .movein-label {
-    font-size: 9px;
-    color: #888;
-    margin-top: 2px;
-    padding-left: 2px;
+  .docs-input:focus {
+    outline: none;
+    border-color: #83F1DC;
+  }
+
+  .docs-input.docs-date {
+    width: 140px;
+  }
+
+  .docs-form-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .draft-btn.docs-generate {
+    flex: 1;
+    background: #83F1DC;
+    color: #1a1a1a;
+  }
+
+  .draft-btn.docs-cancel {
+    background: #f0f0f0;
+    color: #333;
+  }
+
+  .docs-feedback {
+    margin-top: 6px;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+
+  .docs-feedback.success {
+    background: #e6fff5;
+    color: #0d7a4e;
+  }
+
+  .docs-feedback.error {
+    background: #fff5f5;
+    color: #dc3545;
   }
 </style>

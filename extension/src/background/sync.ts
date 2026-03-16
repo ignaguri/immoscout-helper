@@ -1,7 +1,6 @@
 import * as C from '../shared/constants';
 import { capSeenListings } from '../shared/utils';
 import { humanDelay, waitForTabLoad } from './helpers';
-import { isMonitoring, setSearchTabId } from './state';
 import { findOrCreateSearchTab } from './tabs';
 
 export interface ConversationApiResponse {
@@ -39,7 +38,7 @@ export async function syncContactedListings(): Promise<number> {
 
       // Use the last conversation's timestamp as cursor for next page
       const lastTimestamp: string | undefined = conversations[conversations.length - 1]?.lastUpdateDateTime;
-      if (!lastTimestamp) break;
+      if (!lastTimestamp || lastTimestamp === cursor) break;
       cursor = lastTimestamp;
 
       // Safety cap

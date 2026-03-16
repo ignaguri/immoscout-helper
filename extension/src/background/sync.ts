@@ -1,7 +1,6 @@
 import * as C from '../shared/constants';
 import { capSeenListings } from '../shared/utils';
 import { humanDelay, waitForTabLoad } from './helpers';
-import { isMonitoring, setSearchTabId } from './state';
 import { findOrCreateSearchTab } from './tabs';
 
 export interface ConversationApiResponse {

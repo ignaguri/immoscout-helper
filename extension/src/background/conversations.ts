@@ -248,7 +248,7 @@ export async function fetchConversationMessages(conversationId: string): Promise
 // Generate a draft reply using AI (direct Gemini or server)
 export async function generateDraftReply(
   conversation: ConversationEntry,
-  serverUrl: string,
+  _serverUrl: string,
   apiKey: string | undefined,
   userContext: string = '',
 ): Promise<void> {

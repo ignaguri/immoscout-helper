@@ -454,7 +454,7 @@ async function handleClearActivity() {
         {@const url = item.url || `https://www.immobilienscout24.de/expose/${id}`}
         <div class="queue-item" class:bordered={i < queue.length - 1}>
           {i + 1}.
-          <a href={url} target="_blank" style="color:#888; text-decoration:none;" title="Open listing">({id})</a>
+          <a href={url} target="_blank" rel="noopener noreferrer" style="color:#888; text-decoration:none;" title="Open listing">({id})</a>
           {' '}{title}
           {#if item.source}
             <span class="queue-source">({item.source})</span>

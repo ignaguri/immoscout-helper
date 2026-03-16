@@ -37,7 +37,7 @@ function getResultInfo(result: string): { icon: string; type: string; label: str
   {@const url = entry.current.url || `https://www.immobilienscout24.de/expose/${id}`}
   <div style={getLogStyle('header')}>
     <span>▸ </span>
-    <a href={url} target="_blank" style="color:#888; text-decoration:none;">({id})</a>
+    <a href={url} target="_blank" rel="noopener noreferrer" style="color:#888; text-decoration:none;">({id})</a>
     {' '}{title}
   </div>
 {/if}
@@ -56,7 +56,7 @@ function getResultInfo(result: string): { icon: string; type: string; label: str
   {@const lurl = `https://www.immobilienscout24.de/expose/${lid}`}
   <div style={getLogStyle(info.type)}>
     {info.icon} {info.label}:
-    <a href={lurl} target="_blank" style="color:inherit; text-decoration:none;">({lid})</a>
+    <a href={lurl} target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:none;">({lid})</a>
     {' '}{entry.lastTitle || ''}
   </div>
 {/if}

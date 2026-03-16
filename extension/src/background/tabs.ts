@@ -31,7 +31,7 @@ export async function findOrCreateSearchTab(): Promise<SearchTabResult | null> {
 
     // Round-robin: pick the current URL and advance the index
     const searchUrl = urls[searchUrlIndex % urls.length];
-    advanceSearchUrlIndex(urls.length);
+    await advanceSearchUrlIndex(urls.length);
 
     const configuredUrl = new URL(searchUrl);
     const basePath = configuredUrl.origin + configuredUrl.pathname;

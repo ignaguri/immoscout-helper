@@ -1,4 +1,5 @@
 import * as C from '../shared/constants';
+import { log, debug, error } from '../shared/logger';
 import type { IS24Conversation, IS24ConversationsResponse } from '../shared/immoscout-api';
 import { capSeenListings } from '../shared/utils';
 import { humanDelay, waitForTabLoad } from './helpers';
@@ -18,7 +19,7 @@ export async function syncContactedListings(): Promise<number> {
       const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) {
         if (pageNum === 0) {
-          console.log('[Sync] Could not fetch conversations:', response.status);
+          log('[Sync] Could not fetch conversations:', response.status);
           return 0;
         }
         break;
@@ -29,7 +30,7 @@ export async function syncContactedListings(): Promise<number> {
 
       allConversations.push(...conversations);
       pageNum++;
-      console.log(
+      log(
         `[Sync] Fetched page ${pageNum}: ${conversations.length} conversations (total: ${allConversations.length})`,
       );
 
@@ -57,7 +58,7 @@ export async function syncContactedListings(): Promise<number> {
 
     const newIds = contactedIds.filter((id: string) => !seenSet.has(id));
     if (newIds.length === 0) {
-      console.log(`[Sync] All ${contactedIds.length} contacted listings already in seen list`);
+      log(`[Sync] All ${contactedIds.length} contacted listings already in seen list`);
       return 0;
     }
 
@@ -70,10 +71,10 @@ export async function syncContactedListings(): Promise<number> {
       [C.SYNCED_CONTACTED_KEY]: (syncStored[C.SYNCED_CONTACTED_KEY] || 0) + newIds.length,
     });
 
-    console.log(`[Sync] Added ${newIds.length} contacted listing(s) to seen list:`, newIds.join(', '));
+    log(`[Sync] Added ${newIds.length} contacted listing(s) to seen list:`, newIds.join(', '));
     return newIds.length;
-  } catch (error) {
-    console.error('[Sync] Error syncing conversations:', error);
+  } catch (err) {
+    error('[Sync] Error syncing conversations:', err);
     return 0;
   }
 }
@@ -89,7 +90,7 @@ export async function _markAllCurrentListingsAsSeen(): Promise<void> {
   const result = await findOrCreateSearchTab();
 
   if (!result) {
-    console.log('No search tab found. Will mark listings as seen on first check.');
+    log('No search tab found. Will mark listings as seen on first check.');
     return;
   }
 
@@ -108,7 +109,7 @@ export async function _markAllCurrentListingsAsSeen(): Promise<void> {
     try {
       paginationInfo = await chrome.tabs.sendMessage(tab.id!, { action: 'extractPaginationInfo' });
     } catch (_e) {
-      console.debug('[Sync] Pagination extraction failed, assuming single page');
+      debug('[Sync] Pagination extraction failed, assuming single page');
     }
 
     const maxPages = Math.min(paginationInfo.totalPages, 3);
@@ -140,17 +141,17 @@ export async function _markAllCurrentListingsAsSeen(): Promise<void> {
       if (newSeenIds.length > 0) {
         const updatedSeen = capSeenListings([...seenList, ...newSeenIds]);
         await chrome.storage.local.set({ [C.STORAGE_KEY]: updatedSeen });
-        console.log(
+        log(
           `Marked ${newSeenIds.length} existing listings as seen (from ${maxPages} page(s)):`,
           newSeenIds.join(', '),
         );
       } else {
-        console.log('All listings already in seen list.');
+        log('All listings already in seen list.');
       }
     } else {
-      console.log('No listings found on page to mark as seen.');
+      log('No listings found on page to mark as seen.');
     }
-  } catch (error) {
-    console.error('Error extracting listings for initial seen marking:', error);
+  } catch (err) {
+    error('Error extracting listings for initial seen marking:', err);
   }
 }

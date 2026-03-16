@@ -1,5 +1,6 @@
 // Conversation reply and appointment handling on the ImmoScout messenger page
 
+import { log } from '../shared/logger';
 import type { FillReplyResult, HandleAppointmentResult } from '../shared/types';
 import { findElement, randomDelay, setReactValue, sleep } from './dom-helpers';
 import * as S from './selectors';
@@ -12,7 +13,7 @@ export async function fillConversationReply(message: string): Promise<FillReplyR
     return { success: false, error: 'Not on a messenger page' };
   }
 
-  console.log('[IS24] Filling conversation reply...');
+  log('[IS24] Filling conversation reply...');
 
   let input: HTMLElement | null = null;
   // Retry a few times in case the page is still loading
@@ -53,7 +54,7 @@ export async function fillConversationReply(message: string): Promise<FillReplyR
     setReactValue(textareaInput, message);
   }
 
-  console.log(`[IS24] Reply filled (${message.length} chars). Tab left open for user to review and send.`);
+  log(`[IS24] Reply filled (${message.length} chars). Tab left open for user to review and send.`);
   return { success: true, filled: true, charsFilled: message.length };
 }
 
@@ -70,7 +71,7 @@ export async function handleAppointment(
   // list but the detail panel may not slide in automatically.
   const messagesSection = document.querySelector(S.MESSAGES_SECTION_SELECTORS);
   if (!messagesSection) {
-    console.log('[IS24] Messages panel not visible, looking for conversation in sidebar list...');
+    log('[IS24] Messages panel not visible, looking for conversation in sidebar list...');
 
     // Wait for the conversation list to render
     await sleep(2000);
@@ -84,7 +85,7 @@ export async function handleAppointment(
       for (const link of convLinks) {
         if ((link as HTMLAnchorElement).href?.includes(convId) || link.closest(`a[href*="${convId}"]`)) {
           (link as HTMLElement).click();
-          console.log(`[IS24] Clicked conversation link for ${convId}`);
+          log(`[IS24] Clicked conversation link for ${convId}`);
           clicked = true;
           break;
         }
@@ -99,7 +100,7 @@ export async function handleAppointment(
       for (const item of convItems) {
         if ((item as HTMLAnchorElement).href?.includes(convId || '') || item.querySelector(`[href*="${convId}"]`)) {
           (item as HTMLElement).click();
-          console.log('[IS24] Clicked conversation list item');
+          log('[IS24] Clicked conversation list item');
           clicked = true;
           break;
         }
@@ -117,7 +118,7 @@ export async function handleAppointment(
   for (let attempt = 0; attempt < 10; attempt++) {
     invitationWrapper = document.querySelector(S.APPOINTMENT_INVITATION_SELECTOR);
     if (invitationWrapper) break;
-    console.log(`[IS24] Waiting for appointment invitation to render... (attempt ${attempt + 1})`);
+    log(`[IS24] Waiting for appointment invitation to render... (attempt ${attempt + 1})`);
     await sleep(1500);
   }
   if (!invitationWrapper) {
@@ -150,7 +151,7 @@ export async function handleAppointment(
 
   // Click the appointment action button
   targetBtn.click();
-  console.log(`[IS24] Clicked appointment button: ${targetText}`);
+  log(`[IS24] Clicked appointment button: ${targetText}`);
 
   // Wait for UI to process the button click (may trigger modal, state change, etc.)
   await sleep(2000);

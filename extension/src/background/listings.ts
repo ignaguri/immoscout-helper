@@ -1,4 +1,5 @@
 import * as C from '../shared/constants';
+import { log, debug, error } from '../shared/logger';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { enqueueListings, processQueue } from './queue';
 import { isMonitoring, setSearchTabId } from './state';
@@ -17,20 +18,20 @@ export async function sendActivityLog(data: Record<string, any>): Promise<void> 
   // Persist to storage
   try {
     const stored: Record<string, any> = await chrome.storage.local.get([C.ACTIVITY_LOG_KEY]);
-    const log: any[] = stored[C.ACTIVITY_LOG_KEY] || [];
+    const activityLog: any[] = stored[C.ACTIVITY_LOG_KEY] || [];
     const entry = { ...data, timestamp: Date.now() };
-    log.push(entry);
-    if (log.length > C.ACTIVITY_LOG_CAP) log.splice(0, log.length - C.ACTIVITY_LOG_CAP);
-    await chrome.storage.local.set({ [C.ACTIVITY_LOG_KEY]: log });
+    activityLog.push(entry);
+    if (activityLog.length > C.ACTIVITY_LOG_CAP) activityLog.splice(0, activityLog.length - C.ACTIVITY_LOG_CAP);
+    await chrome.storage.local.set({ [C.ACTIVITY_LOG_KEY]: activityLog });
   } catch (_e) {
-    console.debug('[Listings] Failed to persist activity log to storage');
+    debug('[Listings] Failed to persist activity log to storage');
   }
 
   // Send to popup (may be closed)
   try {
     await chrome.runtime.sendMessage({ action: 'activityLog', ...data });
   } catch (_e) {
-    console.debug('[Listings] Could not send activity log to popup (likely closed)');
+    debug('[Listings] Could not send activity log to popup (likely closed)');
   }
 }
 
@@ -42,7 +43,7 @@ export async function checkForNewListings(): Promise<void> {
     const result = await findOrCreateSearchTab();
 
     if (!result) {
-      console.log('Could not find or create search tab. Check your Search URL setting.');
+      log('Could not find or create search tab. Check your Search URL setting.');
       return;
     }
 
@@ -60,21 +61,21 @@ export async function checkForNewListings(): Promise<void> {
         try {
           await chrome.tabs.sendMessage(tab.id!, { action: 'ping' });
           needsReload = false;
-          console.log(
+          log(
             `[${new Date().toLocaleTimeString()}] Search tab already loaded, content script ready — extracting...`,
           );
         } catch {
-          console.log(
+          log(
             `[${new Date().toLocaleTimeString()}] Search tab URL matches but content script not available — reloading...`,
           );
         }
       }
     } catch {
-      console.debug('[Listings] Could not check current tab state, will reload');
+      debug('[Listings] Could not check current tab state, will reload');
     }
 
     if (needsReload) {
-      console.log(`[${new Date().toLocaleTimeString()}] Reloading search page...`);
+      log(`[${new Date().toLocaleTimeString()}] Reloading search page...`);
       await chrome.tabs.update(tab.id!, { url: searchUrl });
       await waitForTabLoad(tab.id!, C.TAB_LOAD_TIMEOUT);
       await new Promise((resolve) => setTimeout(resolve, humanDelay(2000, 1000)));
@@ -94,7 +95,7 @@ export async function checkForNewListings(): Promise<void> {
       try {
         paginationInfo = await chrome.tabs.sendMessage(tab.id!, { action: 'extractPaginationInfo' });
       } catch (_e) {
-        console.debug('[Listings] Pagination extraction failed, assuming single page');
+        debug('[Listings] Pagination extraction failed, assuming single page');
       }
 
       const maxPages = Math.min(paginationInfo.totalPages, 3);
@@ -111,14 +112,14 @@ export async function checkForNewListings(): Promise<void> {
         const pageResults: any = await chrome.tabs.sendMessage(tab.id!, { action: 'extractListings' });
         if (pageResults?.listings?.length) {
           allListings.push(...pageResults.listings);
-          console.log(`[Pagination] Page ${page}: ${pageResults.listings.length} listings`);
+          log(`[Pagination] Page ${page}: ${pageResults.listings.length} listings`);
         } else {
           break;
         }
       }
 
       if (maxPages > 1) {
-        console.log(`[Pagination] Total: ${allListings.length} listings from ${maxPages} pages`);
+        log(`[Pagination] Total: ${allListings.length} listings from ${maxPages} pages`);
       }
 
       // Summary log
@@ -141,12 +142,12 @@ export async function checkForNewListings(): Promise<void> {
       // Enqueue new listings, then process the queue
       await enqueueListings(allListings, 'auto');
       await processQueue();
-    } catch (error) {
-      console.error('Error extracting listings:', error);
+    } catch (err) {
+      error('Error extracting listings:', err);
       setSearchTabId(null);
     }
-  } catch (error) {
-    console.error('Error checking for new listings:', error);
+  } catch (err) {
+    error('Error checking for new listings:', err);
     setSearchTabId(null);
   }
 }

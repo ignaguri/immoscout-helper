@@ -1,5 +1,6 @@
 // Listing extraction from search results pages
 
+import { log } from '../shared/logger';
 import type { Listing, PaginationInfo } from '../shared/types';
 import * as S from './selectors';
 
@@ -69,7 +70,7 @@ export function extractListings(): Listing[] {
   });
 
   listings.sort((a, b) => a.index - b.index);
-  console.log(`[IS24] Found ${listings.length} listings`);
+  log(`[IS24] Found ${listings.length} listings`);
   return listings;
 }
 

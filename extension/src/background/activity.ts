@@ -1,4 +1,5 @@
 import * as C from '../shared/constants';
+import { debug } from '../shared/logger';
 
 export async function logActivity(entry: Record<string, any>): Promise<void> {
   try {
@@ -9,6 +10,6 @@ export async function logActivity(entry: Record<string, any>): Promise<void> {
     if (log.length > C.ACTIVITY_LOG_CAP) log.length = C.ACTIVITY_LOG_CAP;
     await chrome.storage.local.set({ [C.ACTIVITY_LOG_KEY]: log });
   } catch (_e) {
-    console.debug('[Activity] Logging failed (best-effort)');
+    debug('[Activity] Logging failed (best-effort)');
   }
 }

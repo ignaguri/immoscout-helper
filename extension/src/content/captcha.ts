@@ -1,5 +1,6 @@
 // Captcha detection and solving
 
+import { error, log } from '../shared/logger';
 import type { CaptchaDetectResult, CaptchaSubmitResult } from '../shared/types';
 import { setInputValue, sleep } from './dom-helpers';
 import * as S from './selectors';
@@ -66,7 +67,7 @@ export async function detectCaptcha(): Promise<CaptchaDetectResult> {
     }
     return { hasCaptcha: true, imageBase64: dataUrl };
   } catch (e) {
-    console.error('[IS24] Error converting captcha image:', e);
+    error('[IS24] Error converting captcha image:', e);
     return { hasCaptcha: true, imageBase64: null, error: (e as Error).message };
   }
 }
@@ -116,7 +117,7 @@ export async function fillCaptchaAndSubmit(text: string): Promise<CaptchaSubmitR
       return { success: false, error: 'Captcha submit button not found' };
     }
 
-    console.log(
+    log(
       '[IS24] Clicking captcha submit:',
       submitBtn.textContent?.trim(),
       '| testid:',
@@ -136,7 +137,7 @@ export async function fillCaptchaAndSubmit(text: string): Promise<CaptchaSubmitR
           (el.textContent || '').includes(S.MESSAGE_SENT_TEXT),
         );
       if (messageSent) {
-        console.log('[IS24] Captcha solved — message sent successfully');
+        log('[IS24] Captcha solved — message sent successfully');
         return { success: true, messageSent: true };
       }
 

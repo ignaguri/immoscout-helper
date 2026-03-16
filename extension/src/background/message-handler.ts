@@ -1,5 +1,6 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
+import { log, debug, warn, error } from '../shared/logger';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import { getProfile } from './ai';
 import type { ConversationEntry } from './conversations';
@@ -35,9 +36,9 @@ export function registerMessageHandler(): void {
           .then(() => {
             sendResponse({ success: true });
           })
-          .catch((error) => {
-            console.error('Error starting monitoring:', error);
-            sendResponse({ success: false, error: error.message });
+          .catch((err) => {
+            error('Error starting monitoring:', err);
+            sendResponse({ success: false, error: err.message });
           });
         return true;
       } else if (request.action === 'stopMonitoring') {
@@ -45,9 +46,9 @@ export function registerMessageHandler(): void {
           try {
             await stopMonitoring();
             sendResponse({ success: true });
-          } catch (error: any) {
-            console.error('Error stopping monitoring:', error);
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            error('Error stopping monitoring:', err);
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -98,12 +99,12 @@ export function registerMessageHandler(): void {
               }
               await updateCheckInterval();
               await scheduleNextAlarm();
-              console.log(`Check interval updated to ${currentCheckInterval / 1000} seconds`);
+              log(`Check interval updated to ${currentCheckInterval / 1000} seconds`);
             }
             sendResponse({ success: true });
-          } catch (error: any) {
-            console.error('Error updating interval:', error);
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            error('Error updating interval:', err);
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -111,7 +112,7 @@ export function registerMessageHandler(): void {
         (async () => {
           try {
             const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
-            console.log(
+            log(
               `[Clear] Clearing ${(stored[C.STORAGE_KEY] || []).length} seen listings and resetting rate limit`,
             );
             setMessageCount(0);
@@ -122,10 +123,10 @@ export function registerMessageHandler(): void {
               [C.RATE_MESSAGE_COUNT_KEY]: 0,
               [C.RATE_COUNT_RESET_TIME_KEY]: messageCountResetTime,
             });
-            console.log('[Clear] Seen list and rate limit reset');
+            log('[Clear] Seen list and rate limit reset');
             sendResponse({ success: true });
-          } catch (error: any) {
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -138,8 +139,8 @@ export function registerMessageHandler(): void {
             const added = await enqueueListings(incomingListings, 'manual');
             const stored: Record<string, any> = await chrome.storage.local.get([C.QUEUE_KEY]);
             sendResponse({ success: true, added, total: (stored[C.QUEUE_KEY] || []).length });
-          } catch (error: any) {
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -155,7 +156,7 @@ export function registerMessageHandler(): void {
             return;
           }
           setUserTriggeredProcessing(true);
-          processQueue().catch((e) => console.error('[Queue] Processing error:', e));
+          processQueue().catch((e) => error('[Queue] Processing error:', e));
           sendResponse({ success: true });
         })();
         return true;
@@ -180,8 +181,8 @@ export function registerMessageHandler(): void {
           try {
             await checkForNewReplies();
             sendResponse({ success: true });
-          } catch (error: any) {
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -212,7 +213,7 @@ export function registerMessageHandler(): void {
                   break;
                 }
               } catch (_e) {
-                console.debug('[MessageHandler] Content script ping failed on messenger page, retrying...');
+                debug('[MessageHandler] Content script ping failed on messenger page, retrying...');
               }
               await new Promise((resolve) => setTimeout(resolve, 1000));
             }
@@ -231,13 +232,13 @@ export function registerMessageHandler(): void {
             if (result?.success) {
               // Update draft status
               await updateConversationDraft(conversationId, message, 'sent');
-              console.log(`[Conversations] Reply filled for ${conversationId}, tab left open for user review`);
+              log(`[Conversations] Reply filled for ${conversationId}, tab left open for user review`);
               sendResponse({ success: true, tabId: tab.id });
             } else {
               sendResponse({ success: false, error: result?.error || 'Failed to fill reply' });
             }
-          } catch (error: any) {
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -334,7 +335,7 @@ export function registerMessageHandler(): void {
                 }
               }
             } catch (e: any) {
-              console.warn(`[Appointments] AI draft failed:`, e.message);
+              warn(`[Appointments] AI draft failed:`, e.message);
             }
 
             // Open the messenger conversation page
@@ -354,7 +355,7 @@ export function registerMessageHandler(): void {
                   break;
                 }
               } catch (_e) {
-                console.debug('[MessageHandler] Content script ping failed for appointment page, retrying...');
+                debug('[MessageHandler] Content script ping failed for appointment page, retrying...');
               }
               await new Promise((resolve) => setTimeout(resolve, 1000));
             }
@@ -378,13 +379,13 @@ export function registerMessageHandler(): void {
                 alternative: 'alternative_requested',
               };
               await updateAppointmentStatus(conversationId, statusMap[apptResponse] || apptResponse);
-              console.log(`[Appointments] ${apptResponse} for ${conversationId}, tab left open for user review`);
+              log(`[Appointments] ${apptResponse} for ${conversationId}, tab left open for user review`);
               sendResponse({ success: true, tabId: tab.id });
             } else {
               sendResponse({ success: false, error: result?.error || 'Failed to handle appointment' });
             }
-          } catch (error: any) {
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -492,10 +493,10 @@ export function registerMessageHandler(): void {
 
             await chrome.downloads.download({ url: dataUrl, filename, saveAs: true });
 
-            console.log(`[Documents] Generated and downloading: ${filename}`);
+            log(`[Documents] Generated and downloading: ${filename}`);
             sendResponse({ success: true });
-          } catch (error: any) {
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -516,8 +517,8 @@ export function registerMessageHandler(): void {
               await chrome.storage.local.set({ [C.BLACKLIST_KEY]: blacklist });
             }
             sendResponse({ success: true });
-          } catch (error: any) {
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -552,8 +553,8 @@ export function registerMessageHandler(): void {
             }
 
             sendResponse({ success: true });
-          } catch (error: any) {
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -587,13 +588,13 @@ export function registerMessageHandler(): void {
             try {
               await chrome.runtime.sendMessage({ action: 'conversationUpdate' });
             } catch (_e) {
-              console.debug('[MessageHandler] Could not notify popup of draft status change');
+              debug('[MessageHandler] Could not notify popup of draft status change');
             }
 
             await generateDraftReply(conv, aiConfig.apiKey, userContext);
             sendResponse({ success: true });
-          } catch (error: any) {
-            sendResponse({ success: false, error: error.message });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;
@@ -616,7 +617,7 @@ export function registerNotificationHandler(): void {
           await chrome.windows.update(tab.windowId, { focused: true });
         }
       } catch (e) {
-        console.error('Error focusing tab from notification:', e);
+        error('Error focusing tab from notification:', e);
       }
       chrome.notifications.clear(notificationId);
     }

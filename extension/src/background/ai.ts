@@ -7,6 +7,7 @@ import {
   trackTokenUsage,
 } from '../shared/ai-router';
 import * as C from '../shared/constants';
+import { log, warn, error } from '../shared/logger';
 import {
   buildMessagePrompt,
   buildScoringPrompt,
@@ -108,7 +109,7 @@ async function tryAIAnalysisDirect(
   try {
     listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
   } catch (e: any) {
-    console.error('[AI/Direct] Failed to extract listing details:', e.message);
+    error('[AI/Direct] Failed to extract listing details:', e.message);
     return null;
   }
   if (!listingDetails) return null;
@@ -140,12 +141,12 @@ async function tryAIAnalysisDirect(
       summary = parsed.summary;
       flags = parsed.flags || [];
     } else {
-      console.warn('[AI/Direct] Could not parse score JSON, defaulting to 5');
+      warn('[AI/Direct] Could not parse score JSON, defaulting to 5');
       score = 5;
       reason = 'Score konnte nicht ermittelt werden';
     }
-  } catch (error) {
-    console.error('[AI/Direct] Scoring error:', (error as Error).message);
+  } catch (err) {
+    error('[AI/Direct] Scoring error:', (err as Error).message);
     return null;
   }
 
@@ -157,7 +158,7 @@ async function tryAIAnalysisDirect(
 
   // If score below threshold, skip message generation
   if (score < config.minScore) {
-    console.log(
+    log(
       `[AI/Direct] Score ${score}/${config.minScore} — skipping${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
     );
     statsUpdates[C.AI_LISTINGS_SKIPPED_KEY] =
@@ -196,12 +197,12 @@ async function tryAIAnalysisDirect(
     message = msgResult.text.trim();
     totalPromptTokens += msgResult.usage.promptTokens;
     totalCompletionTokens += msgResult.usage.completionTokens;
-  } catch (error) {
-    console.error('[AI/Direct] Message generation error:', (error as Error).message);
+  } catch (err) {
+    error('[AI/Direct] Message generation error:', (err as Error).message);
   }
 
   await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
-  console.log(
+  log(
     `[AI/Direct] Score ${score}/10 — message ${message ? 'generated' : 'fallback'}${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
   );
   return {
@@ -233,7 +234,7 @@ async function tryAIAnalysisServer(
   try {
     listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
   } catch (e: any) {
-    console.error('[AI/Server] Failed to extract listing details:', e.message);
+    error('[AI/Server] Failed to extract listing details:', e.message);
     return null;
   }
   if (!listingDetails) return null;
@@ -262,7 +263,7 @@ async function tryAIAnalysisServer(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.error(`[AI/Server] Server returned ${response.status}`);
+      error(`[AI/Server] Server returned ${response.status}`);
       return null;
     }
 
@@ -289,13 +290,13 @@ async function tryAIAnalysisServer(
     }
     await chrome.storage.local.set(updates);
 
-    console.log(
+    log(
       `[AI/Server] Score: ${result.score}/10, Skip: ${result.skip}, Message: ${result.message ? 'yes' : 'no'}`,
     );
     return result;
   } catch (e: any) {
     clearTimeout(timeout);
-    console.error('[AI/Server] Fetch error:', e.message);
+    error('[AI/Server] Fetch error:', e.message);
     return null;
   }
 }
@@ -314,7 +315,7 @@ export async function tryAIAnalysis(
   try {
     const config = await getAIConfig();
     if (!config.enabled) {
-      console.warn('[AI] Not configured — skipping analysis');
+      warn('[AI] Not configured — skipping analysis');
       return null;
     }
 
@@ -343,10 +344,10 @@ export async function tryAIAnalysis(
       );
     }
 
-    console.warn('[AI] No valid AI configuration (need API key for direct mode or server URL for server mode)');
+    warn('[AI] No valid AI configuration (need API key for direct mode or server URL for server mode)');
     return null;
   } catch (e: any) {
-    console.error('[AI] Unexpected error:', e.message);
+    error('[AI] Unexpected error:', e.message);
     return null;
   }
 }
@@ -367,10 +368,10 @@ export async function trySolveCaptcha(
   let sentSolution = false;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
-    console.log(`[Captcha] Attempt ${attempt}/2 — detecting...`);
+    log(`[Captcha] Attempt ${attempt}/2 — detecting...`);
 
     if (sentSolution) {
-      console.log('[Captcha] Previous attempt sent solution — waiting for page to settle...');
+      log('[Captcha] Previous attempt sent solution — waiting for page to settle...');
       await new Promise((resolve) => setTimeout(resolve, 3000));
       try {
         await chrome.tabs.sendMessage(tabId, { action: 'ping' });
@@ -385,61 +386,61 @@ export async function trySolveCaptcha(
       detection = await chrome.tabs.sendMessage(tabId, { action: 'detectCaptcha' });
     } catch (e: any) {
       if (sentSolution) {
-        console.log('[Captcha] Page unreachable after sending solution — waiting for reload...');
+        log('[Captcha] Page unreachable after sending solution — waiting for reload...');
         try {
           await waitForTabLoad(tabId);
           await new Promise((resolve) => setTimeout(resolve, 1500));
           const pageCheck: any = await chrome.tabs.sendMessage(tabId, { action: 'checkMessageSent' });
           if (pageCheck?.messageSent) {
-            console.log('[Captcha] Confirmed: message was sent after page reload');
+            log('[Captcha] Confirmed: message was sent after page reload');
             return { solved: true, messageSent: true };
           }
-          console.warn('[Captcha] Page reloaded but no confirmation found. Page:', pageCheck?.url);
+          warn('[Captcha] Page reloaded but no confirmation found. Page:', pageCheck?.url);
           return { solved: false, messageSent: false };
         } catch (e2: any) {
-          console.warn('[Captcha] Cannot verify after page reload:', e2.message);
+          warn('[Captcha] Cannot verify after page reload:', e2.message);
           return { solved: true, messageSent: false, unverified: true };
         }
       }
-      console.error('[Captcha] Detection failed:', e.message);
+      error('[Captcha] Detection failed:', e.message);
       return false;
     }
 
     if (!detection?.hasCaptcha) {
       if (sentSolution) {
-        console.log('[Captcha] Captcha gone after sending solution — verifying message delivery...');
+        log('[Captcha] Captcha gone after sending solution — verifying message delivery...');
         try {
           const pageCheck: any = await chrome.tabs.sendMessage(tabId, { action: 'checkMessageSent' });
           if (pageCheck?.messageSent) {
-            console.log('[Captcha] Confirmed: message was sent');
+            log('[Captcha] Confirmed: message was sent');
             return { solved: true, messageSent: true };
           }
           if (pageCheck?.hasCaptcha) {
-            console.log('[Captcha] New captcha appeared — previous solution was wrong');
+            log('[Captcha] New captcha appeared — previous solution was wrong');
             sentSolution = false;
             continue;
           }
           if (pageCheck?.hasContactForm) {
-            console.log('[Captcha] Contact form still present — captcha solved but message not sent yet');
+            log('[Captcha] Contact form still present — captcha solved but message not sent yet');
             return { solved: true, messageSent: false };
           }
-          console.warn('[Captcha] No confirmation found on page — captcha likely failed. Page:', pageCheck?.url);
+          warn('[Captcha] No confirmation found on page — captcha likely failed. Page:', pageCheck?.url);
           return { solved: false, messageSent: false };
         } catch (e) {
-          console.warn('[Captcha] Cannot verify page state:', (e as any).message);
+          warn('[Captcha] Cannot verify page state:', (e as any).message);
           return { solved: true, messageSent: false, unverified: true };
         }
       }
-      console.log('[Captcha] No captcha detected');
+      log('[Captcha] No captcha detected');
       return { solved: true, messageSent: false };
     }
 
     if (!detection.imageBase64) {
-      console.error('[Captcha] Captcha detected but no image:', detection.error);
+      error('[Captcha] Captcha detected but no image:', detection.error);
       return false;
     }
 
-    console.log('[Captcha] Captcha detected, solving...');
+    log('[Captcha] Captcha detected, solving...');
 
     try {
       let captchaText: string | null = null;
@@ -449,7 +450,7 @@ export async function trySolveCaptcha(
         // Direct mode: call provider vision API
         const match = detection.imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
         if (!match) {
-          console.error('[Captcha] Invalid base64 image format');
+          error('[Captcha] Invalid base64 image format');
           return false;
         }
         const mimeType = match[1];
@@ -469,7 +470,7 @@ export async function trySolveCaptcha(
         captchaUsage = result.usage;
 
         if (!captchaText) {
-          console.warn(`[Captcha/Direct] Empty/invalid answer (raw: "${result.text.trim()}")`);
+          warn(`[Captcha/Direct] Empty/invalid answer (raw: "${result.text.trim()}")`);
         }
       } else if (canUseServer(config)) {
         // Server mode
@@ -497,11 +498,11 @@ export async function trySolveCaptcha(
       }
 
       if (!captchaText) {
-        console.error('[Captcha] Could not solve captcha');
+        error('[Captcha] Could not solve captcha');
         return false;
       }
 
-      console.log(`[Captcha] Solution: "${captchaText}", filling...`);
+      log(`[Captcha] Solution: "${captchaText}", filling...`);
       sentSolution = true;
 
       const solveResult: any = await chrome.tabs.sendMessage(tabId, {
@@ -511,23 +512,23 @@ export async function trySolveCaptcha(
 
       if (solveResult?.success) {
         if (solveResult.messageSent) {
-          console.log('[Captcha] Solved — message was sent successfully');
+          log('[Captcha] Solved — message was sent successfully');
           return { solved: true, messageSent: true };
         }
-        console.log('[Captcha] Solved successfully');
+        log('[Captcha] Solved successfully');
         await new Promise((resolve) => setTimeout(resolve, 2000));
         return { solved: true, messageSent: false };
       }
 
-      console.warn(`[Captcha] Attempt ${attempt} failed:`, solveResult?.error);
+      warn(`[Captcha] Attempt ${attempt} failed:`, solveResult?.error);
     } catch (e: any) {
-      console.error(`[Captcha] Attempt ${attempt} error:`, e.message);
+      error(`[Captcha] Attempt ${attempt} error:`, e.message);
     }
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  console.error('[Captcha] All attempts failed');
+  error('[Captcha] All attempts failed');
   chrome.notifications.create(`captcha-fail-${Date.now()}`, {
     type: 'basic',
     iconUrl: C.ICON_PATH,

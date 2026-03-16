@@ -298,13 +298,17 @@ async function handleSendTemplate() {
 }
 
 async function handleApprove(item: PendingApprovalItem) {
-  await approvePendingListing(item);
-  pendingApproval = pendingApproval.filter((p) => p.id !== item.id);
+  const res = await approvePendingListing(item);
+  if (res?.success) {
+    pendingApproval = pendingApproval.filter((p) => p.id !== item.id);
+  }
 }
 
 async function handleSkipPending(id: string) {
-  await skipPendingListing(id);
-  pendingApproval = pendingApproval.filter((p) => p.id !== id);
+  const res = await skipPendingListing(id);
+  if (res?.success) {
+    pendingApproval = pendingApproval.filter((p) => p.id !== id);
+  }
 }
 
 async function handleCapture() {

@@ -96,6 +96,10 @@ export async function processQueue(): Promise<void> {
 
   console.log('[Queue] Starting unified queue processing');
 
+  let queueSentCount = 0;
+  let queueFailedCount = 0;
+  let queueSkippedCount = 0;
+
   try {
     while (!queueAbortRequested) {
       if (!isMonitoring && !userTriggeredProcessing) break;
@@ -168,6 +172,11 @@ export async function processQueue(): Promise<void> {
             await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
           }
 
+          if (result.skipped) {
+            queueSkippedCount++;
+          } else {
+            queueSentCount++;
+          }
           console.log(`[Queue] Processed ${normalizedId} — ${remaining.length} remaining`);
           await sendActivityLog({
             lastResult: result.skipped ? 'skipped' : 'success',
@@ -185,6 +194,7 @@ export async function processQueue(): Promise<void> {
           console.log(
             `[Queue] ${normalizedId} failed (attempt ${updatedItem.retries}/${C.QUEUE_MAX_RETRIES}) — moved to end`,
           );
+          queueFailedCount++;
           await sendActivityLog({
             lastResult: 'failed',
             lastId: item.id,
@@ -194,6 +204,7 @@ export async function processQueue(): Promise<void> {
         }
       } catch (error: any) {
         console.error('[Queue] Error processing listing:', error);
+        queueFailedCount++;
         const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
         await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, updatedItem] });
         await sendActivityLog({
@@ -214,6 +225,22 @@ export async function processQueue(): Promise<void> {
     setUserTriggeredProcessing(false);
     await chrome.storage.local.set({ [C.QUEUE_PROCESSING_KEY]: false });
     console.log('[Queue] Processing loop exited');
+
+    // Desktop notification with processing summary
+    const totalProcessed = queueSentCount + queueFailedCount + queueSkippedCount;
+    if (totalProcessed > 0) {
+      const parts: string[] = [];
+      if (queueSentCount > 0) parts.push(`${queueSentCount} sent`);
+      if (queueFailedCount > 0) parts.push(`${queueFailedCount} failed`);
+      if (queueSkippedCount > 0) parts.push(`${queueSkippedCount} skipped`);
+      chrome.notifications.create(`queue-done-${Date.now()}`, {
+        type: 'basic',
+        iconUrl: C.ICON_PATH,
+        title: 'Queue Processing Complete',
+        message: parts.join(', '),
+      });
+    }
+
     try {
       await chrome.runtime.sendMessage({ action: 'queueDone' });
     } catch (_e) {

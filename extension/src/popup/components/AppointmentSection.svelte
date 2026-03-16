@@ -19,7 +19,7 @@ let apptDate = $derived.by(() => {
   if (!appt) return '';
   if (appt.start) {
     const d = new Date(appt.start);
-    return isNaN(d.getTime())
+    return Number.isNaN(d.getTime())
       ? ''
       : d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   }
@@ -30,7 +30,7 @@ let apptTime = $derived.by(() => {
   if (!appt) return '';
   if (appt.start) {
     const d = new Date(appt.start);
-    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   }
   return appt.time || appt.startTime || '';
 });
@@ -48,7 +48,7 @@ async function handleAppointmentResponse(response: string, _btnLabel: string) {
   let apptTimeVal = appt?.time || appt?.startTime || '';
   if (appt?.start) {
     const d = new Date(appt.start);
-    if (!isNaN(d.getTime())) {
+    if (!Number.isNaN(d.getTime())) {
       apptDateVal = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
       apptTimeVal = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     }

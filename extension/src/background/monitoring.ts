@@ -3,7 +3,6 @@ import { scheduleNextAlarm } from './helpers';
 import {
   currentCheckInterval,
   isMonitoring,
-  searchTabId,
   setCurrentCheckInterval,
   setIsMonitoring,
   setSearchTabId,

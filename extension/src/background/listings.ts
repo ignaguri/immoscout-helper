@@ -1,5 +1,4 @@
 import * as C from '../shared/constants';
-import { capSeenListings } from '../shared/utils';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { enqueueListings, processQueue } from './queue';
 import { isMonitoring, setSearchTabId } from './state';

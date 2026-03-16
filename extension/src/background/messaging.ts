@@ -16,6 +16,7 @@ import {
   lastMessageTime,
   messageCount,
   setLastMessageTime,
+  userTriggeredProcessing,
 } from './state';
 
 export interface HandleListingResult {
@@ -150,7 +151,8 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       // Tenant-recommendation: current tenant posted the listing with an "Interesse bekunden" CTA.
       // Checked top-level (independent of isTenantNetwork) to guard against React render race conditions
       // where tenant-network DOM markers haven't appeared yet but the CTA button has.
-      if (listingType?.hasTenantCTA) {
+      // Skip this branch when user-triggered (i.e. the user just approved this listing from the popup).
+      if (listingType?.hasTenantCTA && !userTriggeredProcessing) {
         log(`[PendingApproval] ${listing.id} is a tenant-recommendation listing — adding to pending approval`);
         await addToPendingApproval({
           id: listing.id,

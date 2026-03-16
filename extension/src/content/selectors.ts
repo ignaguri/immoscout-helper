@@ -23,7 +23,7 @@ export const CONTACT_BUTTON_SELECTORS = [
 ];
 
 // Selector for the "Interesse bekunden" CTA on tenant-recommendation listings
-export const TENANT_NETWORK_CTA_SELECTOR = '[data-testid="tenant-network-express-interest-cta"]';
+export const TENANT_NETWORK_CTA_SELECTOR = 'button[data-testid="tenant-network-express-interest-cta"]';
 
 export const SUBMIT_BUTTON_SELECTORS = [
   'button[type="submit"][class*="Button_button-primary"]',

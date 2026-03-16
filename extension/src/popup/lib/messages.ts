@@ -89,12 +89,13 @@ export async function respondToAppointment(
 
 export async function getPendingApprovalListings(): Promise<PendingApprovalItem[]> {
   const result: any = await chrome.runtime.sendMessage({ action: 'getPendingApprovalListings' });
+  if (result && !result.success) throw new Error(result.error || 'Failed to load pending approvals');
   return result?.items || [];
 }
 
 export async function approvePendingListing(
   item: PendingApprovalItem,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; result?: unknown; error?: string }> {
   return chrome.runtime.sendMessage({ action: 'approvePendingListing', ...item });
 }
 

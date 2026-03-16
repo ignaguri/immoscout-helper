@@ -11,16 +11,18 @@ export async function getPendingApprovalListings(): Promise<PendingApprovalItem[
 }
 
 export async function addToPendingApproval(item: PendingApprovalItem): Promise<void> {
+  const normalizedId = String(item.id).toLowerCase().trim();
   const current = await getPendingApprovalListings();
-  // Dedup by id
-  if (current.some((p) => p.id === item.id)) return;
-  await chrome.storage.local.set({ [C.PENDING_APPROVAL_KEY]: [...current, item] });
+  // Dedup by normalized id
+  if (current.some((p) => String(p.id).toLowerCase().trim() === normalizedId)) return;
+  await chrome.storage.local.set({ [C.PENDING_APPROVAL_KEY]: [...current, { ...item, id: normalizedId }] });
 }
 
 export async function removePendingApprovalById(id: string): Promise<void> {
+  const normalizedId = String(id).toLowerCase().trim();
   const current = await getPendingApprovalListings();
   await chrome.storage.local.set({
-    [C.PENDING_APPROVAL_KEY]: current.filter((p) => p.id !== id),
+    [C.PENDING_APPROVAL_KEY]: current.filter((p) => String(p.id).toLowerCase().trim() !== normalizedId),
   });
 }
 

@@ -202,8 +202,12 @@ export function registerMessageHandler(): void {
             await approvePendingListing(id);
             // Re-process the listing through the standard flow
             setUserTriggeredProcessing(true);
-            const result = await handleNewListing({ id, url, title: title || '', index: 0 });
-            setUserTriggeredProcessing(false);
+            let result: any;
+            try {
+              result = await handleNewListing({ id, url, title: title || '', index: 0 });
+            } finally {
+              setUserTriggeredProcessing(false);
+            }
             sendResponse({ success: true, result });
           } catch (err: any) {
             sendResponse({ success: false, error: err.message });

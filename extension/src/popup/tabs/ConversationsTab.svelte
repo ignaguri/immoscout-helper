@@ -17,20 +17,17 @@ let checkBtnText = $state('Check Now');
 let checkBtnDisabled = $state(false);
 let expandedConvId = $state<string | null>(null);
 let appointmentsOnly = $state(false);
+let unreadOnly = $state(false);
+let repliedOnly = $state(false);
 let displayLimit = $state(10);
 const PAGE_SIZE = 10;
 
-// Filter to relevant conversations
+// Sort and optionally filter conversations
 let relevantConversations = $derived(
   conversations
-    .filter(
-      (c) =>
-        c.hasUnreadReply ||
-        c.messages.length > 0 ||
-        c.draftReply ||
-        c.appointment != null,
-    )
     .filter((c) => !appointmentsOnly || c.appointment != null)
+    .filter((c) => !unreadOnly || c.hasUnreadReply)
+    .filter((c) => !repliedOnly || c.hasLandlordReply)
     .sort((a, b) => {
       if (a.hasUnreadReply && !b.hasUnreadReply) return -1;
       if (!a.hasUnreadReply && b.hasUnreadReply) return 1;
@@ -42,8 +39,10 @@ let visibleConversations = $derived(relevantConversations.slice(0, displayLimit)
 let hasMore = $derived(relevantConversations.length > displayLimit);
 
 let appointmentCount = $derived(conversations.filter((c) => c.appointment != null).length);
+let unreadFilterCount = $derived(conversations.filter((c) => c.hasUnreadReply).length);
+let repliedFilterCount = $derived(conversations.filter((c) => c.hasLandlordReply).length);
 
-let lastCheckStr = $derived(lastCheckTime ? `Last check: ${new Date(lastCheckTime).toLocaleTimeString()}` : '');
+let lastCheckStr = $derived(lastCheckTime ? `Last check: ${new Date(lastCheckTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '');
 
 async function handleCheckNow() {
   checkBtnDisabled = true;
@@ -76,8 +75,24 @@ function handleBadgeDecrement() {
   </button>
   <button
     class="btn-filter"
+    class:active={unreadOnly}
+    onclick={() => { unreadOnly = !unreadOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only unread conversations"
+  >
+    Unread{#if unreadFilterCount > 0}&nbsp;{unreadFilterCount}{/if}
+  </button>
+  <button
+    class="btn-filter"
+    class:active={repliedOnly}
+    onclick={() => { repliedOnly = !repliedOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only conversations where the landlord replied"
+  >
+    Replied{#if repliedFilterCount > 0}&nbsp;{repliedFilterCount}{/if}
+  </button>
+  <button
+    class="btn-filter"
     class:active={appointmentsOnly}
-    onclick={() => { appointmentsOnly = !appointmentsOnly; }}
+    onclick={() => { appointmentsOnly = !appointmentsOnly; displayLimit = PAGE_SIZE; }}
     title="Show only conversations with appointments"
   >
     📅{#if appointmentCount > 0}&nbsp;{appointmentCount}{/if}
@@ -89,10 +104,10 @@ function handleBadgeDecrement() {
 
 {#if relevantConversations.length === 0}
   <div class="empty-state">
-    {#if appointmentsOnly}
-      No conversations with appointments found.
+    {#if unreadOnly || repliedOnly || appointmentsOnly}
+      No conversations match the active filters.
     {:else}
-      No conversations with replies yet. Start monitoring to send messages, then replies will appear here.
+      No conversations yet. Start monitoring to send messages, then they will appear here.
     {/if}
   </div>
 {:else}
@@ -130,6 +145,8 @@ function handleBadgeDecrement() {
     width: auto;
     padding: 8px 16px;
     margin-top: 0;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .btn-filter {

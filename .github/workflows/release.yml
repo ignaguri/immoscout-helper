@@ -21,13 +21,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: extension/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: cd extension && npm ci
+        run: npm ci
 
       - name: Build extension
-        run: cd extension && npm run build
+        run: npm run build -w extension
 
       - name: Create ZIP
         run: |

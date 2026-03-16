@@ -1,5 +1,5 @@
-import type { ConversationEntry } from '../../shared/types';
 import { MESSENGER_BASE_URL } from '../../shared/constants';
+import type { ConversationEntry } from '../../shared/types';
 
 // Parse a date string to a Date object.
 // Tries ISO format first, then German DD.MM.YYYY format.
@@ -124,10 +124,11 @@ export function downloadICS(conv: ConversationEntry): void {
 
   // Escape special chars per RFC 5545: backslashes first, then others
   const esc = (s: string) =>
-    s.replace(/\\/g, '\\\\')
-     .replace(/\r\n|\r|\n/g, '\\n')
-     .replace(/,/g, '\\,')
-     .replace(/;/g, '\\;');
+    s
+      .replace(/\\/g, '\\\\')
+      .replace(/\r\n|\r|\n/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;');
 
   const ics = [
     'BEGIN:VCALENDAR',

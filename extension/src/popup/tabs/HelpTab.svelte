@@ -162,6 +162,14 @@ const version = chrome.runtime.getManifest().version;
         <p>Your personal details (name, job, income, etc.) are used by the AI to write compelling, personalized messages that stand out.</p>
       </div>
     </div>
+
+    <div class="feature">
+      <span class="feature-icon">&#x1F4C4;</span>
+      <div>
+        <strong>Document Generation</strong>
+        <p>Generates a Selbstauskunft (tenant self-disclosure) PDF with your profile data pre-filled. Available only in <strong>Server mode</strong> &mdash; requires the local AI server running. Find it in conversation cards via the "Generate Docs" button.</p>
+      </div>
+    </div>
   </div>
 
   <div class="version-info">Apartment Messenger v{version}</div>

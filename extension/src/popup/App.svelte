@@ -439,6 +439,7 @@ onMount(() => {
           bind:conversations
           bind:lastCheckTime={convLastCheckTime}
           bind:unreadCount={convUnreadCount}
+          aiMode={settings.aiMode}
         />
       </div>
     {:else if activeTab === 'settings'}

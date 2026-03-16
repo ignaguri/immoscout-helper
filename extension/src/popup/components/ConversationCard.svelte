@@ -10,11 +10,13 @@ let {
   isExpanded = false,
   onToggle,
   onBadgeDecrement,
+  aiMode = 'direct',
 }: {
   conversation: ConversationEntry;
   isExpanded?: boolean;
   onToggle: (id: string) => void;
   onBadgeDecrement: () => void;
+  aiMode?: string;
 } = $props();
 
 let hasUnread = $state(false);
@@ -100,7 +102,7 @@ let timeStr = $derived(
     <div class="conv-body">
       <ConversationMessages messages={conversation.messages} />
       <AppointmentSection {conversation} />
-      <DraftReplySection {conversation} />
+      <DraftReplySection {conversation} {aiMode} />
     </div>
   {/if}
 </div>

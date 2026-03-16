@@ -103,7 +103,7 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 // Main analysis endpoint
-app.post('/analyze', async (req: Request<{}, unknown, AnalyzeRequestBody>, res: Response) => {
+app.post('/analyze', async (req: Request<Record<string, never>, unknown, AnalyzeRequestBody>, res: Response) => {
   const {
     listingDetails,
     landlordInfo,
@@ -248,7 +248,7 @@ app.post('/analyze', async (req: Request<{}, unknown, AnalyzeRequestBody>, res: 
 });
 
 // Captcha solving endpoint
-app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: Response) => {
+app.post('/captcha', async (req: Request<Record<string, never>, unknown, CaptchaRequestBody>, res: Response) => {
   const { imageBase64, apiKey, provider } = req.body;
 
   if (!imageBase64) {
@@ -336,7 +336,7 @@ app.post('/captcha', async (req: Request<{}, unknown, CaptchaRequestBody>, res: 
 });
 
 // Message shortening endpoint — rewrites a message to fit within a character limit
-app.post('/shorten', async (req: Request<{}, unknown, ShortenRequestBody>, res: Response) => {
+app.post('/shorten', async (req: Request<Record<string, never>, unknown, ShortenRequestBody>, res: Response) => {
   const { message, maxLength, apiKey, provider } = req.body;
 
   if (!message || !maxLength) {
@@ -380,7 +380,7 @@ REGELN:
 });
 
 // Reply generation endpoint
-app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Response) => {
+app.post('/reply', async (req: Request<Record<string, never>, unknown, ReplyRequestBody>, res: Response) => {
   const {
     conversationHistory,
     userProfile,
@@ -459,68 +459,71 @@ app.post('/reply', async (req: Request<{}, unknown, ReplyRequestBody>, res: Resp
 const DOCUMENTS_SCRIPT = join(__dirname, '..', '..', 'documents', 'fill_selbstauskunft.py');
 const PYTHON_PATH = process.env.DOCUMENTS_PYTHON_PATH || 'python3';
 
-app.post('/documents/generate', async (req: Request<{}, unknown, DocumentsRequestBody>, res: Response) => {
-  const { address, name, ...rest } = req.body;
+app.post(
+  '/documents/generate',
+  async (req: Request<Record<string, never>, unknown, DocumentsRequestBody>, res: Response) => {
+    const { address, name, ...rest } = req.body;
 
-  if (!address || !name) {
-    return res.status(400).json({ error: 'address and name are required' });
-  }
-
-  if (!existsSync(DOCUMENTS_SCRIPT)) {
-    return res.status(500).json({ error: 'Documents script not found', path: DOCUMENTS_SCRIPT });
-  }
-
-  const data = { address, name, ...rest };
-  // Remove non-data fields from the JSON payload
-  const { attachments, noAttach, ...formData } = data as DocumentsRequestBody;
-
-  const street = address.split(',')[0].trim().replace(/\s+/g, '_');
-  const namePart = name.split(',')[0].trim() || 'Tenant';
-  const outputPath = join('/tmp', `Bewerbungsunterlagen_${namePart}_${street}.pdf`);
-
-  const args = [DOCUMENTS_SCRIPT, '--json', JSON.stringify(formData), '-o', outputPath];
-  if (noAttach) args.push('--no-attach');
-  if (attachments?.length) {
-    args.push('--attach', ...attachments);
-  }
-
-  try {
-    const result = await new Promise<string>((resolve, reject) => {
-      execFile(PYTHON_PATH, args, { timeout: 30000 }, (error, stdout, stderr) => {
-        if (error) {
-          reject(new Error(stderr || error.message));
-        } else {
-          resolve(stdout.trim());
-        }
-      });
-    });
-
-    console.log(`[Documents] Generated: ${result}`);
-
-    if (!existsSync(outputPath)) {
-      return res.status(500).json({ error: 'PDF generation failed — output file not found' });
+    if (!address || !name) {
+      return res.status(400).json({ error: 'address and name are required' });
     }
 
-    const pdfBuffer = readFileSync(outputPath);
+    if (!existsSync(DOCUMENTS_SCRIPT)) {
+      return res.status(500).json({ error: 'Documents script not found', path: DOCUMENTS_SCRIPT });
+    }
 
-    // Clean up temp file
+    const data = { address, name, ...rest };
+    // Remove non-data fields from the JSON payload
+    const { attachments, noAttach, ...formData } = data as DocumentsRequestBody;
+
+    const street = address.split(',')[0].trim().replace(/\s+/g, '_');
+    const namePart = name.split(',')[0].trim() || 'Tenant';
+    const outputPath = join('/tmp', `Bewerbungsunterlagen_${namePart}_${street}.pdf`);
+
+    const args = [DOCUMENTS_SCRIPT, '--json', JSON.stringify(formData), '-o', outputPath];
+    if (noAttach) args.push('--no-attach');
+    if (attachments?.length) {
+      args.push('--attach', ...attachments);
+    }
+
     try {
-      unlinkSync(outputPath);
-    } catch {
-      /* ignore */
-    }
+      const result = await new Promise<string>((resolve, reject) => {
+        execFile(PYTHON_PATH, args, { timeout: 30000 }, (error, stdout, stderr) => {
+          if (error) {
+            reject(new Error(stderr || error.message));
+          } else {
+            resolve(stdout.trim());
+          }
+        });
+      });
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Bewerbungsunterlagen_${namePart}_${street}.pdf"`);
-    res.send(pdfBuffer);
-  } catch (error) {
-    console.error('[Documents] Error:', (error as Error).message);
-    res.status(500).json({ error: 'Document generation failed', details: (error as Error).message });
-  }
-});
+      console.log(`[Documents] Generated: ${result}`);
+
+      if (!existsSync(outputPath)) {
+        return res.status(500).json({ error: 'PDF generation failed — output file not found' });
+      }
+
+      const pdfBuffer = readFileSync(outputPath);
+
+      // Clean up temp file
+      try {
+        unlinkSync(outputPath);
+      } catch {
+        /* ignore */
+      }
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Bewerbungsunterlagen_${namePart}_${street}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('[Documents] Error:', (error as Error).message);
+      res.status(500).json({ error: 'Document generation failed', details: (error as Error).message });
+    }
+  },
+);
 
 // Activity log endpoint
-app.post('/log', (req: Request<{}, unknown, LogEntryBody>, res: Response) => {
+app.post('/log', (req: Request<Record<string, never>, unknown, LogEntryBody>, res: Response) => {
   if (!req.body.action || !req.body.listingId) {
     return res.status(400).json({ error: 'action and listingId are required' });
   }

@@ -98,7 +98,9 @@ export function extractListingDetails(): ListingDetails {
       if (el) {
         // Energy efficiency class contains an img with alt text (e.g. "D")
         const img = el.querySelector('img');
-        details[field] = img ? (img as HTMLImageElement).alt : (el.textContent || '').trim();
+        (details as Record<string, unknown>)[field] = img
+          ? (img as HTMLImageElement).alt
+          : (el.textContent || '').trim();
         matchedKeys.add(cssKey);
         break;
       }

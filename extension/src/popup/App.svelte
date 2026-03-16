@@ -359,6 +359,8 @@ onMount(() => {
   <button
     class="toggle-btn {isMonitoring ? 'stop' : 'start'}"
     onclick={handleToggle}
+    disabled={!isMonitoring && !aiServerConnected}
+    title={!isMonitoring && !aiServerConnected ? 'AI connection not available — check Settings' : ''}
   >
     <span>{isMonitoring ? '\u23F9' : '\u25B6'}</span>
     <span>{isMonitoring ? 'Stop' : 'Start'}</span>

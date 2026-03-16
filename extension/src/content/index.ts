@@ -2,6 +2,7 @@
 // All logic lives in the feature modules; this file only wires up the
 // chrome.runtime.onMessage listener.
 
+import { BLACKLIST_KEY, QUEUE_KEY, STORAGE_KEY } from '../shared/constants';
 import type { CheckMessageSentResult, ContentRequest } from '../shared/types';
 import { detectCaptcha, detectCaptchaElement, fillCaptchaAndSubmit } from './captcha';
 import { sendMessageToLandlord } from './contact-form';
@@ -112,14 +113,27 @@ console.log('[IS24] Content script loaded');
 
 // Auto-apply overlay on search results pages
 if (location.pathname.startsWith('/Suche/') || location.href.includes('searchType=')) {
-  // Fetch overlay data from background and apply
-  chrome.storage.local
-    .get(['seenListings', 'manualQueue', 'blacklistedListings'])
-    .then((stored) => {
-      const seenIds: string[] = stored.seenListings || [];
-      const queuedIds: string[] = (stored.manualQueue || []).map((item: any) => String(item.id));
-      const blacklistedIds: string[] = stored.blacklistedListings || [];
-      applyOverlay({ seenIds, queuedIds, blacklistedIds });
-    })
-    .catch((e) => console.debug('[IS24] Overlay auto-apply failed:', e));
+  function refreshOverlay() {
+    chrome.storage.local
+      .get([STORAGE_KEY, QUEUE_KEY, BLACKLIST_KEY])
+      .then((stored) => {
+        const seenIds: string[] = stored[STORAGE_KEY] || [];
+        const queuedIds: string[] = (stored[QUEUE_KEY] || []).map((item: any) => String(item.id));
+        const blacklistedIds: string[] = stored[BLACKLIST_KEY] || [];
+        applyOverlay({ seenIds, queuedIds, blacklistedIds });
+      })
+      .catch((e) => console.debug('[IS24] Overlay auto-apply failed:', e));
+  }
+
+  // Initial apply
+  refreshOverlay();
+
+  // Re-apply when new listings are dynamically loaded (infinite scroll, pagination)
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const observer = new MutationObserver(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(refreshOverlay, 300);
+  });
+  const target = document.querySelector('#resultListItems, [data-testid="result-list"]') || document.body;
+  observer.observe(target, { childList: true, subtree: true });
 }

@@ -12,19 +12,22 @@ export let messageCountResetTime = Date.now() + 3600000;
 // Multi-URL round-robin index (persisted to survive SW restarts)
 export let searchUrlIndex = 0;
 
-// Restore persisted index on module load
-chrome.storage.session
-  ?.get('searchUrlIndex')
-  .then((data) => {
-    if (typeof data?.searchUrlIndex === 'number') {
-      searchUrlIndex = data.searchUrlIndex;
-    }
-  })
-  .catch(() => {
-    /* session storage may not be available */
-  });
+// Restore persisted index on module load, with a promise guard to prevent
+// race conditions when advanceSearchUrlIndex is called before restore completes.
+const searchUrlIndexRestored: Promise<void> =
+  chrome.storage.session
+    ?.get('searchUrlIndex')
+    .then((data) => {
+      if (typeof data?.searchUrlIndex === 'number') {
+        searchUrlIndex = data.searchUrlIndex;
+      }
+    })
+    .catch(() => {
+      /* session storage may not be available */
+    }) ?? Promise.resolve();
 
-export function advanceSearchUrlIndex(total: number) {
+export async function advanceSearchUrlIndex(total: number) {
+  await searchUrlIndexRestored;
   searchUrlIndex = total > 0 ? (searchUrlIndex + 1) % total : 0;
   chrome.storage.session?.set({ searchUrlIndex }).catch(() => {});
 }

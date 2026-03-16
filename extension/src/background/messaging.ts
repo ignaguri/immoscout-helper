@@ -37,6 +37,11 @@ async function recordContactedLandlord(landlordName: string): Promise<void> {
 
 // Prompt user about duplicate landlord via chrome.notifications
 // Returns 'send' | 'skip' | 'defer' (defer = timeout, move to end of queue)
+//
+// NOTE: chrome.notifications buttons are only supported on ChromeOS and Windows.
+// On macOS, buttons are silently dropped. The notification body is still shown, and
+// clicking it resolves to 'send'. If the user doesn't interact within the timeout,
+// the listing is deferred (moved to end of queue) as a safe default.
 function promptDuplicateLandlordDecision(
   landlordName: string,
   listing: Listing | QueueItem,
@@ -72,7 +77,7 @@ function promptDuplicateLandlordDecision(
       type: 'basic',
       iconUrl: C.ICON_PATH,
       title: 'Duplicate Landlord Detected',
-      message: `"${landlordName}" was already contacted.\n${listing.title || listing.id}`,
+      message: `"${landlordName}" was already contacted. Click to send anyway, or wait to defer.\n${listing.title || listing.id}`,
       buttons: [{ title: 'Send Anyway' }, { title: 'Skip' }],
       requireInteraction: true,
     });

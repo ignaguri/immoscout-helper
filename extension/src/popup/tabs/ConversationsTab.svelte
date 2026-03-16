@@ -122,7 +122,7 @@ function handleBadgeDecrement() {
     oninput={() => { displayLimit = PAGE_SIZE; }}
   />
   {#if searchQuery}
-    <button class="search-clear" onclick={() => { searchQuery = ''; }}>×</button>
+    <button class="search-clear" aria-label="Clear search" title="Clear search" onclick={() => { searchQuery = ''; displayLimit = PAGE_SIZE; }}>×</button>
   {/if}
 </div>
 

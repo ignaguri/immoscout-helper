@@ -7,28 +7,35 @@ let {
   conversations = $bindable(),
   lastCheckTime = $bindable(),
   unreadCount = $bindable(),
+  aiMode = 'direct',
 }: {
   conversations: any[];
   lastCheckTime: string | null;
   unreadCount: number;
+  aiMode?: string;
 } = $props();
 
 let checkBtnText = $state('Check Now');
 let checkBtnDisabled = $state(false);
 let expandedConvId = $state<string | null>(null);
 let appointmentsOnly = $state(false);
+let unreadOnly = $state(false);
+let repliedOnly = $state(false);
+let searchQuery = $state('');
+let displayLimit = $state(10);
+const PAGE_SIZE = 10;
 
-// Filter to relevant conversations
+// Sort and optionally filter conversations
 let relevantConversations = $derived(
   conversations
-    .filter(
-      (c) =>
-        c.hasUnreadReply ||
-        c.messages.length > 0 ||
-        c.draftReply ||
-        c.appointment != null,
-    )
+    .filter((c) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.trim().toLowerCase();
+      return c.landlordName?.toLowerCase().includes(q) || c.listingTitle?.toLowerCase().includes(q);
+    })
     .filter((c) => !appointmentsOnly || c.appointment != null)
+    .filter((c) => !unreadOnly || c.hasUnreadReply)
+    .filter((c) => !repliedOnly || c.hasLandlordReply)
     .sort((a, b) => {
       if (a.hasUnreadReply && !b.hasUnreadReply) return -1;
       if (!a.hasUnreadReply && b.hasUnreadReply) return 1;
@@ -36,9 +43,18 @@ let relevantConversations = $derived(
     }),
 );
 
-let appointmentCount = $derived(conversations.filter((c) => c.appointment != null).length);
+let visibleConversations = $derived(relevantConversations.slice(0, displayLimit));
+let hasMore = $derived(relevantConversations.length > displayLimit);
 
-let lastCheckStr = $derived(lastCheckTime ? `Last check: ${new Date(lastCheckTime).toLocaleTimeString()}` : '');
+let appointmentCount = $derived(conversations.filter((c) => c.appointment != null).length);
+let unreadFilterCount = $derived(conversations.filter((c) => c.hasUnreadReply).length);
+let repliedFilterCount = $derived(conversations.filter((c) => c.hasLandlordReply).length);
+
+let lastCheckStr = $derived(
+  lastCheckTime
+    ? `Last check: ${new Date(lastCheckTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : '',
+);
 
 async function handleCheckNow() {
   checkBtnDisabled = true;
@@ -71,50 +87,94 @@ function handleBadgeDecrement() {
   </button>
   <button
     class="btn-filter"
+    class:active={unreadOnly}
+    onclick={() => { unreadOnly = !unreadOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only unread conversations"
+  >
+    Unread{#if unreadFilterCount > 0} ({unreadFilterCount}){/if}
+  </button>
+  <button
+    class="btn-filter"
+    class:active={repliedOnly}
+    onclick={() => { repliedOnly = !repliedOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only conversations where the landlord replied"
+  >
+    Replied{#if repliedFilterCount > 0} ({repliedFilterCount}){/if}
+  </button>
+  <button
+    class="btn-filter"
     class:active={appointmentsOnly}
-    onclick={() => { appointmentsOnly = !appointmentsOnly; }}
+    onclick={() => { appointmentsOnly = !appointmentsOnly; displayLimit = PAGE_SIZE; }}
     title="Show only conversations with appointments"
   >
-    📅{#if appointmentCount > 0}&nbsp;{appointmentCount}{/if}
+    📅{#if appointmentCount > 0} ({appointmentCount}){/if}
   </button>
   {#if lastCheckStr}
     <span class="last-check">{lastCheckStr}</span>
   {/if}
 </div>
+<div class="search-wrap">
+  <input
+    type="text"
+    class="search-input"
+    placeholder="Search by name or address..."
+    bind:value={searchQuery}
+    oninput={() => { displayLimit = PAGE_SIZE; }}
+  />
+  {#if searchQuery}
+    <button class="search-clear" aria-label="Clear search" title="Clear search" onclick={() => { searchQuery = ''; displayLimit = PAGE_SIZE; }}>×</button>
+  {/if}
+</div>
 
 {#if relevantConversations.length === 0}
   <div class="empty-state">
-    {#if appointmentsOnly}
-      No conversations with appointments found.
+    {#if searchQuery.trim()}
+      No conversations match your search.
+    {:else if unreadOnly || repliedOnly || appointmentsOnly}
+      No conversations match the active filters.
     {:else}
-      No conversations with replies yet. Start monitoring to send messages, then replies will appear here.
+      No conversations yet. Start monitoring to send messages, then they will appear here.
     {/if}
   </div>
 {:else}
+  {#if relevantConversations.length > PAGE_SIZE}
+    <div class="showing-count">
+      Showing {visibleConversations.length} of {relevantConversations.length} conversations
+    </div>
+  {/if}
   <div class="conv-list">
-    {#each relevantConversations as conv (conv.conversationId)}
+    {#each visibleConversations as conv (conv.conversationId)}
       <ConversationCard
         conversation={conv}
         isExpanded={expandedConvId === conv.conversationId}
         onToggle={handleToggle}
         onBadgeDecrement={handleBadgeDecrement}
+        {aiMode}
       />
     {/each}
   </div>
+  {#if hasMore}
+    <button class="btn btn-secondary load-more" onclick={() => { displayLimit += PAGE_SIZE; }}>
+      Load more
+    </button>
+  {/if}
 {/if}
 
 <style>
   .conv-controls {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
   }
 
   .conv-controls .btn {
     width: auto;
     padding: 8px 16px;
     margin-top: 0;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .btn-filter {
@@ -154,9 +214,61 @@ function handleBadgeDecrement() {
     font-size: 12px;
   }
 
+  .showing-count {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 8px;
+  }
+
   .conv-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .load-more {
+    margin-top: 12px;
+  }
+
+  .search-wrap {
+    position: relative;
+    margin-bottom: 12px;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 7px 28px 7px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    color: #333;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: #83F1DC;
+  }
+
+  .search-input::placeholder {
+    color: #aaa;
+  }
+
+  .search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #999;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+
+  .search-clear:hover {
+    color: #555;
   }
 </style>

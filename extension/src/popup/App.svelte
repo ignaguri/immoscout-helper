@@ -302,6 +302,21 @@ onMount(() => {
       appendToResult(request.message);
     } else if (request.action === 'activityLog') {
       activityLog = [...activityLog, request];
+      // Mirror into queue progress live feed while queue is running
+      if (isQueueProcessing) {
+        if (request.lastResult) {
+          const label = request.lastTitle || request.lastId || '?';
+          const map: Record<string, { text: string; type: string }> = {
+            success: { text: `✓ Sent: ${label}`, type: 'result-success' },
+            skipped: { text: `→ Skipped: ${label}`, type: 'wait' },
+            failed: { text: `✗ Failed: ${label}`, type: 'result-failed' },
+          };
+          const line = map[request.lastResult];
+          if (line) appendQueueProgress(line.text, line.type);
+        } else if (request.message && request.type) {
+          appendQueueProgress(request.message, request.type);
+        }
+      }
       // Refresh queue list when items are processed
       if (request.lastResult || request.message?.includes('Queue empty')) {
         loadQueue().then((q) => {
@@ -344,6 +359,8 @@ onMount(() => {
   <button
     class="toggle-btn {isMonitoring ? 'stop' : 'start'}"
     onclick={handleToggle}
+    disabled={!isMonitoring && !aiServerConnected}
+    title={!isMonitoring && !aiServerConnected ? 'AI connection not available — check Settings' : ''}
   >
     <span>{isMonitoring ? '\u23F9' : '\u25B6'}</span>
     <span>{isMonitoring ? 'Stop' : 'Start'}</span>
@@ -422,6 +439,7 @@ onMount(() => {
           bind:conversations
           bind:lastCheckTime={convLastCheckTime}
           bind:unreadCount={convUnreadCount}
+          aiMode={settings.aiMode}
         />
       </div>
     {:else if activeTab === 'settings'}

@@ -33,12 +33,15 @@ export async function checkForNewReplies(): Promise<void> {
 
       allConversations.push(...conversations);
       pageNum++;
+      console.log(
+        `[Conversations] Fetched page ${pageNum}: ${conversations.length} conversations (total: ${allConversations.length})`,
+      );
 
       // Safety cap to avoid unbounded fetching
       if (allConversations.length >= 500) break;
 
       const lastTimestamp: string | undefined = conversations[conversations.length - 1]?.lastUpdateDateTime;
-      if (!lastTimestamp) break;
+      if (!lastTimestamp || lastTimestamp === cursor) break;
       cursor = lastTimestamp;
     }
 
@@ -89,14 +92,20 @@ export async function checkForNewReplies(): Promise<void> {
       // falling back to stored (extension action), then defaulting to pending.
       const apiState: string | undefined = appointment?.state;
       const definiteApiStatus: string | null =
-        apiState === 'ACCEPT' ? 'accepted' :
-        apiState === 'DECLINE' ? 'rejected' :
-        apiState === 'RESCHEDULE' ? 'alternative_requested' :
-        null;
+        apiState === 'ACCEPT'
+          ? 'accepted'
+          : apiState === 'DECLINE'
+            ? 'rejected'
+            : apiState === 'RESCHEDULE'
+              ? 'alternative_requested'
+              : null;
       const appointmentStatus: string | null =
-        definiteApiStatus ||
-        stored?.appointmentStatus ||
-        (appointment ? 'pending' : null);
+        definiteApiStatus || stored?.appointmentStatus || (appointment ? 'pending' : null);
+
+      // Sticky flag: once we detect a landlord reply, it stays true forever.
+      // Backfill: also check stored messages for any landlord message.
+      const storedHasLandlordMsg = stored?.messages?.some((m: any) => m.role === 'landlord') || false;
+      const hasLandlordReply: boolean = hasUnread || stored?.hasLandlordReply || storedHasLandlordMsg;
 
       // Build conversation entry
       const convEntry: ConversationEntry = {
@@ -107,6 +116,7 @@ export async function checkForNewReplies(): Promise<void> {
         salutation,
         lastUpdateDateTime: lastUpdate,
         hasUnreadReply: hasUnread,
+        hasLandlordReply,
         lastMessagePreview,
         imageUrl,
         shortDetails,
@@ -238,7 +248,6 @@ export async function fetchConversationMessages(conversationId: string): Promise
 // Generate a draft reply using AI (direct Gemini or server)
 export async function generateDraftReply(
   conversation: ConversationEntry,
-  serverUrl: string,
   apiKey: string | undefined,
   userContext: string = '',
 ): Promise<void> {

@@ -1,6 +1,7 @@
 // Storage keys
 export const STORAGE_KEY = 'seenListings' as const;
-export const SEARCH_URL_KEY = 'searchUrl' as const;
+export const SEARCH_URL_KEY = 'searchUrl' as const; // legacy single URL
+export const SEARCH_URLS_KEY = 'searchUrls' as const; // multi-URL array
 export const MESSAGE_TEMPLATE_KEY = 'messageTemplate' as const;
 export const CHECK_INTERVAL_KEY = 'checkInterval' as const;
 export const RATE_LIMIT_KEY = 'rateLimit' as const;

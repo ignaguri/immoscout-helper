@@ -9,6 +9,12 @@ export let lastMessageTime = 0;
 export let messageCount = 0;
 export let messageCountResetTime = Date.now() + 3600000;
 
+// Multi-URL round-robin index
+export let searchUrlIndex = 0;
+export function advanceSearchUrlIndex(total: number) {
+  searchUrlIndex = total > 0 ? (searchUrlIndex + 1) % total : 0;
+}
+
 // Unified queue processing state
 export let isProcessingQueue = false;
 export let queueAbortRequested = false;

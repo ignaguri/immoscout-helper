@@ -20,6 +20,7 @@ import SettingsTab from './tabs/SettingsTab.svelte';
 // State
 let settings: PopupSettings = $state({
   searchUrl: '',
+  searchUrls: [],
   messageTemplate: '',
   autoSendMode: 'auto',
   checkInterval: 60,

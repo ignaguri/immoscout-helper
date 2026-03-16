@@ -1,16 +1,13 @@
 import * as C from '../shared/constants';
+import type { IS24Conversation, IS24ConversationsResponse } from '../shared/immoscout-api';
 import { capSeenListings } from '../shared/utils';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { findOrCreateSearchTab } from './tabs';
 
-export interface ConversationApiResponse {
-  conversations?: any[];
-}
-
 export async function syncContactedListings(): Promise<number> {
   try {
     // Fetch ALL conversations using cursor-based pagination (timestampOfLastConversationPaginated)
-    const allConversations: any[] = [];
+    const allConversations: IS24Conversation[] = [];
     let cursor: string | null = null;
     let pageNum = 0;
 
@@ -26,7 +23,7 @@ export async function syncContactedListings(): Promise<number> {
         }
         break;
       }
-      const data: ConversationApiResponse = await response.json();
+      const data: IS24ConversationsResponse = await response.json();
       const conversations = data.conversations || [];
       if (conversations.length === 0) break;
 
@@ -37,7 +34,7 @@ export async function syncContactedListings(): Promise<number> {
       );
 
       // Use the last conversation's timestamp as cursor for next page
-      const lastTimestamp: string | undefined = conversations[conversations.length - 1]?.lastUpdateDateTime;
+      const lastTimestamp = conversations[conversations.length - 1]?.lastUpdateDateTime;
       if (!lastTimestamp || lastTimestamp === cursor) break;
       cursor = lastTimestamp;
 
@@ -48,8 +45,8 @@ export async function syncContactedListings(): Promise<number> {
     // Extract expose IDs, filter nulls
     const contactedIds = allConversations
       .map((c) => c.referenceId)
-      .filter(Boolean)
-      .map((id: string | number) => String(id).toLowerCase().trim());
+      .filter((id): id is string => id != null)
+      .map((id) => id.toLowerCase().trim());
 
     if (contactedIds.length === 0) return 0;
 

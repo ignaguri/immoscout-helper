@@ -659,6 +659,7 @@ async function handleClearActivity() {
   .search-url-add {
     display: flex;
     gap: 6px;
+    align-items: stretch;
   }
 
   .search-url-add input {
@@ -666,9 +667,9 @@ async function handleClearActivity() {
     min-width: 0;
   }
 
-  .search-url-add .btn {
+  .search-url-add :global(.btn) {
     flex-shrink: 0;
-    padding: 6px 12px;
-    font-size: 12px;
+    width: auto;
+    margin-top: 0;
   }
 </style>

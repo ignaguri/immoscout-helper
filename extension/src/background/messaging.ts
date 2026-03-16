@@ -23,6 +23,70 @@ export interface HandleListingResult {
   error?: string;
 }
 
+// Track contacted landlords after a successful send
+async function recordContactedLandlord(landlordName: string): Promise<void> {
+  const normalizedLandlord = landlordName.toLowerCase().trim();
+  if (!normalizedLandlord) return;
+  const stored: Record<string, any> = await chrome.storage.local.get([C.CONTACTED_LANDLORDS_KEY]);
+  const landlords: string[] = stored[C.CONTACTED_LANDLORDS_KEY] || [];
+  if (!landlords.includes(normalizedLandlord)) {
+    landlords.push(normalizedLandlord);
+    await chrome.storage.local.set({ [C.CONTACTED_LANDLORDS_KEY]: landlords });
+  }
+}
+
+// Prompt user about duplicate landlord via chrome.notifications
+// Returns 'send' | 'skip' | 'defer' (defer = timeout, move to end of queue)
+function promptDuplicateLandlordDecision(
+  landlordName: string,
+  listing: Listing | QueueItem,
+): Promise<'send' | 'skip' | 'defer'> {
+  return new Promise((resolve) => {
+    const notifId = `dup-landlord-${Date.now()}`;
+    let resolved = false;
+
+    const cleanup = () => {
+      if (resolved) return;
+      resolved = true;
+      chrome.notifications.onButtonClicked.removeListener(buttonListener);
+      chrome.notifications.onClicked.removeListener(clickListener);
+      chrome.notifications.clear(notifId);
+    };
+
+    const buttonListener = (clickedNotifId: string, buttonIndex: number) => {
+      if (clickedNotifId !== notifId) return;
+      cleanup();
+      resolve(buttonIndex === 0 ? 'send' : 'skip');
+    };
+
+    const clickListener = (clickedNotifId: string) => {
+      if (clickedNotifId !== notifId) return;
+      cleanup();
+      resolve('send');
+    };
+
+    chrome.notifications.onButtonClicked.addListener(buttonListener);
+    chrome.notifications.onClicked.addListener(clickListener);
+
+    chrome.notifications.create(notifId, {
+      type: 'basic',
+      iconUrl: C.ICON_PATH,
+      title: 'Duplicate Landlord Detected',
+      message: `"${landlordName}" was already contacted.\n${listing.title || listing.id}`,
+      buttons: [{ title: 'Send Anyway' }, { title: 'Skip' }],
+      requireInteraction: true,
+    });
+
+    // 1-minute timeout → defer (move to end of queue)
+    setTimeout(() => {
+      if (!resolved) {
+        cleanup();
+        resolve('defer');
+      }
+    }, C.DUPLICATE_LANDLORD_TIMEOUT_MS);
+  });
+}
+
 export async function handleNewListing(listing: Listing | QueueItem): Promise<HandleListingResult> {
   console.log('Processing new listing:', listing.url);
 
@@ -95,6 +159,56 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
     const landlordTitle: string | null = nameResult?.title || null;
     const landlordName: string | null = nameResult?.name || null;
     const isPrivateLandlord: boolean = nameResult?.isPrivate || false;
+
+    // Duplicate landlord detection
+    if (landlordName) {
+      const normalizedLandlord = landlordName.toLowerCase().trim();
+      const landlordStored: Record<string, any> = await chrome.storage.local.get([C.CONTACTED_LANDLORDS_KEY]);
+      const contactedLandlords: string[] = landlordStored[C.CONTACTED_LANDLORDS_KEY] || [];
+
+      if (contactedLandlords.includes(normalizedLandlord)) {
+        console.log(`[Duplicate] Landlord "${landlordName}" already contacted — prompting user`);
+        await sendActivityLog({
+          message: `Duplicate landlord detected: "${landlordName}" — waiting for user decision...`,
+          type: 'wait',
+        });
+
+        const decision = await promptDuplicateLandlordDecision(landlordName, listing);
+
+        if (decision === 'skip') {
+          console.log(`[Duplicate] User chose to skip "${landlordName}"`);
+          await sendActivityLog({ lastResult: 'skipped', lastId: listing.id, lastTitle: listing.title || '' });
+          await logActivity({
+            listingId: listing.id,
+            title: listing.title,
+            url: listing.url,
+            action: 'skipped',
+            reason: `Duplicate landlord: ${landlordName}`,
+            landlord: landlordName,
+          });
+          try {
+            await chrome.tabs.remove(currentListingTabId);
+          } catch (_e) {
+            console.debug('[Messaging] Tab cleanup failed after duplicate skip');
+          }
+          return { success: true, skipped: true, listing };
+        } else if (decision === 'defer') {
+          console.log(`[Duplicate] No response for "${landlordName}" — deferring to end of queue`);
+          await sendActivityLog({
+            message: `No response — "${landlordName}" moved to end of queue`,
+            type: 'wait',
+          });
+          try {
+            await chrome.tabs.remove(currentListingTabId);
+          } catch (_e) {
+            console.debug('[Messaging] Tab cleanup failed after duplicate defer');
+          }
+          return { success: false, listing, error: 'duplicate-landlord-deferred' };
+        }
+        // decision === 'send' → continue normally
+        console.log(`[Duplicate] User chose to send anyway to "${landlordName}"`);
+      }
+    }
 
     // Get message template and all form values (including smoker)
     const storageKeys = [
@@ -367,7 +481,10 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         landlord: landlordInfo,
       });
 
-      // Increment rate limit counter (only on actual sends)
+      // Track landlord and increment rate limit counter
+      if (landlordName) {
+        await recordContactedLandlord(landlordName);
+      }
       incrementMessageCount();
       setLastMessageTime(Date.now());
       const totalStored: Record<string, any> = await chrome.storage.local.get([C.TOTAL_MESSAGES_SENT_KEY]);

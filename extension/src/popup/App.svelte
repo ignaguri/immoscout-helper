@@ -302,6 +302,21 @@ onMount(() => {
       appendToResult(request.message);
     } else if (request.action === 'activityLog') {
       activityLog = [...activityLog, request];
+      // Mirror into queue progress live feed while queue is running
+      if (isQueueProcessing) {
+        if (request.lastResult) {
+          const label = request.lastTitle || request.lastId || '?';
+          const map: Record<string, { text: string; type: string }> = {
+            success: { text: `✓ Sent: ${label}`, type: 'result-success' },
+            skipped: { text: `→ Skipped: ${label}`, type: 'wait' },
+            failed: { text: `✗ Failed: ${label}`, type: 'result-failed' },
+          };
+          const line = map[request.lastResult];
+          if (line) appendQueueProgress(line.text, line.type);
+        } else if (request.message && request.type) {
+          appendQueueProgress(request.message, request.type);
+        }
+      }
       // Refresh queue list when items are processed
       if (request.lastResult || request.message?.includes('Queue empty')) {
         loadQueue().then((q) => {

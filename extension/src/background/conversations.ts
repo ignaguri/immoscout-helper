@@ -1,17 +1,22 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
+import type {
+  IS24Conversation,
+  IS24ConversationDetailResponse,
+  IS24ConversationsResponse,
+  IS24Message,
+} from '../shared/immoscout-api';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';
 import { sendActivityLog } from './listings';
-import type { ConversationApiResponse } from './sync';
 
 export type { ConversationEntry, ConversationMessage };
 
 export async function checkForNewReplies(): Promise<void> {
   try {
     // Fetch conversations from ImmoScout API
-    const allConversations: any[] = [];
+    const allConversations: IS24Conversation[] = [];
     let cursor: string | null = null;
     let pageNum = 0;
 
@@ -27,7 +32,7 @@ export async function checkForNewReplies(): Promise<void> {
         }
         break;
       }
-      const data: ConversationApiResponse = await response.json();
+      const data: IS24ConversationsResponse = await response.json();
       const conversations = data.conversations || [];
       if (conversations.length === 0) break;
 
@@ -40,7 +45,7 @@ export async function checkForNewReplies(): Promise<void> {
       // Safety cap to avoid unbounded fetching
       if (allConversations.length >= 500) break;
 
-      const lastTimestamp: string | undefined = conversations[conversations.length - 1]?.lastUpdateDateTime;
+      const lastTimestamp = conversations[conversations.length - 1]?.lastUpdateDateTime;
       if (!lastTimestamp || lastTimestamp === cursor) break;
       cursor = lastTimestamp;
     }
@@ -66,31 +71,31 @@ export async function checkForNewReplies(): Promise<void> {
       const conversationId: string = conv.conversationId;
       if (!conversationId) continue;
 
-      const referenceId: string | undefined = conv.referenceId;
-      const lastUpdate: string = conv.lastUpdateDateTime;
+      const referenceId = conv.referenceId;
+      const lastUpdate = conv.lastUpdateDateTime;
       const stored = storedMap[conversationId];
 
       // Field mapping (from API discovery)
-      const landlordName: string = conv.participantName || '';
-      const salutation: string = conv.salutation || '';
+      const landlordName = conv.participantName || '';
+      const salutation = conv.salutation || '';
       const addr = conv.address;
-      const listingTitle: string = addr
+      const listingTitle = addr
         ? `${addr.street || ''} ${addr.houseNumber || ''}, ${addr.postcode || ''} ${addr.city || ''}`.trim()
         : conv.referenceId
           ? `Expose ${conv.referenceId}`
           : '';
-      const lastMessagePreview: string = conv.previewMessage || '';
-      const hasUnread: boolean = conv.read === false;
-      const imageUrl: string = conv.imageUrl || '';
-      const shortDetails: Record<string, any> = conv.shortDetails?.details || {};
-      const appointment: any = conv.appointment || null;
+      const lastMessagePreview = conv.previewMessage || '';
+      const hasUnread = conv.read === false;
+      const imageUrl = conv.imageUrl || '';
+      const shortDetails = conv.shortDetails?.details || {};
+      const appointment = conv.appointment || null;
 
       // Check if this conversation has a new update
       const hasNewUpdate = !stored || stored.lastUpdateDateTime !== lastUpdate;
 
       // Determine appointment status — API state takes priority when definitive,
       // falling back to stored (extension action), then defaulting to pending.
-      const apiState: string | undefined = appointment?.state;
+      const apiState = appointment?.state;
       const definiteApiStatus: string | null =
         apiState === 'ACCEPT'
           ? 'accepted'
@@ -104,7 +109,7 @@ export async function checkForNewReplies(): Promise<void> {
 
       // Sticky flag: once we detect a landlord reply, it stays true forever.
       // Backfill: also check stored messages for any landlord message.
-      const storedHasLandlordMsg = stored?.messages?.some((m: any) => m.role === 'landlord') || false;
+      const storedHasLandlordMsg = stored?.messages?.some((m) => m.role === 'landlord') || false;
       const hasLandlordReply: boolean = hasUnread || stored?.hasLandlordReply || storedHasLandlordMsg;
 
       // Build conversation entry
@@ -223,17 +228,16 @@ export async function fetchConversationMessages(conversationId: string): Promise
         continue;
       }
 
-      const data: any = await response.json();
+      const data: IS24ConversationDetailResponse = await response.json();
       // Extract messages from the confirmed API structure
-      const rawMessages = data.messages;
-      if (rawMessages && rawMessages.length > 0) {
-        return rawMessages
-          .map((msg: any) => ({
-            role: msg.userType === 'SEEKER' ? 'user' : 'landlord',
+      if (data.messages && data.messages.length > 0) {
+        return data.messages
+          .map((msg: IS24Message) => ({
+            role: (msg.userType === 'SEEKER' ? 'user' : 'landlord') as ConversationMessage['role'],
             text: msg.message || '',
             timestamp: msg.creationDateTime || '',
           }))
-          .filter((m: ConversationMessage) => m.text);
+          .filter((m) => m.text);
       }
 
       console.log(`[Conversations] No messages found in response. Keys: ${Object.keys(data).join(', ')}`);
@@ -320,7 +324,8 @@ export async function generateDraftReply(
         return;
       }
 
-      const result: any = await response.json();
+      const result: { reply?: string; usage?: { promptTokens?: number; completionTokens?: number } } =
+        await response.json();
       reply = result.reply || null;
       if (result.usage) {
         replyUsage = {

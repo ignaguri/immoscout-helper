@@ -7,43 +7,9 @@ export interface Listing {
   index: number;
 }
 
-export interface LandlordInfo {
-  title: string | null;
-  name: string | null;
-  isPrivate: boolean;
-}
+import type { ConversationMessage } from '@repo/shared-types';
 
-export interface ListingDetails {
-  title?: string;
-  address?: string;
-  kaltmiete?: string;
-  warmmiete?: string;
-  nebenkosten?: string;
-  kaution?: string;
-  wohnflaeche?: string;
-  zimmer?: string;
-  etage?: string;
-  bezugsfrei?: string;
-  baujahr?: string;
-  objekttyp?: string;
-  heizungsart?: string;
-  energieverbrauch?: string;
-  energieeffizienzklasse?: string;
-  aufzug?: string;
-  garage?: string;
-  haustiere?: string;
-  heizkosten?: string;
-  energietraeger?: string;
-  objektzustand?: string;
-  internet?: string;
-  rauchen?: string;
-  wbs?: string;
-  description?: string;
-  amenities?: string[];
-  extraAttributes?: Record<string, string>;
-  rawText?: string;
-  [key: string]: unknown;
-}
+export type { ConversationMessage, LandlordInfo, ListingDetails } from '@repo/shared-types';
 
 export interface ListingType {
   isTenantNetwork: boolean;
@@ -163,7 +129,7 @@ export interface AppointmentInfo {
   duration?: number | string; // minutes (number from API) or legacy string
   address?: string;
   phoneNumber?: string | null;
-  state?: string; // API state: ACCEPT | DECLINE | RESCHEDULE
+  state?: 'ACCEPT' | 'DECLINE' | 'RESCHEDULE';
   // Legacy/fallback fields from older stored data
   date?: string;
   startDate?: string;
@@ -184,18 +150,12 @@ export interface ConversationEntry {
   hasLandlordReply: boolean;
   lastMessagePreview: string;
   imageUrl: string;
-  shortDetails: Record<string, unknown>;
+  shortDetails: Record<string, string>;
   appointment: AppointmentInfo | null;
   appointmentStatus: string | null;
   messages: ConversationMessage[];
   draftReply: string | null;
   draftStatus: string;
-}
-
-export interface ConversationMessage {
-  role: 'user' | 'landlord';
-  text: string;
-  timestamp: string;
 }
 
 // Queue status response from background

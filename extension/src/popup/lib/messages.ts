@@ -1,5 +1,5 @@
 // Typed chrome.runtime.sendMessage wrappers
-import type { AppointmentInfo, CaptureQueueResponse, QueueItem, QueueStatusResponse } from '../../shared/types';
+import type { AppointmentInfo, CaptureQueueResponse, PendingApprovalItem, QueueItem, QueueStatusResponse } from '../../shared/types';
 
 export async function sendAction(action: string, data?: Record<string, unknown>): Promise<unknown> {
   return chrome.runtime.sendMessage({ action, ...data });
@@ -85,6 +85,21 @@ export async function respondToAppointment(
     userContext,
     appointment,
   });
+}
+
+export async function getPendingApprovalListings(): Promise<PendingApprovalItem[]> {
+  const result: any = await chrome.runtime.sendMessage({ action: 'getPendingApprovalListings' });
+  return result?.items || [];
+}
+
+export async function approvePendingListing(
+  item: PendingApprovalItem,
+): Promise<{ success: boolean; error?: string }> {
+  return chrome.runtime.sendMessage({ action: 'approvePendingListing', ...item });
+}
+
+export async function skipPendingListing(id: string): Promise<{ success: boolean; error?: string }> {
+  return chrome.runtime.sendMessage({ action: 'skipPendingListing', id });
 }
 
 export async function generateDocuments(

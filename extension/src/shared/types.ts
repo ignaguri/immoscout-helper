@@ -14,7 +14,15 @@ export type { ConversationMessage, LandlordInfo, ListingDetails } from '@repo/sh
 export interface ListingType {
   isTenantNetwork: boolean;
   hasContactForm: boolean;
-  type: 'tenant-network' | 'standard';
+  hasTenantCTA: boolean;
+  type: 'tenant-recommendation' | 'tenant-network' | 'standard';
+}
+
+export interface PendingApprovalItem {
+  id: string;
+  url: string;
+  title?: string;
+  addedAt: number;
 }
 
 export interface FormValues {

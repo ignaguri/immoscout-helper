@@ -4,6 +4,7 @@ import { capSeenListings } from '../shared/utils';
 import { humanDelay } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
 import { handleNewListing } from './messaging';
+import { getPendingApprovalListings } from './pending-approval';
 import { checkRateLimit } from './rate-limit';
 import {
   isMonitoring,
@@ -44,12 +45,14 @@ export async function enqueueListings(listings: Listing[], source: string): Prom
   const seenSet = new Set((stored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
   const queueSet = new Set((stored[C.QUEUE_KEY] || []).map((item: QueueItem) => String(item.id).toLowerCase().trim()));
   const blacklistSet = new Set((stored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
+  const pendingApproval = await getPendingApprovalListings();
+  const pendingSet = new Set(pendingApproval.map((p) => String(p.id).toLowerCase().trim()));
 
   const addedAt = Date.now();
   const newItems: QueueItem[] = [];
 
   for (const [id, listing] of dedupMap) {
-    if (!seenSet.has(id) && !queueSet.has(id) && !blacklistSet.has(id)) {
+    if (!seenSet.has(id) && !queueSet.has(id) && !blacklistSet.has(id) && !pendingSet.has(id)) {
       newItems.push({
         id,
         url: listing.url,

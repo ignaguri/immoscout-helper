@@ -7,6 +7,12 @@ import { findButtonByKeywords, findElement } from './dom-helpers';
 import * as S from './selectors';
 
 export function detectListingType(): ListingType {
+  // Tenant-recommendation listings (Nachvermietung with CTA): posted by the current
+  // tenant who wants to recommend a new tenant to the landlord. Detected via a specific
+  // CTA button that has type="submit" (skipped by standard contact button detection).
+  // Checked independently of isTenantNetwork to guard against React render race conditions.
+  const hasTenantCTA = !!document.querySelector(S.TENANT_NETWORK_CTA_SELECTOR);
+
   // Tenant-network listings (Nachvermietung): posted by the current tenant,
   // not the landlord. These have no contact form — only a tenant info box.
   const isTenantNetwork = S.TENANT_NETWORK_SELECTORS.some((sel) => !!document.querySelector(sel));
@@ -19,7 +25,8 @@ export function detectListingType(): ListingType {
   return {
     isTenantNetwork,
     hasContactForm: hasContactButton,
-    type: isTenantNetwork ? 'tenant-network' : 'standard',
+    hasTenantCTA,
+    type: hasTenantCTA ? 'tenant-recommendation' : isTenantNetwork ? 'tenant-network' : 'standard',
   };
 }
 

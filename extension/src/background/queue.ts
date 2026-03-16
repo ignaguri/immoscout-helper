@@ -1,5 +1,5 @@
 import * as C from '../shared/constants';
-import { log, debug, error } from '../shared/logger';
+import { debug, error, log } from '../shared/logger';
 import { capSeenListings } from '../shared/utils';
 import { humanDelay } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
@@ -205,9 +205,7 @@ export async function processQueue(): Promise<void> {
           // Failure: increment retries, move to end
           const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
           await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, updatedItem] });
-          log(
-            `[Queue] ${normalizedId} failed (attempt ${updatedItem.retries}/${C.QUEUE_MAX_RETRIES}) — moved to end`,
-          );
+          log(`[Queue] ${normalizedId} failed (attempt ${updatedItem.retries}/${C.QUEUE_MAX_RETRIES}) — moved to end`);
           queueFailedCount++;
           await sendActivityLog({
             lastResult: 'failed',

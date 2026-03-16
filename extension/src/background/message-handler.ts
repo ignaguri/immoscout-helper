@@ -1,6 +1,6 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
-import { log, debug, warn, error } from '../shared/logger';
+import { debug, error, log, warn } from '../shared/logger';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import { getProfile } from './ai';
 import type { ConversationEntry } from './conversations';
@@ -112,9 +112,7 @@ export function registerMessageHandler(): void {
         (async () => {
           try {
             const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
-            log(
-              `[Clear] Clearing ${(stored[C.STORAGE_KEY] || []).length} seen listings and resetting rate limit`,
-            );
+            log(`[Clear] Clearing ${(stored[C.STORAGE_KEY] || []).length} seen listings and resetting rate limit`);
             setMessageCount(0);
             setMessageCountResetTime(Date.now() + 3600000);
             await chrome.storage.local.set({

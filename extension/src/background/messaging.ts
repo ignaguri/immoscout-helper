@@ -1,6 +1,6 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
-import { log, debug, warn, error } from '../shared/logger';
+import { debug, error, log, warn } from '../shared/logger';
 import { buildShortenPrompt } from '../shared/prompts';
 import { generatePersonalizedMessage } from '../shared/utils';
 import { logActivity } from './activity';
@@ -347,9 +347,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
     // Handle "message too long" error — ask AI to shorten, retry once
     if (sendResult && !sendResult.success && sendResult.messageTooLong) {
       const limit: number = sendResult.maxLength || 2000;
-      warn(
-        `[Message] Too long for form (${personalizedMessage.length} chars, limit: ${limit}) — asking AI to shorten`,
-      );
+      warn(`[Message] Too long for form (${personalizedMessage.length} chars, limit: ${limit}) — asking AI to shorten`);
       try {
         const shortenConfig = await getAIConfig();
         let shortened: string | null = null;
@@ -398,9 +396,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         }
 
         if (shortened && shortened.length <= limit) {
-          log(
-            `[Message] AI shortened from ${personalizedMessage.length} to ${shortened.length} chars — retrying`,
-          );
+          log(`[Message] AI shortened from ${personalizedMessage.length} to ${shortened.length} chars — retrying`);
           sendResult = await chrome.tabs.sendMessage(currentListingTabId, {
             action: 'sendMessage',
             message: shortened,

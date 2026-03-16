@@ -1,5 +1,5 @@
 import * as C from '../shared/constants';
-import { log, debug, error } from '../shared/logger';
+import { debug, error, log } from '../shared/logger';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { enqueueListings, processQueue } from './queue';
 import { isMonitoring, setSearchTabId } from './state';
@@ -61,9 +61,7 @@ export async function checkForNewListings(): Promise<void> {
         try {
           await chrome.tabs.sendMessage(tab.id!, { action: 'ping' });
           needsReload = false;
-          log(
-            `[${new Date().toLocaleTimeString()}] Search tab already loaded, content script ready — extracting...`,
-          );
+          log(`[${new Date().toLocaleTimeString()}] Search tab already loaded, content script ready — extracting...`);
         } catch {
           log(
             `[${new Date().toLocaleTimeString()}] Search tab URL matches but content script not available — reloading...`,

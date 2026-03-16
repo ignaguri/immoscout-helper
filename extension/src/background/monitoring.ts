@@ -1,5 +1,5 @@
 import * as C from '../shared/constants';
-import { log, error } from '../shared/logger';
+import { error, log } from '../shared/logger';
 import { scheduleNextAlarm } from './helpers';
 import { currentCheckInterval, isMonitoring, setCurrentCheckInterval, setIsMonitoring, setSearchTabId } from './state';
 import { syncContactedListings } from './sync';

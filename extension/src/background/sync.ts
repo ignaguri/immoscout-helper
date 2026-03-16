@@ -1,6 +1,6 @@
 import * as C from '../shared/constants';
-import { log, debug, error } from '../shared/logger';
 import type { IS24Conversation, IS24ConversationsResponse } from '../shared/immoscout-api';
+import { debug, error, log } from '../shared/logger';
 import { capSeenListings } from '../shared/utils';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { findOrCreateSearchTab } from './tabs';
@@ -30,9 +30,7 @@ export async function syncContactedListings(): Promise<number> {
 
       allConversations.push(...conversations);
       pageNum++;
-      log(
-        `[Sync] Fetched page ${pageNum}: ${conversations.length} conversations (total: ${allConversations.length})`,
-      );
+      log(`[Sync] Fetched page ${pageNum}: ${conversations.length} conversations (total: ${allConversations.length})`);
 
       // Use the last conversation's timestamp as cursor for next page
       const lastTimestamp = conversations[conversations.length - 1]?.lastUpdateDateTime;
@@ -141,10 +139,7 @@ export async function _markAllCurrentListingsAsSeen(): Promise<void> {
       if (newSeenIds.length > 0) {
         const updatedSeen = capSeenListings([...seenList, ...newSeenIds]);
         await chrome.storage.local.set({ [C.STORAGE_KEY]: updatedSeen });
-        log(
-          `Marked ${newSeenIds.length} existing listings as seen (from ${maxPages} page(s)):`,
-          newSeenIds.join(', '),
-        );
+        log(`Marked ${newSeenIds.length} existing listings as seen (from ${maxPages} page(s)):`, newSeenIds.join(', '));
       } else {
         log('All listings already in seen list.');
       }

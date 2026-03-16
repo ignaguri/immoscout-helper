@@ -1,8 +1,8 @@
 <script lang="ts">
+import { error } from '../../shared/logger';
 import ConversationCard from '../components/ConversationCard.svelte';
 import { checkRepliesNow } from '../lib/messages';
 import { loadConversations as loadConvStorage } from '../lib/storage';
-import { error } from '../../shared/logger';
 
 let {
   conversations = $bindable(),

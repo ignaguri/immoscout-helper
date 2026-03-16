@@ -1,5 +1,6 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
+import { debug, error, log, warn } from '../shared/logger';
 import { buildShortenPrompt } from '../shared/prompts';
 import { generatePersonalizedMessage } from '../shared/utils';
 import { logActivity } from './activity';
@@ -93,7 +94,7 @@ function promptDuplicateLandlordDecision(
 }
 
 export async function handleNewListing(listing: Listing | QueueItem): Promise<HandleListingResult> {
-  console.log('Processing new listing:', listing.url);
+  log('Processing new listing:', listing.url);
 
   await new Promise((resolve) => setTimeout(resolve, humanDelay(500, 300)));
   const listingTab = await chrome.tabs.create({ url: listing.url, active: true });
@@ -103,7 +104,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
   await waitForTabLoad(currentListingTabId, 10000);
 
   if (!isMonitoring && !isProcessingQueue) {
-    console.log('Monitoring/queue stopped, skipping message sending');
+    log('Monitoring/queue stopped, skipping message sending');
     return { success: false, listing };
   }
 
@@ -116,17 +117,17 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         contentScriptReady = true;
         break;
       } catch (_error) {
-        console.debug('[Messaging] Content script ping attempt failed, retrying...');
+        debug('[Messaging] Content script ping attempt failed, retrying...');
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
 
     if (!contentScriptReady) {
-      console.error('Content script not ready after waiting');
+      error('Content script not ready after waiting');
       try {
         await chrome.tabs.remove(currentListingTabId);
       } catch (_e) {
-        console.debug('[Messaging] Tab cleanup failed after content script timeout');
+        debug('[Messaging] Tab cleanup failed after content script timeout');
       }
       return { success: false, listing, error: 'Content script not ready' };
     }
@@ -134,7 +135,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
     await new Promise((resolve) => setTimeout(resolve, humanDelay(1000, 500)));
 
     if (!isMonitoring && !isProcessingQueue) {
-      console.log('Monitoring/queue stopped during processing, aborting');
+      log('Monitoring/queue stopped during processing, aborting');
       return { success: false, listing };
     }
 
@@ -144,20 +145,20 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       const listingType: any = await chrome.tabs.sendMessage(currentListingTabId, { action: 'detectListingType' });
       isTenantNetwork = listingType?.isTenantNetwork || false;
       if (isTenantNetwork && !listingType?.hasContactForm) {
-        console.log(`[Skip] ${listing.id} is a tenant-network listing with no contact form — marking as seen`);
+        log(`[Skip] ${listing.id} is a tenant-network listing with no contact form — marking as seen`);
         await sendActivityLog({ message: `Skipped ${listing.id} (tenant-network, no contact form)`, type: 'wait' });
         try {
           await chrome.tabs.remove(currentListingTabId);
         } catch (_e) {
-          console.debug('[Messaging] Tab cleanup failed after tenant-network skip');
+          debug('[Messaging] Tab cleanup failed after tenant-network skip');
         }
         return { success: true, listing, skipped: true };
       }
       if (isTenantNetwork) {
-        console.log(`[Info] ${listing.id} is a tenant-network listing with contact form — proceeding`);
+        log(`[Info] ${listing.id} is a tenant-network listing with contact form — proceeding`);
       }
     } catch (_e) {
-      console.debug('[Messaging] Listing type detection failed, proceeding with default');
+      debug('[Messaging] Listing type detection failed, proceeding with default');
     }
 
     const nameResult: any = await chrome.tabs.sendMessage(currentListingTabId, { action: 'extractLandlordName' });
@@ -172,7 +173,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       const contactedLandlords: string[] = landlordStored[C.CONTACTED_LANDLORDS_KEY] || [];
 
       if (contactedLandlords.includes(normalizedLandlord)) {
-        console.log(`[Duplicate] Landlord "${landlordName}" already contacted — prompting user`);
+        log(`[Duplicate] Landlord "${landlordName}" already contacted — prompting user`);
         await sendActivityLog({
           message: `Duplicate landlord detected: "${landlordName}" — waiting for user decision...`,
           type: 'wait',
@@ -181,7 +182,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         const decision = await promptDuplicateLandlordDecision(landlordName, listing);
 
         if (decision === 'skip') {
-          console.log(`[Duplicate] User chose to skip "${landlordName}"`);
+          log(`[Duplicate] User chose to skip "${landlordName}"`);
           await sendActivityLog({ lastResult: 'skipped', lastId: listing.id, lastTitle: listing.title || '' });
           await logActivity({
             listingId: listing.id,
@@ -194,11 +195,11 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
           try {
             await chrome.tabs.remove(currentListingTabId);
           } catch (_e) {
-            console.debug('[Messaging] Tab cleanup failed after duplicate skip');
+            debug('[Messaging] Tab cleanup failed after duplicate skip');
           }
           return { success: true, skipped: true, listing };
         } else if (decision === 'defer') {
-          console.log(`[Duplicate] No response for "${landlordName}" — deferring to end of queue`);
+          log(`[Duplicate] No response for "${landlordName}" — deferring to end of queue`);
           await sendActivityLog({
             message: `No response — "${landlordName}" moved to end of queue`,
             type: 'wait',
@@ -206,12 +207,12 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
           try {
             await chrome.tabs.remove(currentListingTabId);
           } catch (_e) {
-            console.debug('[Messaging] Tab cleanup failed after duplicate defer');
+            debug('[Messaging] Tab cleanup failed after duplicate defer');
           }
           return { success: false, listing, error: 'duplicate-landlord-deferred' };
         }
         // decision === 'send' → continue normally
-        console.log(`[Duplicate] User chose to send anyway to "${landlordName}"`);
+        log(`[Duplicate] User chose to send anyway to "${landlordName}"`);
       }
     }
 
@@ -262,12 +263,12 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
 
     // Log full AI analysis
     if (aiResult) {
-      console.log(`[AI] ─── Analysis for ${listing.id} ───`);
-      console.log(`[AI] Score: ${aiResult.score}/10 | Skip: ${aiResult.skip} | Landlord: ${landlordInfo}`);
-      if (aiResult.reason) console.log(`[AI] Reason: ${aiResult.reason}`);
-      if (aiResult.summary) console.log(`[AI] Summary: ${aiResult.summary}`);
-      if (aiResult.flags?.length) console.log(`[AI] Flags: ${aiResult.flags.join(', ')}`);
-      console.log(`[AI] ─────────────────────────────────`);
+      log(`[AI] ─── Analysis for ${listing.id} ───`);
+      log(`[AI] Score: ${aiResult.score}/10 | Skip: ${aiResult.skip} | Landlord: ${landlordInfo}`);
+      if (aiResult.reason) log(`[AI] Reason: ${aiResult.reason}`);
+      if (aiResult.summary) log(`[AI] Summary: ${aiResult.summary}`);
+      if (aiResult.flags?.length) log(`[AI] Flags: ${aiResult.flags.join(', ')}`);
+      log(`[AI] ─────────────────────────────────`);
 
       // Send AI analysis to popup progress area
       const lines = [`  AI Score: ${aiResult.score}/10 | ${aiResult.skip ? 'SKIP' : 'SEND'}`];
@@ -280,7 +281,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
 
     // If AI says skip, notify and close tab
     if (aiResult?.skip) {
-      console.log(`[AI] Skipping listing (score ${aiResult.score}/10): ${aiResult.reason}`);
+      log(`[AI] Skipping listing (score ${aiResult.score}/10): ${aiResult.reason}`);
       await sendActivityLog({ lastResult: 'skipped', lastId: listing.id, lastTitle: listing.title || '' });
       await logActivity({
         listingId: listing.id,
@@ -299,27 +300,27 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
           message: `${landlordInfo}: ${aiResult.reason || listing.title || 'Low score'}`,
         });
       } catch (_e) {
-        console.debug('[Messaging] Skip notification failed');
+        debug('[Messaging] Skip notification failed');
       }
 
       try {
         await chrome.tabs.remove(currentListingTabId);
       } catch (_e) {
-        console.debug('[Messaging] Tab cleanup failed after AI skip');
+        debug('[Messaging] Tab cleanup failed after AI skip');
       }
       return { success: true, skipped: true, listing };
     }
 
     // Use AI message if available, otherwise fall back to template
     if (!aiResult?.message) {
-      console.warn('[Messaging] AI did not generate a message — falling back to template');
+      warn('[Messaging] AI did not generate a message — falling back to template');
     }
     const personalizedMessage =
       aiResult?.message ||
       generatePersonalizedMessage(stored[C.MESSAGE_TEMPLATE_KEY] || '', landlordTitle, landlordName, isTenantNetwork);
 
     if (aiResult?.message) {
-      console.log(`[AI] Using AI-generated message (score ${aiResult.score}/10)`);
+      log(`[AI] Using AI-generated message (score ${aiResult.score}/10)`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, humanDelay(500, 300)));
@@ -333,22 +334,20 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         formValues: formValues,
         autoSend: isAutoSend,
       });
-    } catch (error: any) {
-      console.error('Error sending message to content script:', error);
+    } catch (err: any) {
+      error('Error sending message to content script:', err);
       try {
         await chrome.tabs.remove(currentListingTabId);
       } catch (_e) {
-        console.debug('[Messaging] Tab cleanup failed after send error');
+        debug('[Messaging] Tab cleanup failed after send error');
       }
-      return { success: false, listing, error: error.message };
+      return { success: false, listing, error: err.message };
     }
 
     // Handle "message too long" error — ask AI to shorten, retry once
     if (sendResult && !sendResult.success && sendResult.messageTooLong) {
       const limit: number = sendResult.maxLength || 2000;
-      console.warn(
-        `[Message] Too long for form (${personalizedMessage.length} chars, limit: ${limit}) — asking AI to shorten`,
-      );
+      warn(`[Message] Too long for form (${personalizedMessage.length} chars, limit: ${limit}) — asking AI to shorten`);
       try {
         const shortenConfig = await getAIConfig();
         let shortened: string | null = null;
@@ -388,7 +387,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
               };
             }
           } else {
-            console.error(`[Message] Shorten API returned ${shortenResponse.status}`);
+            error(`[Message] Shorten API returned ${shortenResponse.status}`);
           }
         }
 
@@ -397,9 +396,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         }
 
         if (shortened && shortened.length <= limit) {
-          console.log(
-            `[Message] AI shortened from ${personalizedMessage.length} to ${shortened.length} chars — retrying`,
-          );
+          log(`[Message] AI shortened from ${personalizedMessage.length} to ${shortened.length} chars — retrying`);
           sendResult = await chrome.tabs.sendMessage(currentListingTabId, {
             action: 'sendMessage',
             message: shortened,
@@ -407,7 +404,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
             autoSend: isAutoSend,
           });
         } else {
-          console.warn(`[Message] AI shorten returned ${shortened?.length} chars (limit ${limit}) — hard truncating`);
+          warn(`[Message] AI shorten returned ${shortened?.length} chars (limit ${limit}) — hard truncating`);
           sendResult = await chrome.tabs.sendMessage(currentListingTabId, {
             action: 'sendMessage',
             message: (shortened || personalizedMessage).substring(0, limit),
@@ -416,7 +413,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
           });
         }
       } catch (e: any) {
-        console.error('[Message] Error shortening message:', e.message);
+        error('[Message] Error shortening message:', e.message);
       }
     }
 
@@ -426,14 +423,14 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       const captchaConfig = await getAIConfig();
       if (captchaConfig.enabled) {
         const captchaResult = await trySolveCaptcha(currentListingTabId, captchaConfig.serverUrl, captchaConfig.apiKey);
-        console.log('[Captcha] Result:', JSON.stringify(captchaResult));
+        log('[Captcha] Result:', JSON.stringify(captchaResult));
         if (captchaResult && typeof captchaResult !== 'boolean' && captchaResult.messageSent) {
           // Captcha solved AND message confirmed sent
-          console.log('[Captcha] Message confirmed sent after captcha resolution');
+          log('[Captcha] Message confirmed sent after captcha resolution');
           sendResult = { success: true, messageSent: personalizedMessage };
         } else if (captchaResult && typeof captchaResult !== 'boolean' && captchaResult.solved) {
           // Captcha solved but message not sent yet — retry the full send
-          console.log('[Captcha] Captcha solved, retrying message send...');
+          log('[Captcha] Captcha solved, retrying message send...');
           try {
             sendResult = await chrome.tabs.sendMessage(currentListingTabId, {
               action: 'sendMessage',
@@ -442,17 +439,17 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
               autoSend: isAutoSend,
             });
           } catch (e: any) {
-            console.error('Error retrying after captcha:', e.message);
+            error('Error retrying after captcha:', e.message);
           }
         } else {
-          console.warn('[Captcha] Captcha was NOT solved — message not sent');
+          warn('[Captcha] Captcha was NOT solved — message not sent');
         }
       }
     }
 
     if (!sendResult || !sendResult.success) {
       const errorMsg = sendResult?.error || 'Unknown error';
-      console.error(`Failed to send message to ${landlordInfo}: ${errorMsg}`);
+      error(`Failed to send message to ${landlordInfo}: ${errorMsg}`);
       await sendActivityLog({
         lastResult: 'failed',
         lastId: listing.id,
@@ -471,9 +468,9 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
     } else {
       await sendActivityLog({ lastResult: 'success', lastId: listing.id, lastTitle: listing.title || '' });
       if (isAutoSend) {
-        console.log(`Message sent successfully to ${landlordInfo}`);
+        log(`Message sent successfully to ${landlordInfo}`);
       } else {
-        console.log(`Form filled for ${landlordInfo} - waiting for manual send`);
+        log(`Form filled for ${landlordInfo} - waiting for manual send`);
       }
 
       await logActivity({
@@ -498,7 +495,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         [C.RATE_MESSAGE_COUNT_KEY]: messageCount,
         [C.RATE_LAST_MESSAGE_TIME_KEY]: lastMessageTime,
       });
-      console.log(
+      log(
         `[Rate] ${messageCount}/${await chrome.storage.local.get([C.RATE_LIMIT_KEY]).then((s: Record<string, any>) => s[C.RATE_LIMIT_KEY] || 10)} messages this hour`,
       );
 
@@ -512,7 +509,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
             message: `Sent to ${landlordInfo}: ${listing.title || 'New Listing'}${aiResult ? ` (Score: ${aiResult.score}/10)` : ''}`,
           });
         } catch (e) {
-          console.error('Notification error:', e);
+          error('Notification error:', e);
         }
       } else {
         // Manual mode: persistent notification with click-to-focus
@@ -526,7 +523,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
             requireInteraction: true,
           });
         } catch (e) {
-          console.error('Notification error:', e);
+          error('Notification error:', e);
         }
       }
     }
@@ -535,9 +532,9 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       await new Promise((resolve) => setTimeout(resolve, humanDelay(2000, 1000)));
       try {
         await chrome.tabs.remove(currentListingTabId);
-        console.log('Closed listing tab');
+        log('Closed listing tab');
       } catch (_closeError) {
-        console.debug('[Messaging] Tab close failed after auto-send');
+        debug('[Messaging] Tab close failed after auto-send');
       }
     } else {
       try {
@@ -545,18 +542,18 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         const tabInfo = await chrome.tabs.get(currentListingTabId);
         await chrome.windows.update(tabInfo.windowId, { focused: true });
       } catch (_e) {
-        console.debug('[Messaging] Tab focus failed for manual review');
+        debug('[Messaging] Tab focus failed for manual review');
       }
     }
 
     return { success: sendResult?.success, listing };
-  } catch (error: any) {
-    console.error('Error sending message:', error);
+  } catch (err: any) {
+    error('Error sending message:', err);
     try {
       await chrome.tabs.remove(currentListingTabId);
     } catch (_e) {
-      console.debug('[Messaging] Tab cleanup failed in error handler');
+      debug('[Messaging] Tab cleanup failed in error handler');
     }
-    return { success: false, listing, error: error.message };
+    return { success: false, listing, error: err.message };
   }
 }

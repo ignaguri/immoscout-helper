@@ -6,6 +6,7 @@ import type {
   IS24ConversationsResponse,
   IS24Message,
 } from '../shared/immoscout-api';
+import { debug, error, log, warn } from '../shared/logger';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';
@@ -27,7 +28,7 @@ export async function checkForNewReplies(): Promise<void> {
       const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) {
         if (pageNum === 0) {
-          console.log('[Conversations] Could not fetch conversations:', response.status);
+          log('[Conversations] Could not fetch conversations:', response.status);
           return;
         }
         break;
@@ -38,7 +39,7 @@ export async function checkForNewReplies(): Promise<void> {
 
       allConversations.push(...conversations);
       pageNum++;
-      console.log(
+      log(
         `[Conversations] Fetched page ${pageNum}: ${conversations.length} conversations (total: ${allConversations.length})`,
       );
 
@@ -51,7 +52,7 @@ export async function checkForNewReplies(): Promise<void> {
     }
 
     if (allConversations.length === 0) {
-      console.log('[Conversations] No conversations found');
+      log('[Conversations] No conversations found');
       return;
     }
 
@@ -140,13 +141,13 @@ export async function checkForNewReplies(): Promise<void> {
             convEntry.messages = detailMessages;
           }
         } catch (e: any) {
-          console.warn(`[Conversations] Could not fetch detail for ${conversationId}:`, e.message);
+          warn(`[Conversations] Could not fetch detail for ${conversationId}:`, e.message);
         }
 
         // Only send desktop notification if this is a NEW reply (not first load)
         if (stored && hasNewUpdate) {
           newReplyCount++;
-          console.log(
+          log(
             `[Conversations] New reply in conversation ${conversationId} from ${landlordName} about "${listingTitle}"`,
           );
 
@@ -160,7 +161,7 @@ export async function checkForNewReplies(): Promise<void> {
               priority: 2,
             });
           } catch (_e) {
-            console.debug('[Conversations] Desktop notification for new reply failed');
+            debug('[Conversations] Desktop notification for new reply failed');
           }
 
           // Log to activity
@@ -198,21 +199,19 @@ export async function checkForNewReplies(): Promise<void> {
     }
 
     if (newReplyCount > 0) {
-      console.log(`[Conversations] Found ${newReplyCount} new replies (${totalUnread} total unread)`);
+      log(`[Conversations] Found ${newReplyCount} new replies (${totalUnread} total unread)`);
     } else {
-      console.log(
-        `[Conversations] No new replies (${allConversations.length} conversations checked, ${totalUnread} unread)`,
-      );
+      log(`[Conversations] No new replies (${allConversations.length} conversations checked, ${totalUnread} unread)`);
     }
 
     // Notify popup
     try {
       await chrome.runtime.sendMessage({ action: 'conversationUpdate', unreadCount: totalUnread });
     } catch (_e) {
-      console.debug('[Conversations] Could not notify popup of conversation update (likely closed)');
+      debug('[Conversations] Could not notify popup of conversation update (likely closed)');
     }
-  } catch (error) {
-    console.error('[Conversations] Error checking replies:', error);
+  } catch (err) {
+    error('[Conversations] Error checking replies:', err);
   }
 }
 
@@ -224,7 +223,7 @@ export async function fetchConversationMessages(conversationId: string): Promise
     try {
       const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) {
-        console.log(`[Conversations] Endpoint ${url} returned ${response.status}`);
+        log(`[Conversations] Endpoint ${url} returned ${response.status}`);
         continue;
       }
 
@@ -240,9 +239,9 @@ export async function fetchConversationMessages(conversationId: string): Promise
           .filter((m) => m.text);
       }
 
-      console.log(`[Conversations] No messages found in response. Keys: ${Object.keys(data).join(', ')}`);
+      log(`[Conversations] No messages found in response. Keys: ${Object.keys(data).join(', ')}`);
     } catch (e: any) {
-      console.warn(`[Conversations] Error fetching ${url}:`, e.message);
+      warn(`[Conversations] Error fetching ${url}:`, e.message);
     }
   }
 
@@ -319,7 +318,7 @@ export async function generateDraftReply(
       });
 
       if (!response.ok) {
-        console.error(`[Conversations] Draft reply API error: ${response.status}`);
+        error(`[Conversations] Draft reply API error: ${response.status}`);
         await updateConversationDraft(conversation.conversationId, null, 'none');
         return;
       }
@@ -334,27 +333,27 @@ export async function generateDraftReply(
         };
       }
     } else {
-      console.warn('[Conversations] No valid AI configuration for draft reply');
+      warn('[Conversations] No valid AI configuration for draft reply');
       await updateConversationDraft(conversation.conversationId, null, 'none');
       return;
     }
 
     if (reply) {
       await updateConversationDraft(conversation.conversationId, reply, 'ready');
-      console.log(`[Conversations] Draft reply generated for ${conversation.conversationId} (${reply.length} chars)`);
+      log(`[Conversations] Draft reply generated for ${conversation.conversationId} (${reply.length} chars)`);
       await trackTokenUsage(replyUsage.promptTokens, replyUsage.completionTokens);
 
       // Notify popup
       try {
         await chrome.runtime.sendMessage({ action: 'conversationUpdate' });
       } catch (_e) {
-        console.debug('[Conversations] Could not notify popup of draft update (likely closed)');
+        debug('[Conversations] Could not notify popup of draft update (likely closed)');
       }
     } else {
       await updateConversationDraft(conversation.conversationId, null, 'none');
     }
-  } catch (error) {
-    console.error(`[Conversations] Error generating draft:`, error);
+  } catch (err) {
+    error(`[Conversations] Error generating draft:`, err);
     await updateConversationDraft(conversation.conversationId, null, 'none');
   }
 }
@@ -394,6 +393,6 @@ export async function updateAppointmentStatus(conversationId: string, appointmen
   try {
     await chrome.runtime.sendMessage({ action: 'conversationUpdate' });
   } catch (_e) {
-    console.debug('[Conversations] Could not notify popup of appointment status update (likely closed)');
+    debug('[Conversations] Could not notify popup of appointment status update (likely closed)');
   }
 }

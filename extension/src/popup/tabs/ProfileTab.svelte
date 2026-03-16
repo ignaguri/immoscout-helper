@@ -92,7 +92,7 @@ async function autoSave() {
 
   <div class="field">
     <label for="profileCurrentAddress">Current Address</label>
-    <input type="text" id="profileCurrentAddress" bind:value={settings.profileCurrentAddress} oninput={autoSave} onblur={autoSave} placeholder="Herzogstraße 101, 80796 München" />
+    <input type="text" id="profileCurrentAddress" bind:value={settings.profileCurrentAddress} oninput={autoSave} onblur={autoSave} placeholder="Musterstr. 1, 80331 München" />
   </div>
 
   <div class="field">
@@ -108,7 +108,7 @@ async function autoSave() {
   <div class="grid-2">
     <div class="field">
       <label for="profileEmployer">Employer</label>
-      <input type="text" id="profileEmployer" bind:value={settings.profileEmployer} oninput={autoSave} onblur={autoSave} placeholder="Holidu GmbH, Riesstr. 24, 80992 München" />
+      <input type="text" id="profileEmployer" bind:value={settings.profileEmployer} oninput={autoSave} onblur={autoSave} placeholder="Acme GmbH, Musterstr. 1, 80331 München" />
     </div>
     <div class="field">
       <label for="profileEmployedSince">Employed Since</label>

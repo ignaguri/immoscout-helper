@@ -8,7 +8,8 @@ import { build as viteBuild } from 'vite';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Plugin to build background and content as separate IIFE bundles after the main build
-function buildExtensionScripts() {
+function buildExtensionScripts(mode: string) {
+  const isDev = mode !== 'production';
   return {
     name: 'build-extension-scripts',
     async closeBundle() {
@@ -20,6 +21,7 @@ function buildExtensionScripts() {
       // Build background.js as IIFE
       await viteBuild({
         configFile: false,
+        define: { __DEV__: JSON.stringify(isDev) },
         build: {
           outDir: resolve(__dirname, 'dist'),
           emptyOutDir: false,
@@ -41,6 +43,7 @@ function buildExtensionScripts() {
       // Build content.js as IIFE
       await viteBuild({
         configFile: false,
+        define: { __DEV__: JSON.stringify(isDev) },
         build: {
           outDir: resolve(__dirname, 'dist'),
           emptyOutDir: false,
@@ -62,9 +65,10 @@ function buildExtensionScripts() {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [svelte(), buildExtensionScripts()],
+  define: { __DEV__: JSON.stringify(mode !== 'production') },
+  plugins: [svelte(), buildExtensionScripts(mode)],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -78,4 +82,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

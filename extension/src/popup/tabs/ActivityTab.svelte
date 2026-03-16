@@ -48,6 +48,7 @@ let captureBtnText = $state('Capture');
 let captureBtnDisabled = $state(false);
 let queueOpen = $derived(queue.length > 0);
 let queueTitle = $derived(`Queue (${queue.length} pending)`);
+let newUrlInput = $state('');
 
 // Auto-scroll activity log when entries change
 $effect(() => {
@@ -59,6 +60,21 @@ $effect(() => {
 async function autoSave() {
   if (!settingsLoaded) return;
   await saveAllSettings(settings);
+}
+
+function addSearchUrl() {
+  const url = newUrlInput.trim();
+  if (!url) return;
+  if (!settings.searchUrls.includes(url)) {
+    settings.searchUrls = [...settings.searchUrls, url];
+    autoSave();
+  }
+  newUrlInput = '';
+}
+
+function removeSearchUrl(index: number) {
+  settings.searchUrls = settings.searchUrls.filter((_: string, i: number) => i !== index);
+  autoSave();
 }
 
 async function handleCheckIntervalChange() {
@@ -380,16 +396,28 @@ async function handleClearActivity() {
 </script>
 
 <div class="field">
-  <label for="searchUrl">Search URL</label>
-  <input
-    type="url"
-    id="searchUrl"
-    bind:value={settings.searchUrl}
-    oninput={autoSave}
-    onblur={autoSave}
-    placeholder="https://www.immobilienscout24.de/Suche/..."
-  />
-  <div class="hint">Paste your ImmoScout24 search results URL</div>
+  <!-- svelte-ignore a11y_label_has_associated_control -->
+  <label>Search URLs</label>
+  {#if settings.searchUrls.length > 0}
+    <div class="search-url-list">
+      {#each settings.searchUrls as url, i}
+        <div class="search-url-item">
+          <span class="search-url-text" title={url}>{url.length > 50 ? url.substring(0, 50) + '...' : url}</span>
+          <button class="search-url-remove" onclick={() => removeSearchUrl(i)} title="Remove">&times;</button>
+        </div>
+      {/each}
+    </div>
+  {/if}
+  <div class="search-url-add">
+    <input
+      type="url"
+      bind:value={newUrlInput}
+      placeholder="https://www.immobilienscout24.de/Suche/..."
+      onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') addSearchUrl(); }}
+    />
+    <button class="btn btn-test" onclick={addSearchUrl} disabled={!newUrlInput.trim()}>Add</button>
+  </div>
+  <div class="hint">Add one or more ImmoScout24 search URLs. Monitoring cycles through them round-robin.</div>
 </div>
 
 <div class="field">
@@ -587,5 +615,60 @@ async function handleClearActivity() {
 
   .btn-clear-log:hover {
     color: #666;
+  }
+
+  /* Multi-URL styles */
+  .search-url-list {
+    margin-bottom: 6px;
+  }
+
+  .search-url-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+
+  .search-url-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    color: #555;
+  }
+
+  .search-url-remove {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .search-url-remove:hover {
+    color: #e53e3e;
+  }
+
+  .search-url-add {
+    display: flex;
+    gap: 6px;
+  }
+
+  .search-url-add input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .search-url-add .btn {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 12px;
   }
 </style>

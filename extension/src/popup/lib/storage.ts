@@ -50,6 +50,7 @@ import {
   QUEUE_KEY,
   RATE_LIMIT_KEY,
   SEARCH_URL_KEY,
+  SEARCH_URLS_KEY,
 } from '../../shared/constants';
 
 export async function storageGet(keys: string | string[]): Promise<Record<string, any>> {
@@ -62,7 +63,8 @@ export async function storageSave(data: Record<string, any>): Promise<void> {
 
 export interface PopupSettings {
   // Activity
-  searchUrl: string;
+  searchUrl: string; // legacy single URL (kept for backward compat)
+  searchUrls: string[]; // multi-URL list
   messageTemplate: string;
   autoSendMode: string;
   // Monitoring
@@ -115,6 +117,7 @@ export interface PopupSettings {
 
 const ALL_SETTINGS_KEYS = [
   SEARCH_URL_KEY,
+  SEARCH_URLS_KEY,
   MESSAGE_TEMPLATE_KEY,
   AUTO_SEND_MODE_KEY,
   CHECK_INTERVAL_KEY,
@@ -162,8 +165,16 @@ const ALL_SETTINGS_KEYS = [
 
 export async function loadAllSettings(): Promise<PopupSettings> {
   const result = await chrome.storage.local.get(ALL_SETTINGS_KEYS);
+  // Migrate legacy single URL to multi-URL array if needed
+  const legacyUrl: string = result[SEARCH_URL_KEY] || '';
+  let searchUrls: string[] = result[SEARCH_URLS_KEY] || [];
+  if (searchUrls.length === 0 && legacyUrl) {
+    searchUrls = [legacyUrl];
+  }
+
   return {
-    searchUrl: result[SEARCH_URL_KEY] || '',
+    searchUrl: legacyUrl,
+    searchUrls,
     messageTemplate: result[MESSAGE_TEMPLATE_KEY] || '',
     autoSendMode: result[AUTO_SEND_MODE_KEY] || 'auto',
     checkInterval: result[CHECK_INTERVAL_KEY] ?? 60,
@@ -211,8 +222,11 @@ export async function loadAllSettings(): Promise<PopupSettings> {
 }
 
 export async function saveAllSettings(s: PopupSettings): Promise<void> {
+  // Save both legacy key (first URL) and multi-URL array
+  const cleanUrls = s.searchUrls.map((u) => u.trim()).filter(Boolean);
   await chrome.storage.local.set({
-    [SEARCH_URL_KEY]: s.searchUrl.trim(),
+    [SEARCH_URL_KEY]: cleanUrls[0] || s.searchUrl.trim(),
+    [SEARCH_URLS_KEY]: cleanUrls,
     [MESSAGE_TEMPLATE_KEY]: s.messageTemplate,
     [AUTO_SEND_MODE_KEY]: s.autoSendMode || 'auto',
     [CHECK_INTERVAL_KEY]: Math.max(60, Math.min(3600, s.checkInterval || 60)),

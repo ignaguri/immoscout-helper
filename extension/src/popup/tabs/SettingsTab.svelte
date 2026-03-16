@@ -29,6 +29,7 @@ let {
 
 let showApiKey = $state(false);
 let copySetupText = $state('Copy command');
+let fileInput: HTMLInputElement | undefined = $state();
 
 // Active provider metadata (reactive to settings.aiProvider)
 let activeProvider = $derived(PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini);
@@ -146,6 +147,139 @@ function handleCopySetup() {
 
 function toggleApiKey() {
   showApiKey = !showApiKey;
+}
+
+// Keys excluded from export/import — transient state that gets re-derived at runtime
+const EXCLUDED_KEYS = new Set([
+  'conversations', // re-synced from ImmoScout messenger
+  'convLastCheck', // transient sync timestamp
+  'convUnreadCount', // transient unread counter
+  'rateLastMessageTime', // session rate-limit state
+  'rateMessageCount', // session rate-limit state
+  'rateCountResetTime', // session rate-limit state
+  'lastCheckTime', // transient monitoring timestamp
+]);
+
+async function handleExport() {
+  try {
+    const data = await chrome.storage.local.get(null);
+    for (const key of EXCLUDED_KEYS) {
+      delete data[key];
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `immoscout-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e: any) {
+    alert(`Export failed: ${e.message}`);
+  }
+}
+
+// Known storage keys that are safe to import
+const ALLOWED_IMPORT_KEYS = new Set([
+  // Settings
+  'searchUrl',
+  'searchUrls',
+  'messageTemplate',
+  'checkInterval',
+  'rateLimit',
+  'minDelay',
+  'isMonitoring',
+  'autoSendMode',
+  // Form fields
+  'formAdults',
+  'formChildren',
+  'formPets',
+  'formSmoker',
+  'formIncome',
+  'formHouseholdSize',
+  'formEmployment',
+  'formIncomeRange',
+  'formDocuments',
+  'formSalutation',
+  'formPhone',
+  // AI settings
+  'aiMode',
+  'aiProvider',
+  'aiEnabled',
+  'aiApiKeyGemini',
+  'aiApiKeyOpenai',
+  'aiServerUrl',
+  'aiMinScore',
+  'aiAboutMe',
+  'aiListingsScored',
+  'aiListingsSkipped',
+  'aiUsagePromptTokens',
+  'aiUsageCompletionTokens',
+  // Profile
+  'profileName',
+  'profileAge',
+  'profileOccupation',
+  'profileLanguages',
+  'profileMovingReason',
+  'profileCurrentNeighborhood',
+  'profileIdealApartment',
+  'profileDealbreakers',
+  'profileStrengths',
+  'profileMaxWarmmiete',
+  'profileBirthDate',
+  'profileMaritalStatus',
+  'profileCurrentAddress',
+  'profileEmail',
+  'profileEmployer',
+  'profileEmployedSince',
+  'profileNetIncome',
+  'profileCurrentLandlord',
+  'profileLandlordPhone',
+  'profileLandlordEmail',
+  // Data
+  'seenListings',
+  'manualQueue',
+  'blacklistedListings',
+  'contactedLandlords',
+  'activityLog',
+  'convCheckInterval',
+  'syncedContactedCount',
+  // Stats
+  'totalMessagesSent',
+]);
+
+async function handleImport(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error('Invalid backup format');
+    if (!confirm('This will merge the backup into your current data. Existing values will be overwritten. Continue?'))
+      return;
+    // Filter to known keys only to prevent storage pollution
+    const filtered: Record<string, unknown> = {};
+    let skipped = 0;
+    for (const [key, value] of Object.entries(data)) {
+      if (ALLOWED_IMPORT_KEYS.has(key)) {
+        filtered[key] = value;
+      } else {
+        skipped++;
+      }
+    }
+    if (Object.keys(filtered).length === 0) throw new Error('No recognized keys found in backup');
+    await chrome.storage.local.set(filtered);
+    const msg =
+      skipped > 0
+        ? `Backup restored (${skipped} unrecognized key${skipped > 1 ? 's' : ''} skipped). Reload the extension to apply all changes.`
+        : 'Backup restored. Reload the extension to apply all changes.';
+    alert(msg);
+  } catch (err: any) {
+    alert(`Import failed: ${err.message}`);
+  } finally {
+    input.value = '';
+  }
 }
 </script>
 
@@ -291,6 +425,15 @@ function toggleApiKey() {
 <button class="btn btn-danger" onclick={handleClearSeen}>
   Clear Seen Listings ({stats.seenCount})
 </button>
+
+<div class="section-title">Backup & Restore</div>
+
+<div style="display:flex; gap:8px; margin-bottom:8px;">
+  <button class="btn btn-test" onclick={handleExport}>Export All Data</button>
+  <button class="btn btn-test" onclick={() => fileInput?.click()}>Import Data</button>
+  <input type="file" accept=".json" bind:this={fileInput} onchange={handleImport} style="display:none;" />
+</div>
+<div class="hint">Export downloads a JSON backup of all settings, profile, and seen listings. Import merges the backup into current storage.</div>
 
 <style>
   .ai-stats-grid {

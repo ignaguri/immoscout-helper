@@ -2,6 +2,7 @@
 // All logic lives in the feature modules; this file only wires up the
 // chrome.runtime.onMessage listener.
 
+import { BLACKLIST_KEY, QUEUE_KEY, STORAGE_KEY } from '../shared/constants';
 import type { CheckMessageSentResult, ContentRequest } from '../shared/types';
 import { detectCaptcha, detectCaptchaElement, fillCaptchaAndSubmit } from './captcha';
 import { sendMessageToLandlord } from './contact-form';
@@ -9,6 +10,7 @@ import { simulateHumanEngagement } from './dom-helpers';
 import { detectListingType, extractLandlordName, extractListingDetails } from './listing-details';
 import { extractListings, extractPaginationInfo } from './listings';
 import { fillConversationReply, handleAppointment } from './messenger';
+import { applyOverlay } from './overlay';
 import * as S from './selectors';
 
 chrome.runtime.onMessage.addListener(
@@ -76,6 +78,10 @@ chrome.runtime.onMessage.addListener(
           .catch((error) => sendResponse({ success: false, error: (error as Error).message }));
         return true;
 
+      case 'applyOverlay':
+        sendResponse(applyOverlay(request as any));
+        break;
+
       case 'checkMessageSent':
         // Check if the current page shows a "message sent" confirmation
         {
@@ -104,3 +110,30 @@ chrome.runtime.onMessage.addListener(
 );
 
 console.log('[IS24] Content script loaded');
+
+// Auto-apply overlay on search results pages
+if (location.pathname.startsWith('/Suche/') || location.href.includes('searchType=')) {
+  function refreshOverlay() {
+    chrome.storage.local
+      .get([STORAGE_KEY, QUEUE_KEY, BLACKLIST_KEY])
+      .then((stored) => {
+        const seenIds: string[] = stored[STORAGE_KEY] || [];
+        const queuedIds: string[] = (stored[QUEUE_KEY] || []).map((item: any) => String(item.id));
+        const blacklistedIds: string[] = stored[BLACKLIST_KEY] || [];
+        applyOverlay({ seenIds, queuedIds, blacklistedIds });
+      })
+      .catch((e) => console.debug('[IS24] Overlay auto-apply failed:', e));
+  }
+
+  // Initial apply
+  refreshOverlay();
+
+  // Re-apply when new listings are dynamically loaded (infinite scroll, pagination)
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const observer = new MutationObserver(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(refreshOverlay, 300);
+  });
+  const target = document.querySelector('#resultListItems, [data-testid="result-list"]') || document.body;
+  observer.observe(target, { childList: true, subtree: true });
+}

@@ -1,6 +1,7 @@
 // Storage keys
 export const STORAGE_KEY = 'seenListings' as const;
-export const SEARCH_URL_KEY = 'searchUrl' as const;
+export const SEARCH_URL_KEY = 'searchUrl' as const; // legacy single URL
+export const SEARCH_URLS_KEY = 'searchUrls' as const; // multi-URL array
 export const MESSAGE_TEMPLATE_KEY = 'messageTemplate' as const;
 export const CHECK_INTERVAL_KEY = 'checkInterval' as const;
 export const RATE_LIMIT_KEY = 'rateLimit' as const;
@@ -72,10 +73,17 @@ export const PROFILE_LANDLORD_EMAIL_KEY = 'profileLandlordEmail' as const;
 // Sync keys
 export const SYNCED_CONTACTED_KEY = 'syncedContactedCount' as const;
 
+// Landlord tracking
+export const CONTACTED_LANDLORDS_KEY = 'contactedLandlords' as const;
+export const DUPLICATE_LANDLORD_TIMEOUT_MS = 60000; // 1 minute
+
 // Queue keys
 export const QUEUE_KEY = 'manualQueue' as const;
 export const QUEUE_PROCESSING_KEY = 'isQueueProcessing' as const;
 export const QUEUE_MAX_RETRIES = 3;
+
+// Blacklist
+export const BLACKLIST_KEY = 'blacklistedListings' as const;
 
 // Activity log
 export const ACTIVITY_LOG_KEY = 'activityLog' as const;

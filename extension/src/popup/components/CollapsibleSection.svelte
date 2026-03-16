@@ -11,15 +11,14 @@ let {
   children: Snippet;
 } = $props();
 
-let isOpen = $state(false);
-
-// Sync from prop on mount
-$effect(() => {
-  isOpen = open;
-});
+// Track whether user has manually toggled; if so, ignore prop changes
+let userToggled = $state(false);
+let userState = $state(false);
+let isOpen = $derived(userToggled ? userState : open);
 
 function toggle() {
-  isOpen = !isOpen;
+  userToggled = true;
+  userState = !isOpen;
 }
 
 function handleKeydown(e: KeyboardEvent) {

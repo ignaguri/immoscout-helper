@@ -19,13 +19,13 @@ export interface IS24Conversation {
   read: boolean;
   appointment: IS24Appointment | null;
   appointmentSettings: unknown | null;
-  status: 'ACTIVE' | string;
+  status: 'ACTIVE' | (string & {});
   imageUrl: string;
   referenceId: string | null; // expose ID (numeric string)
   address: IS24Address | null;
   shortDetails: IS24ShortDetails | null;
   participantSsoId: string;
-  communicationType: 'CONVERSATION' | string;
+  communicationType: 'CONVERSATION' | (string & {});
   invitationPending: unknown | null;
   originUseCase: string | null; // e.g. "CONTACT_REQUEST"
 }
@@ -75,7 +75,7 @@ export interface IS24Message {
   intent: unknown | null;
   source: string; // e.g. "API"
   tags: unknown | null;
-  messageType: 'TEXT' | string;
+  messageType: 'TEXT' | (string & {});
   messageKey: string;
   payload: string;
 }

@@ -476,8 +476,14 @@ app.post(
     // Remove non-data fields from the JSON payload
     const { attachments, noAttach, ...formData } = data as DocumentsRequestBody;
 
-    const street = address.split(',')[0].trim().replace(/\s+/g, '_');
-    const namePart = name.split(',')[0].trim() || 'Tenant';
+    const sanitize = (s: string) =>
+      s
+        .replace(/[/\\.]/g, '')
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: strip path-traversal control chars
+        .replace(/[\x00-\x1f]/g, '')
+        .trim() || 'unknown';
+    const street = sanitize(address.split(',')[0]).replace(/\s+/g, '_');
+    const namePart = sanitize(name.split(',')[0]) || 'Tenant';
     const outputPath = join('/tmp', `Bewerbungsunterlagen_${namePart}_${street}.pdf`);
 
     const args = [DOCUMENTS_SCRIPT, '--json', JSON.stringify(formData), '-o', outputPath];

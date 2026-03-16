@@ -3,6 +3,7 @@
 // chrome.runtime.onMessage listener.
 
 import { BLACKLIST_KEY, QUEUE_KEY, STORAGE_KEY } from '../shared/constants';
+import { debug, log } from '../shared/logger';
 import type { CheckMessageSentResult, ContentRequest } from '../shared/types';
 import { detectCaptcha, detectCaptchaElement, fillCaptchaAndSubmit } from './captcha';
 import { sendMessageToLandlord } from './contact-form';
@@ -109,7 +110,7 @@ chrome.runtime.onMessage.addListener(
   },
 );
 
-console.log('[IS24] Content script loaded');
+log('[IS24] Content script loaded');
 
 // Auto-apply overlay on search results pages
 if (location.pathname.startsWith('/Suche/') || location.href.includes('searchType=')) {
@@ -122,7 +123,7 @@ if (location.pathname.startsWith('/Suche/') || location.href.includes('searchTyp
         const blacklistedIds: string[] = stored[BLACKLIST_KEY] || [];
         applyOverlay({ seenIds, queuedIds, blacklistedIds });
       })
-      .catch((e) => console.debug('[IS24] Overlay auto-apply failed:', e));
+      .catch((e) => debug('[IS24] Overlay auto-apply failed:', e));
   }
 
   // Initial apply

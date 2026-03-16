@@ -1,4 +1,5 @@
 import * as C from '../shared/constants';
+import { log, debug, error } from '../shared/logger';
 import { capSeenListings } from '../shared/utils';
 import { humanDelay } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
@@ -61,14 +62,14 @@ export async function enqueueListings(listings: Listing[], source: string): Prom
   }
 
   if (newItems.length === 0) {
-    console.log(`[Queue] No new items to enqueue (${dedupMap.size} input, all seen or already queued)`);
+    log(`[Queue] No new items to enqueue (${dedupMap.size} input, all seen or already queued)`);
     return 0;
   }
 
   const updatedQueue = [...(stored[C.QUEUE_KEY] || []), ...newItems];
   await chrome.storage.local.set({ [C.QUEUE_KEY]: updatedQueue });
 
-  console.log(
+  log(
     `[Queue] Enqueued ${newItems.length} ${source} items (${dedupMap.size - newItems.length} filtered as seen/duplicate)`,
   );
   await sendActivityLog({
@@ -81,13 +82,13 @@ export async function enqueueListings(listings: Listing[], source: string): Prom
 // Unified queue processor — drains the shared queue (FIFO)
 export async function processQueue(): Promise<void> {
   if (isProcessingQueue) {
-    console.log('[Queue] Already processing — skipping');
+    log('[Queue] Already processing — skipping');
     return;
   }
 
   // Guard: only process when monitoring or user triggered
   if (!isMonitoring && !userTriggeredProcessing) {
-    console.log('[Queue] Not monitoring and no user trigger — skipping');
+    log('[Queue] Not monitoring and no user trigger — skipping');
     return;
   }
 
@@ -95,7 +96,7 @@ export async function processQueue(): Promise<void> {
   setQueueAbortRequested(false);
   await chrome.storage.local.set({ [C.QUEUE_PROCESSING_KEY]: true });
 
-  console.log('[Queue] Starting unified queue processing');
+  log('[Queue] Starting unified queue processing');
 
   let queueSentCount = 0;
   let queueFailedCount = 0;
@@ -109,7 +110,7 @@ export async function processQueue(): Promise<void> {
       const queue: QueueItem[] = stored[C.QUEUE_KEY] || [];
 
       if (queue.length === 0) {
-        console.log('[Queue] Queue empty — processing complete');
+        log('[Queue] Queue empty — processing complete');
         await sendActivityLog({ message: 'Queue empty — processing complete' });
         break;
       }
@@ -125,14 +126,14 @@ export async function processQueue(): Promise<void> {
         (seenStored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()),
       );
       if (seenSet.has(normalizedId)) {
-        console.log(`[Queue] ${normalizedId} already seen — removing from queue`);
+        log(`[Queue] ${normalizedId} already seen — removing from queue`);
         await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
         await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (already contacted)` });
         queueSkippedCount++;
         continue;
       }
       if (blacklistSet.has(normalizedId)) {
-        console.log(`[Queue] ${normalizedId} is blacklisted — removing from queue`);
+        log(`[Queue] ${normalizedId} is blacklisted — removing from queue`);
         await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
         await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (blacklisted)` });
         queueSkippedCount++;
@@ -141,7 +142,7 @@ export async function processQueue(): Promise<void> {
 
       // Skip if max retries exceeded
       if (item.retries >= C.QUEUE_MAX_RETRIES) {
-        console.log(`[Queue] ${normalizedId} exceeded max retries (${item.retries}) — dropping`);
+        log(`[Queue] ${normalizedId} exceeded max retries (${item.retries}) — dropping`);
         await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
         await sendActivityLog({
           message: `Dropped ${item.title || normalizedId} (failed ${item.retries}x)`,
@@ -157,13 +158,13 @@ export async function processQueue(): Promise<void> {
       const rateLimitCheck = await checkRateLimit();
       if (!rateLimitCheck.allowed) {
         const waitSec = Math.round(rateLimitCheck.waitTime! / 1000);
-        console.log(`[Queue] Rate limit — waiting ${waitSec}s`);
+        log(`[Queue] Rate limit — waiting ${waitSec}s`);
         await sendActivityLog({ message: `Rate limit — waiting ${waitSec}s...`, type: 'wait' });
         await new Promise((resolve) => setTimeout(resolve, rateLimitCheck.waitTime!));
         if (queueAbortRequested) break;
         const recheck = await checkRateLimit();
         if (!recheck.allowed) {
-          console.log('[Queue] Rate limit still exceeded — pausing');
+          log('[Queue] Rate limit still exceeded — pausing');
           break;
         }
       }
@@ -190,7 +191,7 @@ export async function processQueue(): Promise<void> {
           } else {
             queueSentCount++;
           }
-          console.log(`[Queue] Processed ${normalizedId} — ${remaining.length} remaining`);
+          log(`[Queue] Processed ${normalizedId} — ${remaining.length} remaining`);
           await sendActivityLog({
             lastResult: result.skipped ? 'skipped' : 'success',
             lastId: item.id,
@@ -199,12 +200,12 @@ export async function processQueue(): Promise<void> {
         } else if (result?.error === 'duplicate-landlord-deferred') {
           // Deferred due to duplicate landlord — move to end without incrementing retries
           await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, item] });
-          console.log(`[Queue] ${normalizedId} deferred (duplicate landlord) — moved to end without retry increment`);
+          log(`[Queue] ${normalizedId} deferred (duplicate landlord) — moved to end without retry increment`);
         } else {
           // Failure: increment retries, move to end
           const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
           await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, updatedItem] });
-          console.log(
+          log(
             `[Queue] ${normalizedId} failed (attempt ${updatedItem.retries}/${C.QUEUE_MAX_RETRIES}) — moved to end`,
           );
           queueFailedCount++;
@@ -215,8 +216,8 @@ export async function processQueue(): Promise<void> {
             error: result?.error,
           });
         }
-      } catch (error: any) {
-        console.error('[Queue] Error processing listing:', error);
+      } catch (err: any) {
+        error('[Queue] Error processing listing:', err);
         queueFailedCount++;
         const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
         await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, updatedItem] });
@@ -224,7 +225,7 @@ export async function processQueue(): Promise<void> {
           lastResult: 'failed',
           lastId: item.id,
           lastTitle: item.title || '',
-          error: error.message,
+          error: err.message,
         });
       }
 
@@ -237,7 +238,7 @@ export async function processQueue(): Promise<void> {
     setQueueAbortRequested(false);
     setUserTriggeredProcessing(false);
     await chrome.storage.local.set({ [C.QUEUE_PROCESSING_KEY]: false });
-    console.log('[Queue] Processing loop exited');
+    log('[Queue] Processing loop exited');
 
     // Desktop notification with processing summary
     const totalProcessed = queueSentCount + queueFailedCount + queueSkippedCount;
@@ -257,7 +258,7 @@ export async function processQueue(): Promise<void> {
     try {
       await chrome.runtime.sendMessage({ action: 'queueDone' });
     } catch (_e) {
-      console.debug('[Queue] Could not notify popup of queue completion (likely closed)');
+      debug('[Queue] Could not notify popup of queue completion (likely closed)');
     }
   }
 }

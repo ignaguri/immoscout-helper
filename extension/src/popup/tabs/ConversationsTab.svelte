@@ -2,6 +2,7 @@
 import ConversationCard from '../components/ConversationCard.svelte';
 import { checkRepliesNow } from '../lib/messages';
 import { loadConversations as loadConvStorage } from '../lib/storage';
+import { error } from '../../shared/logger';
 
 let {
   conversations = $bindable(),
@@ -66,7 +67,7 @@ async function handleCheckNow() {
     lastCheckTime = data.lastCheck;
     unreadCount = data.unreadCount;
   } catch (e) {
-    console.error('Error checking replies:', e);
+    error('Error checking replies:', e);
   }
   checkBtnDisabled = false;
   checkBtnText = 'Check Now';

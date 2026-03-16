@@ -1,4 +1,5 @@
 import * as C from '../shared/constants';
+import { log } from '../shared/logger';
 import type { RateLimitResult } from '../shared/types';
 import {
   lastMessageTime,
@@ -26,7 +27,7 @@ export async function checkRateLimit(): Promise<RateLimitResult> {
 
   if (messageCount >= rateLimitValue) {
     const waitTime = messageCountResetTime - now;
-    console.log(
+    log(
       `Rate limit reached (${messageCount}/${rateLimitValue} messages). Waiting ${Math.ceil(waitTime / 1000)} seconds...`,
     );
     return { allowed: false, waitTime };
@@ -35,7 +36,7 @@ export async function checkRateLimit(): Promise<RateLimitResult> {
   const timeSinceLastMessage = now - lastMessageTime;
   if (timeSinceLastMessage < minDelay) {
     const waitTime = minDelay - timeSinceLastMessage;
-    console.log(`Rate limiting: Waiting ${Math.ceil(waitTime / 1000)} seconds before next message...`);
+    log(`Rate limiting: Waiting ${Math.ceil(waitTime / 1000)} seconds before next message...`);
     return { allowed: false, waitTime };
   }
 

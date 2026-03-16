@@ -1,4 +1,5 @@
 import * as C from '../shared/constants';
+import { log, debug, error } from '../shared/logger';
 import { waitForTabLoad } from './helpers';
 import { advanceSearchUrlIndex, searchUrlIndex } from './state';
 
@@ -25,7 +26,7 @@ export async function findOrCreateSearchTab(): Promise<SearchTabResult | null> {
     const urls = await getSearchUrls();
 
     if (urls.length === 0) {
-      console.error('No search URL configured');
+      error('No search URL configured');
       return null;
     }
 
@@ -45,24 +46,24 @@ export async function findOrCreateSearchTab(): Promise<SearchTabResult | null> {
         const tabBasePath = tabUrl.origin + tabUrl.pathname;
         return tabBasePath === basePath;
       } catch {
-        console.debug('[Tabs] Could not parse tab URL for matching');
+        debug('[Tabs] Could not parse tab URL for matching');
         return false;
       }
     });
 
     if (matchingTab) {
-      console.log('Found existing tab with configured URL');
+      log('Found existing tab with configured URL');
       return { tab: matchingTab, searchUrl };
     }
 
-    console.log('Creating new tab with configured URL');
+    log('Creating new tab with configured URL');
     const newTab = await chrome.tabs.create({ url: searchUrl, active: false });
 
     await waitForTabLoad(newTab.id!, 10000);
 
     return { tab: newTab, searchUrl };
-  } catch (error) {
-    console.error('Error finding/creating search tab:', error);
+  } catch (err) {
+    error('Error finding/creating search tab:', err);
     return null;
   }
 }

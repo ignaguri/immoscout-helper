@@ -1,5 +1,6 @@
 // Search page overlay — injects status badges and action buttons on listing cards
 
+import { log } from '../shared/logger';
 import * as S from './selectors';
 
 interface OverlayData {
@@ -229,6 +230,6 @@ export function applyOverlay(data: OverlayData): { applied: number } {
     applied++;
   }
 
-  console.log(`[IS24] Overlay applied to ${applied} listings`);
+  log(`[IS24] Overlay applied to ${applied} listings`);
   return { applied };
 }

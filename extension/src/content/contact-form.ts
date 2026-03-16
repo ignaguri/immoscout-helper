@@ -1,5 +1,6 @@
 // Contact form filling and message sending
 
+import { log as logMsg } from '../shared/logger';
 import type { FormValues, SendMessageResult } from '../shared/types';
 import { detectCaptchaElement } from './captcha';
 import {
@@ -139,7 +140,7 @@ export async function sendMessageToLandlord(
   const log: string[] = [];
   const addLog = (msg: string): void => {
     log.push(msg);
-    console.log('[IS24]', msg);
+    logMsg('[IS24]', msg);
     // Send real-time update to popup
     chrome.runtime.sendMessage({ action: 'progressUpdate', message: msg }).catch(() => {});
   };

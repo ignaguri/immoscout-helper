@@ -1,6 +1,7 @@
 // Listing detail extraction, landlord name, and listing type detection
 
 import * as C from '../shared/constants';
+import { log } from '../shared/logger';
 import type { LandlordInfo, ListingDetails, ListingType } from '../shared/types';
 import { findButtonByKeywords, findElement } from './dom-helpers';
 import * as S from './selectors';
@@ -230,6 +231,6 @@ export function extractListingDetails(): ListingDetails {
   // Raw text fallback (capped at 8000 chars)
   details.rawText = bodyText.substring(0, C.RAW_TEXT_CAP);
 
-  console.log('[IS24] Extracted listing details:', Object.keys(details).join(', '));
+  log('[IS24] Extracted listing details:', Object.keys(details).join(', '));
   return details;
 }

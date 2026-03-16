@@ -1,5 +1,6 @@
 <script lang="ts">
 import { PROVIDERS } from '../../shared/ai-router';
+import { error } from '../../shared/logger';
 import {
   buildMessagePrompt,
   buildScoringPrompt,
@@ -268,7 +269,7 @@ async function handleAnalyze() {
           totalPromptTokens += msgResult.usage.promptTokens;
           totalCompletionTokens += msgResult.usage.completionTokens;
         } catch (e: any) {
-          console.error('[Analyze/Direct] Message generation failed:', e.message);
+          error('[Analyze/Direct] Message generation failed:', e.message);
         }
 
         await trackTokenUsage(totalPromptTokens, totalCompletionTokens);

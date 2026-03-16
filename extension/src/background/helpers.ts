@@ -1,4 +1,5 @@
 import * as C from '../shared/constants';
+import { log } from '../shared/logger';
 import { currentCheckInterval } from './state';
 
 export function getRandomDelay(minMs: number, maxMs: number): number {
@@ -18,7 +19,7 @@ export async function scheduleNextAlarm(): Promise<void> {
   const delayInMinutes = Math.max(1, nextSeconds / 60);
   await chrome.alarms.clear(C.ALARM_NAME);
   await chrome.alarms.create(C.ALARM_NAME, { delayInMinutes });
-  console.log(`[Alarm] Next check in ${Math.round(nextSeconds)}s (base ${baseSeconds}s ± 20%)`);
+  log(`[Alarm] Next check in ${Math.round(nextSeconds)}s (base ${baseSeconds}s ± 20%)`);
 }
 
 // Wait for a tab to finish loading using chrome.tabs.onUpdated

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch",
+    "dev": "vite build --watch --mode development",
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "lint": "../node_modules/.bin/biome check .",

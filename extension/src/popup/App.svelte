@@ -2,8 +2,9 @@
 import { onMount } from 'svelte';
 import { PROVIDERS } from '../shared/ai-router';
 import { ALARM_NAME } from '../shared/constants';
-import { getStatus, startMonitoring, stopMonitoring } from './lib/messages';
+import { getPendingApprovalListings, getStatus, startMonitoring, stopMonitoring } from './lib/messages';
 import type { PopupSettings } from './lib/storage';
+import type { PendingApprovalItem } from '../shared/types';
 import {
   loadActivityLog as loadActivityLogStorage,
   loadAllSettings,
@@ -97,6 +98,9 @@ let lastAnalyzeContext: any = $state(null);
 let queue: any[] = $state([]);
 let isQueueProcessing = $state(false);
 let queueProgressLines: Array<{ text: string; type: string }> = $state([]);
+
+// Pending Approval
+let pendingApproval: PendingApprovalItem[] = $state([]);
 
 // Conversations
 let conversations: any[] = $state([]);
@@ -239,6 +243,14 @@ async function handleToggle() {
   }
 }
 
+async function loadPendingApproval() {
+  try {
+    pendingApproval = await getPendingApprovalListings();
+  } catch {
+    pendingApproval = [];
+  }
+}
+
 async function loadQueueState() {
   try {
     const status = await chrome.runtime.sendMessage({ action: 'getQueueStatus' });
@@ -281,6 +293,7 @@ onMount(() => {
     activityLog = log;
   });
   loadQueueState();
+  loadPendingApproval();
   loadConversations();
   getStatus().then((status) => {
     isMonitoring = status.isMonitoring;
@@ -301,6 +314,8 @@ onMount(() => {
       appendToResult(request.message);
     } else if (request.action === 'activityLog') {
       activityLog = [...activityLog, request];
+      // Refresh pending approval when activity updates
+      loadPendingApproval();
       // Mirror into queue progress live feed while queue is running
       if (isQueueProcessing) {
         if (request.lastResult) {
@@ -421,6 +436,7 @@ onMount(() => {
           bind:queue
           bind:isQueueProcessing
           bind:queueProgressLines
+          bind:pendingApproval
           {isMonitoring}
         />
       </div>

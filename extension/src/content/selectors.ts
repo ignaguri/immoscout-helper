@@ -17,9 +17,13 @@ export const TEXTAREA_SELECTORS = [
 
 export const CONTACT_BUTTON_SELECTORS = [
   'button[data-testid="contact-button"]',
+  'button[data-testid="tenant-network-express-interest-cta"]',
   'button[data-qa="sendButton"]:not([type="submit"])',
   'button[class*="Button_button-primary"]:not([type="submit"])',
 ];
+
+// Selector for the "Interesse bekunden" CTA on tenant-recommendation listings
+export const TENANT_NETWORK_CTA_SELECTOR = 'button[data-testid="tenant-network-express-interest-cta"]';
 
 export const SUBMIT_BUTTON_SELECTORS = [
   'button[type="submit"][class*="Button_button-primary"]',

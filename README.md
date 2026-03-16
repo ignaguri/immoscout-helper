@@ -1,166 +1,178 @@
 # Apartment Messenger — ImmoScout24 Edition
 
-A Chrome extension that monitors ImmoScout24 search results and automatically sends personalized messages to landlords when new listings appear. Includes a local AI server for listing scoring, captcha solving, and AI-assisted conversation replies.
+A Chrome extension that monitors ImmoScout24 search results and automatically sends personalized messages to landlords when new listings appear. Includes AI-powered listing scoring, captcha solving, conversation reply drafting, and a manual approval queue.
+
+Built with TypeScript + Svelte 5 + Vite (extension) and Express + TypeScript (AI server).
 
 ## Project Structure
 
 ```
-extension/     Chrome extension (Manifest V3, vanilla JS)
-server/        AI server (Express + TypeScript + Gemini)
+extension/     Chrome extension (Manifest V3, TypeScript + Svelte 5)
+server/        AI server (Express + TypeScript)
 ```
 
-## Setup
+## Installation
 
-### Chrome Extension
+### From a Release (recommended)
 
-1. Open `chrome://extensions/` in Chrome
-2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked** → select the `extension/` folder
-4. Pin the extension icon in your toolbar
+1. Download `apartment-messenger-vX.Y.Z.zip` from the [latest release](https://github.com/ignaguri/immoscout-helper/releases/latest)
+2. Unzip the file
+3. Open `chrome://extensions/` in Chrome
+4. Enable **Developer mode** (top-right toggle)
+5. Click **Load unpacked** → select the unzipped folder
+6. Open the extension side panel → **Settings** → paste your [Gemini API key](https://aistudio.google.com/app/apikey)
 
-**Recommended: Open as sidebar** for a better experience while browsing ImmoScout24:
-
-1. Right-click the extension icon in your toolbar
-2. Select **Open side panel**
-3. The extension stays visible alongside the page — no more opening/closing the popup
-
-You can also open it from Chrome's menu: **View → Open side panel** (or click the side panel icon next to the address bar), then select "Apartment Messenger" from the dropdown.
-
-### AI Server
+### From Source
 
 ```bash
-cd server
+git clone https://github.com/ignaguri/immoscout-helper
+cd immoscout-helper
 npm install
-cp .env.example .env   # then add your Gemini API key
-npm run dev             # starts on http://localhost:3456
+npm run build        # builds extension to extension/dist/
 ```
 
-The server provides:
-- `/analyze` — AI scoring of listings against your profile
-- `/captcha` — Captcha image → text extraction
-- `/reply` — AI-generated draft replies to landlord messages
-- `/health` — Health check
+Then load unpacked from `extension/dist/`.
 
 ## Quick Start
 
 1. Log into ImmoScout24
-2. Set up your search filters and copy the URL
-3. Click the extension icon → paste the URL into **Search URL**
-4. Write your message in **Message to Landlords**
-5. Fill in **Form** tab with your personal details
-6. Click **Start**
+2. Navigate to your saved search and copy the URL
+3. Open the extension side panel → **Activity** tab → paste the URL into **Search URLs**
+4. Write your message template (use `{name}` for the landlord's name)
+5. Fill in your personal details in the **Profile** tab
+6. Configure your AI provider in **Settings** (Gemini or OpenAI API key)
+7. Click **Start**
 
-The extension will periodically check for new listings and contact landlords for you.
+The extension will check for new listings on your schedule and contact landlords automatically.
 
 ## Features
 
-### Automatic Messaging
+### Automatic Monitoring
 
-The extension monitors your search URL and when new listings appear:
-- Opens the listing page
-- Detects the landlord's name and adds a formal German greeting
-- Fills ImmoScout's contact form with your details
-- Sends the message (or leaves it for review in manual mode)
+Periodically checks your search URL(s) for new listings. For each new listing:
+- Opens the listing page in a background tab
+- Optionally scores it against your profile with AI (skips low-quality matches)
+- Detects the landlord's name and builds a personalized greeting
+- Fills ImmoScout's contact form and sends the message
+
+Multiple search URLs are supported — the extension cycles through them round-robin.
+
+### Manual Queue
+
+Capture all listings from a search page into a queue and process them on demand, without running the full monitoring loop. Useful for one-off batches.
+
+### Pending Approval
+
+Some listings require explicit confirmation before a message is sent:
+- **Tenant-recommendation listings** ("Nachvermietung" with an "Interesse bekunden" button) — posted by the current tenant, not the landlord
+- These appear in a **Needs Approval** section in the Activity tab
+- Click **Approve** to send, or **Skip** to dismiss permanently
 
 ### AI Listing Scoring
 
-With the AI server running, the extension can score listings against your profile and skip low-quality matches.
+Score listings against your profile before sending. Low-scoring listings are skipped automatically. Works in two modes:
+- **Direct** — calls Gemini or OpenAI directly from the extension using your API key
+- **Server** — routes requests through the local AI server (`http://localhost:3456`)
 
 ### Conversation Replies
 
-The extension monitors your ImmoScout inbox for landlord replies and:
-- Shows unread conversations in the **Replies** tab
+Monitors your ImmoScout inbox for landlord replies:
+- Shows unread conversations in the **Replies** tab with timestamps
 - Generates AI draft replies using your profile context
-- Pre-fills the reply in the messenger for you to review and send
+- Handles appointment proposals — accept, decline, or counter-propose with one click
 
 ### Message Personalization
 
-- **Frau detected** → `Sehr geehrte Frau [Name],`
-- **Herr detected** → `Sehr geehrter Herr [Name],`
-- **Unknown** → `Sehr geehrte Damen und Herren,`
-- Use `{name}` in your template for inline name replacement
+- `Frau [Name]` detected → `Sehr geehrte Frau [Name],`
+- `Herr [Name]` detected → `Sehr geehrter Herr [Name],`
+- Unknown → `Sehr geehrte Damen und Herren,`
+- Use `{name}` anywhere in your template for inline name substitution
 
 ### Rate Limiting
 
-- **Hourly cap** — Stops sending after reaching your configured limit
-- **Minimum delay** — Waits between messages to avoid detection
+- Configurable hourly message cap
+- Minimum delay between messages (randomized for natural timing)
+- Rate limit state persists across browser restarts
 
 ## Popup Tabs
 
 | Tab | Purpose |
 |-----|---------|
-| **Settings** | Search URL, message template, send mode |
-| **Form** | Personal details for contact form auto-fill |
-| **AI** | AI server URL, scoring threshold, profile |
-| **Replies** | Conversations with landlords, AI draft replies |
-| **Queue** | Manual queue for specific listings |
-| **Advanced** | Check interval, rate limits, clear data |
-| **Test** | Test message flow on a single listing |
-| **Activity** | Real-time activity log |
+| **Activity** | Search URLs, queue management, pending approvals, real-time activity log |
+| **Profile** | Personal details for contact form auto-fill and AI context |
+| **Replies** | Conversations with landlords, AI draft replies, appointment handling |
+| **Settings** | Check interval, send mode, AI provider, rate limits, data management |
+| **Help** | Setup guide and tips |
 
-## Development
+## AI Server (optional)
 
-### Extension
-
-```bash
-# Validate syntax (no build step)
-node -c extension/background.js
-node -c extension/content.js
-node -c extension/popup.js
-node -c extension/shared.js
-```
-
-After editing, reload the extension in `chrome://extensions/`. For content script changes, also refresh the ImmoScout24 tab.
-
-**Debug:** Service worker logs → `chrome://extensions/` → "Inspect views: service worker". Content script logs → page DevTools (F12), filter by `[IS24]`.
-
-### Server
+The local server provides captcha solving and reply generation when using server mode.
 
 ```bash
 cd server
-npm run dev        # watch mode
-npm run typecheck  # TypeScript check
+npm install
+cp .env.example .env   # add your Gemini API key
+npm run dev             # starts on http://localhost:3456
 ```
+
+Endpoints:
+- `/analyze` — AI scoring of listings against your profile
+- `/captcha` — Captcha image → text extraction
+- `/reply` — AI-generated draft replies to landlord messages
+- `/health` — Health check
+
+## Development
+
+```bash
+npm install              # install all workspace dependencies
+npm run dev              # watch mode: extension + server
+npm run build            # production build
+npm run typecheck        # TypeScript + Svelte type check
+```
+
+**Load unpacked:** `chrome://extensions/` → Load unpacked → `extension/dist/`
+
+**Reload after changes:**
+- Background (service worker): click the reload icon in `chrome://extensions/`
+- Content script: also refresh the ImmoScout24 tab
+- Popup: closes and reopens automatically
+
+**Debug:**
+- Service worker logs: `chrome://extensions/` → "Inspect views: service worker"
+- Content script logs: page DevTools (F12), filter by `[IS24]`
 
 ## Architecture
 
 ```
-┌─────────────┐  messages   ┌──────────────┐  messages   ┌─────────────┐
-│  popup.js   │ ◄────────► │ background.js │ ◄────────► │ content.js  │
-│ (popup UI)  │            │ (svc worker)  │            │ (page DOM)  │
-└─────────────┘            └──────────────┘            └─────────────┘
-       │                          │
-       └──── both import ─────────┘
-                  │
-            ┌───────────┐
-            │ shared.js │
-            └───────────┘
-                                   │ HTTP
-                            ┌──────────────┐
-                            │  AI Server   │
-                            │  (Express)   │
-                            └──────────────┘
+┌──────────────┐  messages  ┌───────────────┐  messages  ┌─────────────┐
+│  popup/      │ ◄────────► │ background/   │ ◄────────► │ content/    │
+│  (Svelte 5)  │            │ (svc worker)  │            │ (page DOM)  │
+└──────────────┘            └───────────────┘            └─────────────┘
+                                    │ HTTP (optional)
+                             ┌──────────────┐
+                             │  AI Server   │
+                             │  (Express)   │
+                             └──────────────┘
 ```
 
-- **shared.js** — Storage key constants, message personalization, utility functions
-- **background.js** — Service worker: alarms, tab management, rate limiting, conversation detection
-- **content.js** — DOM interaction: listing extraction, form filling, reply filling
-- **popup.js** — UI controller: settings, stats, conversations, queue management
-- **server/** — AI endpoints for scoring, captcha, and reply generation
+- **`shared/`** — Constants, types, utilities shared across all entry points
+- **`background/`** — Service worker: monitoring lifecycle, queue processing, rate limiting, conversation detection, pending approval storage
+- **`content/`** — DOM interaction: listing extraction, form filling, listing type detection
+- **`popup/`** — Svelte 5 side panel UI: settings, stats, queue, approvals, conversations
 
-## Data Storage
-
-All extension data is stored locally in `chrome.storage.local`. The AI server stores no persistent data (captcha images and activity logs are gitignored).
+All extension data is stored locally in `chrome.storage.local`. Nothing leaves the device except outgoing messages to ImmoScout24 and optional AI API calls.
 
 ## Troubleshooting
 
 **"Receiving end does not exist"** → Refresh the ImmoScout24 page and try again.
 
-**Extension stops checking** → Toggle Stop/Start to restart the alarm.
+**Extension stops checking** → Toggle Stop/Start to restart the monitoring alarm.
 
 **Messages not sending** → Make sure you're logged into ImmoScout24.
 
-**Rate limit reached** → Wait for the hourly reset or increase the limit in Advanced settings.
+**Rate limit reached** → Wait for the hourly reset, or increase the limit in Settings.
+
+**Listing shows "Needs Approval"** → It's a tenant-recommendation listing. Review it in the Activity tab and approve or skip manually.
 
 ## Disclaimer
 

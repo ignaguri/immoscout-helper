@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { ConversationEntry } from '../../shared/types';
-import { respondToAppointment } from '../lib/messages';
 import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
+import { respondToAppointment } from '../lib/messages';
 
 let {
   conversation,
@@ -19,7 +19,9 @@ let apptDate = $derived.by(() => {
   if (!appt) return '';
   if (appt.start) {
     const d = new Date(appt.start);
-    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+    return isNaN(d.getTime())
+      ? ''
+      : d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   }
   return appt.date || appt.startDate || '';
 });

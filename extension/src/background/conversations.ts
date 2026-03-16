@@ -92,14 +92,15 @@ export async function checkForNewReplies(): Promise<void> {
       // falling back to stored (extension action), then defaulting to pending.
       const apiState: string | undefined = appointment?.state;
       const definiteApiStatus: string | null =
-        apiState === 'ACCEPT' ? 'accepted' :
-        apiState === 'DECLINE' ? 'rejected' :
-        apiState === 'RESCHEDULE' ? 'alternative_requested' :
-        null;
+        apiState === 'ACCEPT'
+          ? 'accepted'
+          : apiState === 'DECLINE'
+            ? 'rejected'
+            : apiState === 'RESCHEDULE'
+              ? 'alternative_requested'
+              : null;
       const appointmentStatus: string | null =
-        definiteApiStatus ||
-        stored?.appointmentStatus ||
-        (appointment ? 'pending' : null);
+        definiteApiStatus || stored?.appointmentStatus || (appointment ? 'pending' : null);
 
       // Sticky flag: once we detect a landlord reply, it stays true forever.
       // Backfill: also check stored messages for any landlord message.

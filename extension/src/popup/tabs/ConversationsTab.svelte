@@ -7,10 +7,12 @@ let {
   conversations = $bindable(),
   lastCheckTime = $bindable(),
   unreadCount = $bindable(),
+  aiMode = 'direct',
 }: {
   conversations: any[];
   lastCheckTime: string | null;
   unreadCount: number;
+  aiMode?: string;
 } = $props();
 
 let checkBtnText = $state('Check Now');
@@ -19,12 +21,18 @@ let expandedConvId = $state<string | null>(null);
 let appointmentsOnly = $state(false);
 let unreadOnly = $state(false);
 let repliedOnly = $state(false);
+let searchQuery = $state('');
 let displayLimit = $state(10);
 const PAGE_SIZE = 10;
 
 // Sort and optionally filter conversations
 let relevantConversations = $derived(
   conversations
+    .filter((c) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.trim().toLowerCase();
+      return c.landlordName?.toLowerCase().includes(q) || c.listingTitle?.toLowerCase().includes(q);
+    })
     .filter((c) => !appointmentsOnly || c.appointment != null)
     .filter((c) => !unreadOnly || c.hasUnreadReply)
     .filter((c) => !repliedOnly || c.hasLandlordReply)
@@ -42,7 +50,11 @@ let appointmentCount = $derived(conversations.filter((c) => c.appointment != nul
 let unreadFilterCount = $derived(conversations.filter((c) => c.hasUnreadReply).length);
 let repliedFilterCount = $derived(conversations.filter((c) => c.hasLandlordReply).length);
 
-let lastCheckStr = $derived(lastCheckTime ? `Last check: ${new Date(lastCheckTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '');
+let lastCheckStr = $derived(
+  lastCheckTime
+    ? `Last check: ${new Date(lastCheckTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : '',
+);
 
 async function handleCheckNow() {
   checkBtnDisabled = true;
@@ -101,10 +113,24 @@ function handleBadgeDecrement() {
     <span class="last-check">{lastCheckStr}</span>
   {/if}
 </div>
+<div class="search-wrap">
+  <input
+    type="text"
+    class="search-input"
+    placeholder="Search by name or address..."
+    bind:value={searchQuery}
+    oninput={() => { displayLimit = PAGE_SIZE; }}
+  />
+  {#if searchQuery}
+    <button class="search-clear" onclick={() => { searchQuery = ''; }}>×</button>
+  {/if}
+</div>
 
 {#if relevantConversations.length === 0}
   <div class="empty-state">
-    {#if unreadOnly || repliedOnly || appointmentsOnly}
+    {#if searchQuery.trim()}
+      No conversations match your search.
+    {:else if unreadOnly || repliedOnly || appointmentsOnly}
       No conversations match the active filters.
     {:else}
       No conversations yet. Start monitoring to send messages, then they will appear here.
@@ -123,6 +149,7 @@ function handleBadgeDecrement() {
         isExpanded={expandedConvId === conv.conversationId}
         onToggle={handleToggle}
         onBadgeDecrement={handleBadgeDecrement}
+        {aiMode}
       />
     {/each}
   </div>
@@ -201,5 +228,47 @@ function handleBadgeDecrement() {
 
   .load-more {
     margin-top: 12px;
+  }
+
+  .search-wrap {
+    position: relative;
+    margin-bottom: 12px;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 7px 28px 7px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    color: #333;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: #83F1DC;
+  }
+
+  .search-input::placeholder {
+    color: #aaa;
+  }
+
+  .search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #999;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+
+  .search-clear:hover {
+    color: #555;
   }
 </style>

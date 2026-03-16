@@ -100,7 +100,9 @@ function getListingUrl(el: Element, id: string): string {
 }
 
 function clearOverlay(el: Element): void {
-  el.querySelectorAll(`.${BADGE_CLASS}, .${ACTIONS_CLASS}`).forEach((c) => c.remove());
+  el.querySelectorAll(`.${BADGE_CLASS}, .${ACTIONS_CLASS}`).forEach((c) => {
+    c.remove();
+  });
   el.removeAttribute(OVERLAY_ATTR);
 }
 
@@ -181,14 +183,11 @@ export function applyOverlay(data: OverlayData): { applied: number } {
       e.stopPropagation();
       const title = getListingTitle(el);
       const url = getListingUrl(el, id);
-      chrome.runtime.sendMessage(
-        { action: 'captureQueueItems', listings: [{ id, url, title, index: 0 }] },
-        () => {
-          queueBtn.textContent = 'Queued';
-          queueBtn.disabled = true;
-          skipBtn.remove();
-        },
-      );
+      chrome.runtime.sendMessage({ action: 'captureQueueItems', listings: [{ id, url, title, index: 0 }] }, () => {
+        queueBtn.textContent = 'Queued';
+        queueBtn.disabled = true;
+        skipBtn.remove();
+      });
     });
 
     const skipBtn = document.createElement('button');

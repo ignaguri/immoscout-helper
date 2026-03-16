@@ -173,7 +173,8 @@ async function handleImport(e: Event) {
     const text = await file.text();
     const data = JSON.parse(text);
     if (typeof data !== 'object' || data === null) throw new Error('Invalid backup format');
-    if (!confirm('This will merge the backup into your current data. Existing values will be overwritten. Continue?')) return;
+    if (!confirm('This will merge the backup into your current data. Existing values will be overwritten. Continue?'))
+      return;
     await chrome.storage.local.set(data);
     alert('Backup restored. Reload the extension to apply all changes.');
   } catch (err: any) {

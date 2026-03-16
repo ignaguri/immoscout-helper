@@ -29,6 +29,7 @@ let {
 
 let showApiKey = $state(false);
 let copySetupText = $state('Copy command');
+let fileInput: HTMLInputElement | undefined = $state();
 
 // Active provider metadata (reactive to settings.aiProvider)
 let activeProvider = $derived(PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini);
@@ -146,6 +147,40 @@ function handleCopySetup() {
 
 function toggleApiKey() {
   showApiKey = !showApiKey;
+}
+
+async function handleExport() {
+  try {
+    const data = await chrome.storage.local.get(null);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `immoscout-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e: any) {
+    alert(`Export failed: ${e.message}`);
+  }
+}
+
+async function handleImport(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (typeof data !== 'object' || data === null) throw new Error('Invalid backup format');
+    if (!confirm('This will merge the backup into your current data. Existing values will be overwritten. Continue?')) return;
+    await chrome.storage.local.set(data);
+    alert('Backup restored. Reload the extension to apply all changes.');
+  } catch (err: any) {
+    alert(`Import failed: ${err.message}`);
+  } finally {
+    input.value = '';
+  }
 }
 </script>
 
@@ -291,6 +326,15 @@ function toggleApiKey() {
 <button class="btn btn-danger" onclick={handleClearSeen}>
   Clear Seen Listings ({stats.seenCount})
 </button>
+
+<div class="section-title">Backup & Restore</div>
+
+<div style="display:flex; gap:8px; margin-bottom:8px;">
+  <button class="btn btn-test" onclick={handleExport}>Export All Data</button>
+  <button class="btn btn-test" onclick={() => fileInput?.click()}>Import Data</button>
+  <input type="file" accept=".json" bind:this={fileInput} onchange={handleImport} style="display:none;" />
+</div>
+<div class="hint">Export downloads a JSON backup of all settings, profile, and seen listings. Import merges the backup into current storage.</div>
 
 <style>
   .ai-stats-grid {

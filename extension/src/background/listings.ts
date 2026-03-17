@@ -15,7 +15,7 @@ export interface Listing {
 
 // Send activity log entry to popup + persist to storage
 export async function sendActivityLog(data: Record<string, any>): Promise<void> {
-  const entry = { ...data, timestamp: Date.now() };
+  const entry = { ...data, timestamp: Date.now(), _id: crypto.randomUUID() };
 
   // Persist to storage
   try {

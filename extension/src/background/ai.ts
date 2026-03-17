@@ -202,15 +202,22 @@ async function tryAIAnalysisDirect(
   }
 
   await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
+
+  // If message generation failed, do NOT allow fallback to template — treat as failure
+  if (!message) {
+    error('[AI/Direct] Message generation failed — aborting to prevent template fallback');
+    return null;
+  }
+
   log(
-    `[AI/Direct] Score ${score}/10 — message ${message ? 'generated' : 'fallback'}${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
+    `[AI/Direct] Score ${score}/10 — message generated${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
   );
   return {
     score,
     reason,
     summary,
     flags,
-    message: message || undefined,
+    message,
     skip: false,
     usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
   };
@@ -291,6 +298,13 @@ async function tryAIAnalysisServer(
     await chrome.storage.local.set(updates);
 
     log(`[AI/Server] Score: ${result.score}/10, Skip: ${result.skip}, Message: ${result.message ? 'yes' : 'no'}`);
+
+    // If server returned a non-skip result with no message, treat as failure to prevent template fallback
+    if (!result.skip && !result.message) {
+      error('[AI/Server] Server did not generate a message — aborting to prevent template fallback');
+      return null;
+    }
+
     return result;
   } catch (e: any) {
     clearTimeout(timeout);

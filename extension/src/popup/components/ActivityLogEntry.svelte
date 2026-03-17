@@ -29,13 +29,23 @@ function getResultInfo(result: string): { icon: string; type: string; label: str
   if (result === 'skipped') return { icon: '→', type: 'wait', label: 'Skipped' };
   return { icon: '✗', type: 'result-failed', label: 'Failed' };
 }
+
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;';
 </script>
+
+{#snippet timestamp()}{#if entry.timestamp}<span style={tsStyle}>{formatTime(entry.timestamp)}</span>{/if}{/snippet}
 
 {#if entry.current}
   {@const id = entry.current.id}
   {@const title = entry.current.title || id}
   {@const url = entry.current.url || `https://www.immobilienscout24.de/expose/${id}`}
   <div style={getLogStyle('header')}>
+    {@render timestamp()}
     <span>▸ </span>
     <a href={url} target="_blank" rel="noopener noreferrer" style="color:#888; text-decoration:none;">({id})</a>
     {' '}{title}
@@ -46,6 +56,7 @@ function getResultInfo(result: string): { icon: string; type: string; label: str
   {@const isAnalysis = entry.type === 'analysis' || entry.message.includes('AI Score:')}
   {@const isWait = entry.type === 'wait' || entry.message.includes('Rate limit') || entry.message.includes('waiting')}
   <div style={getLogStyle(isAnalysis ? 'analysis' : isWait ? 'wait' : 'info')}>
+    {#if !entry.current}{@render timestamp()}{/if}
     {entry.message}
   </div>
 {/if}
@@ -55,6 +66,7 @@ function getResultInfo(result: string): { icon: string; type: string; label: str
   {@const lid = entry.lastId}
   {@const lurl = `https://www.immobilienscout24.de/expose/${lid}`}
   <div style={getLogStyle(info.type)}>
+    {#if !entry.current && !entry.message}{@render timestamp()}{/if}
     {info.icon} {info.label}:
     <a href={lurl} target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:none;">({lid})</a>
     {' '}{entry.lastTitle || ''}

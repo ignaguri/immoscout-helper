@@ -337,13 +337,50 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       return { success: true, skipped: true, listing };
     }
 
-    // Use AI message if available, otherwise fall back to template
-    if (!aiResult?.message) {
-      warn('[Messaging] AI did not generate a message — falling back to template');
+    // Determine the message to send
+    let personalizedMessage: string;
+    if (aiResult?.message) {
+      personalizedMessage = aiResult.message;
+    } else {
+      // Check if AI is enabled — if so, failing is a hard error (never fall back to template)
+      const aiConfig = await getAIConfig();
+      if (aiConfig.enabled) {
+        // Distinguish: aiResult null = analysis/server failed; aiResult exists but no message = message generation failed
+        const failReason = aiResult
+          ? 'AI message generation failed'
+          : 'AI analysis failed (server unreachable or extraction error)';
+        error(`[Messaging] ${failReason} — aborting send to prevent template fallback`);
+        await sendActivityLog({
+          lastResult: 'failed',
+          lastId: listing.id,
+          lastTitle: listing.title || '',
+          error: failReason,
+        });
+        await logActivity({
+          listingId: listing.id,
+          title: listing.title,
+          url: listing.url,
+          score: aiResult?.score,
+          action: 'failed',
+          reason: failReason,
+          landlord: landlordInfo,
+        });
+        try {
+          await chrome.tabs.remove(currentListingTabId);
+        } catch (_e) {
+          debug('[Messaging] Tab cleanup failed after AI failure');
+        }
+        return { success: false, listing, error: failReason };
+      }
+      // AI not configured — use template
+      warn('[Messaging] AI not configured — using template');
+      personalizedMessage = generatePersonalizedMessage(
+        stored[C.MESSAGE_TEMPLATE_KEY] || '',
+        landlordTitle,
+        landlordName,
+        isTenantNetwork,
+      );
     }
-    const personalizedMessage =
-      aiResult?.message ||
-      generatePersonalizedMessage(stored[C.MESSAGE_TEMPLATE_KEY] || '', landlordTitle, landlordName, isTenantNetwork);
 
     if (aiResult?.message) {
       log(`[AI] Using AI-generated message (score ${aiResult.score}/10)`);

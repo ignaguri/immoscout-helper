@@ -15,11 +15,12 @@ export interface Listing {
 
 // Send activity log entry to popup + persist to storage
 export async function sendActivityLog(data: Record<string, any>): Promise<void> {
+  const entry = { ...data, timestamp: Date.now(), _id: crypto.randomUUID() };
+
   // Persist to storage
   try {
     const stored: Record<string, any> = await chrome.storage.local.get([C.ACTIVITY_LOG_KEY]);
     const activityLog: any[] = stored[C.ACTIVITY_LOG_KEY] || [];
-    const entry = { ...data, timestamp: Date.now() };
     activityLog.push(entry);
     if (activityLog.length > C.ACTIVITY_LOG_CAP) activityLog.splice(0, activityLog.length - C.ACTIVITY_LOG_CAP);
     await chrome.storage.local.set({ [C.ACTIVITY_LOG_KEY]: activityLog });
@@ -27,9 +28,9 @@ export async function sendActivityLog(data: Record<string, any>): Promise<void> 
     debug('[Listings] Failed to persist activity log to storage');
   }
 
-  // Send to popup (may be closed)
+  // Send to popup (may be closed) — include timestamp for dedup
   try {
-    await chrome.runtime.sendMessage({ action: 'activityLog', ...data });
+    await chrome.runtime.sendMessage({ action: 'activityLog', ...entry });
   } catch (_e) {
     debug('[Listings] Could not send activity log to popup (likely closed)');
   }

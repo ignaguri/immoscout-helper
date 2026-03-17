@@ -342,15 +342,19 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
     if (aiResult?.message) {
       personalizedMessage = aiResult.message;
     } else {
-      // Check if AI is enabled — if so, failing to generate a message is a hard error
+      // Check if AI is enabled — if so, failing is a hard error (never fall back to template)
       const aiConfig = await getAIConfig();
       if (aiConfig.enabled) {
-        error('[Messaging] AI is enabled but failed to generate a message — aborting send to prevent template fallback');
+        // Distinguish: aiResult null = analysis/server failed; aiResult exists but no message = message generation failed
+        const failReason = aiResult
+          ? 'AI message generation failed'
+          : 'AI analysis failed (server unreachable or extraction error)';
+        error(`[Messaging] ${failReason} — aborting send to prevent template fallback`);
         await sendActivityLog({
           lastResult: 'failed',
           lastId: listing.id,
           lastTitle: listing.title || '',
-          error: 'AI failed to generate message',
+          error: failReason,
         });
         await logActivity({
           listingId: listing.id,
@@ -358,15 +362,15 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
           url: listing.url,
           score: aiResult?.score,
           action: 'failed',
-          reason: 'AI failed to generate message',
+          reason: failReason,
           landlord: landlordInfo,
         });
         try {
           await chrome.tabs.remove(currentListingTabId);
         } catch (_e) {
-          debug('[Messaging] Tab cleanup failed after AI message failure');
+          debug('[Messaging] Tab cleanup failed after AI failure');
         }
-        return { success: false, listing, error: 'AI failed to generate message' };
+        return { success: false, listing, error: failReason };
       }
       // AI not configured — use template
       warn('[Messaging] AI not configured — using template');

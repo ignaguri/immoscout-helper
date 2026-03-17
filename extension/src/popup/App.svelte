@@ -313,8 +313,8 @@ onMount(() => {
     if (request.action === 'progressUpdate') {
       appendToResult(request.message);
     } else if (request.action === 'activityLog') {
-      // Deduplicate: skip if an entry with the same timestamp already exists (race between storage load and runtime message)
-      if (request.timestamp && activityLog.some((e: any) => e.timestamp === request.timestamp)) {
+      // Deduplicate: skip if an entry with the same _id already exists (race between storage load and runtime message)
+      if (request._id && activityLog.some((e: any) => e._id === request._id)) {
         // already loaded from storage — skip
       } else {
         activityLog = [...activityLog, request];

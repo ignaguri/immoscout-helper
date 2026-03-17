@@ -313,7 +313,12 @@ onMount(() => {
     if (request.action === 'progressUpdate') {
       appendToResult(request.message);
     } else if (request.action === 'activityLog') {
-      activityLog = [...activityLog, request];
+      // Deduplicate: skip if an entry with the same timestamp already exists (race between storage load and runtime message)
+      if (request.timestamp && activityLog.some((e: any) => e.timestamp === request.timestamp)) {
+        // already loaded from storage — skip
+      } else {
+        activityLog = [...activityLog, request];
+      }
       // Refresh pending approval when activity updates
       loadPendingApproval();
       // Mirror into queue progress live feed while queue is running
@@ -575,6 +580,17 @@ onMount(() => {
 
   .toggle-btn.stop:hover {
     background: #222;
+  }
+
+  .toggle-btn:disabled {
+    background: #ccc;
+    color: #888;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .toggle-btn:disabled:hover {
+    background: #ccc;
   }
 
   /* Stats Bar */

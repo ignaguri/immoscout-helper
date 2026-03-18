@@ -75,7 +75,8 @@ export const SYNCED_CONTACTED_KEY = 'syncedContactedCount' as const;
 
 // Landlord tracking
 export const CONTACTED_LANDLORDS_KEY = 'contactedLandlords' as const;
-export const DUPLICATE_LANDLORD_TIMEOUT_MS = 60000; // 1 minute
+export const DUPLICATE_LANDLORD_TIMEOUT_MS = 300000; // 5 minutes (popup buttons provide reliable interaction)
+export const PENDING_DUPLICATE_DECISION_KEY = 'pendingDuplicateDecision' as const;
 
 // Queue keys
 export const QUEUE_KEY = 'manualQueue' as const;

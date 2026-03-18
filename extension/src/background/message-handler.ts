@@ -252,7 +252,7 @@ export function registerMessageHandler(): void {
 
             // Open the messenger conversation page
             const messengerUrl = `${C.MESSENGER_BASE_URL}${conversationId}`;
-            const tab = await chrome.tabs.create({ url: messengerUrl, active: true });
+            const tab = await chrome.tabs.create({ url: messengerUrl, active: false });
 
             await waitForTabLoad(tab.id!, C.TAB_LOAD_TIMEOUT);
             // Extra wait for React to render
@@ -395,7 +395,7 @@ export function registerMessageHandler(): void {
 
             // Open the messenger conversation page
             const messengerUrl = `${C.MESSENGER_BASE_URL}${conversationId}`;
-            const tab = await chrome.tabs.create({ url: messengerUrl, active: true });
+            const tab = await chrome.tabs.create({ url: messengerUrl, active: false });
 
             await waitForTabLoad(tab.id!, C.TAB_LOAD_TIMEOUT);
             await new Promise((resolve) => setTimeout(resolve, 3000));

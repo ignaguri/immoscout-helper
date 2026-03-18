@@ -90,6 +90,9 @@ export interface FormValues {
   phone: string;
 }
 
+// Last AI error detail — read by messaging.ts to include in activity log
+export let lastAIError: string | null = null;
+
 // ── Direct Gemini mode ──
 
 async function tryAIAnalysisDirect(
@@ -110,9 +113,10 @@ async function tryAIAnalysisDirect(
     listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
   } catch (e: any) {
     error('[AI/Direct] Failed to extract listing details:', e.message);
+    lastAIError = `Failed to extract listing details: ${e.message}`;
     return null;
   }
-  if (!listingDetails) return null;
+  if (!listingDetails) { lastAIError = 'Content script returned empty listing details'; return null; }
 
   const listingText = formatListingForPrompt(listingDetails);
   const userProfile = { ...formValues, aboutMe: config.aboutMe };
@@ -147,6 +151,7 @@ async function tryAIAnalysisDirect(
     }
   } catch (err) {
     error('[AI/Direct] Scoring error:', (err as Error).message);
+    lastAIError = `AI scoring error: ${(err as Error).message}`;
     return null;
   }
 
@@ -199,6 +204,7 @@ async function tryAIAnalysisDirect(
     totalCompletionTokens += msgResult.usage.completionTokens;
   } catch (err) {
     error('[AI/Direct] Message generation error:', (err as Error).message);
+    lastAIError = `AI message generation error: ${(err as Error).message}`;
   }
 
   await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
@@ -206,6 +212,7 @@ async function tryAIAnalysisDirect(
   // If message generation failed, do NOT allow fallback to template — treat as failure
   if (!message) {
     error('[AI/Direct] Message generation failed — aborting to prevent template fallback');
+    if (!lastAIError) lastAIError = 'AI message generation failed (no output)';
     return null;
   }
 
@@ -242,9 +249,10 @@ async function tryAIAnalysisServer(
     listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
   } catch (e: any) {
     error('[AI/Server] Failed to extract listing details:', e.message);
+    lastAIError = `Failed to extract listing details: ${e.message}`;
     return null;
   }
-  if (!listingDetails) return null;
+  if (!listingDetails) { lastAIError = 'Content script returned empty listing details'; return null; }
 
   const payload = {
     listingDetails,
@@ -270,7 +278,10 @@ async function tryAIAnalysisServer(
     clearTimeout(timeout);
 
     if (!response.ok) {
+      let body = '';
+      try { body = await response.text(); } catch {}
       error(`[AI/Server] Server returned ${response.status}`);
+      lastAIError = `Server returned HTTP ${response.status}${body ? `: ${body.slice(0, 500)}` : ''}`;
       return null;
     }
 
@@ -302,6 +313,7 @@ async function tryAIAnalysisServer(
     // If server returned a non-skip result with no message, treat as failure to prevent template fallback
     if (!result.skip && !result.message) {
       error('[AI/Server] Server did not generate a message — aborting to prevent template fallback');
+      lastAIError = 'Server scored listing but did not generate a message';
       return null;
     }
 
@@ -309,6 +321,7 @@ async function tryAIAnalysisServer(
   } catch (e: any) {
     clearTimeout(timeout);
     error('[AI/Server] Fetch error:', e.message);
+    lastAIError = `Server fetch error: ${e.message}`;
     return null;
   }
 }
@@ -326,8 +339,11 @@ export async function tryAIAnalysis(
 ): Promise<AIAnalysisResult | null> {
   try {
     const config = await getAIConfig();
+    lastAIError = null; // Reset before each attempt
+
     if (!config.enabled) {
       warn('[AI] Not configured — skipping analysis');
+      lastAIError = 'AI not configured';
       return null;
     }
 
@@ -357,9 +373,11 @@ export async function tryAIAnalysis(
     }
 
     warn('[AI] No valid AI configuration (need API key for direct mode or server URL for server mode)');
+    lastAIError = 'No valid AI configuration (need API key for direct mode or server URL for server mode)';
     return null;
   } catch (e: any) {
     error('[AI] Unexpected error:', e.message);
+    lastAIError = `Unexpected AI error: ${e.message}`;
     return null;
   }
 }

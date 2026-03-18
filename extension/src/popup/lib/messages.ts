@@ -103,6 +103,13 @@ export async function skipPendingListing(id: string): Promise<{ success: boolean
   return chrome.runtime.sendMessage({ action: 'skipPendingListing', id });
 }
 
+export async function sendDuplicateLandlordDecision(
+  decisionId: string,
+  decision: 'send' | 'skip',
+): Promise<{ success: boolean }> {
+  return chrome.runtime.sendMessage({ action: 'duplicateLandlordDecision', decisionId, decision });
+}
+
 export async function generateDocuments(
   conversationId: string,
   address: string,

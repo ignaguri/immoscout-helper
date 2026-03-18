@@ -1,6 +1,37 @@
 <script lang="ts">
+import { onMount } from 'svelte';
+import { PENDING_DUPLICATE_DECISION_KEY } from '../../shared/constants';
+import { sendDuplicateLandlordDecision } from '../lib/messages';
+
 let { entry }: { entry: any } = $props();
 let showErrorDetail = $state(false);
+let duplicatePending = $state(false);
+let decisionSending = $state(false);
+let decisionSent = $state(false);
+
+onMount(async () => {
+  if (entry.duplicateDecisionId) {
+    try {
+      const stored = await chrome.storage.local.get(PENDING_DUPLICATE_DECISION_KEY);
+      duplicatePending = stored[PENDING_DUPLICATE_DECISION_KEY]?.decisionId === entry.duplicateDecisionId;
+    } catch (_e) {
+      duplicatePending = false;
+    }
+  }
+});
+
+async function handleDuplicateDecision(decision: 'send' | 'skip') {
+  if (!entry.duplicateDecisionId || decisionSent || decisionSending) return;
+  decisionSending = true;
+  try {
+    await sendDuplicateLandlordDecision(entry.duplicateDecisionId, decision);
+    decisionSent = true;
+  } catch (e) {
+    console.error('[Popup] Failed to send duplicate landlord decision:', e);
+  } finally {
+    decisionSending = false;
+  }
+}
 
 function escapeHtml(text: string): string {
   const div = document.createElement('div');
@@ -60,6 +91,24 @@ const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;'
     {#if !entry.current}{@render timestamp()}{/if}
     {entry.message}
   </div>
+  {#if entry.duplicateDecisionId && duplicatePending && !decisionSent}
+    <div class="duplicate-decision-actions">
+      <button
+        class="btn-decision btn-send-anyway"
+        onclick={() => handleDuplicateDecision('send')}
+        disabled={decisionSending}
+      >
+        Send Anyway
+      </button>
+      <button
+        class="btn-decision btn-skip-dup"
+        onclick={() => handleDuplicateDecision('skip')}
+        disabled={decisionSending}
+      >
+        Skip
+      </button>
+    </div>
+  {/if}
 {/if}
 
 {#if entry.lastResult}
@@ -108,6 +157,45 @@ const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;'
   .error-info-btn:focus-visible {
     background: rgba(192, 57, 43, 0.1);
     outline: 1px solid #c0392b;
+  }
+
+  .duplicate-decision-actions {
+    display: flex;
+    gap: 6px;
+    margin: 4px 0 4px 8px;
+  }
+
+  .btn-decision {
+    all: unset;
+    cursor: pointer;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    transition: background 0.15s;
+  }
+
+  .btn-send-anyway {
+    background: #83f1dc;
+    color: #1a1a1a;
+  }
+
+  .btn-send-anyway:hover {
+    background: #6de8d0;
+  }
+
+  .btn-skip-dup {
+    background: #f0f0f0;
+    color: #333;
+  }
+
+  .btn-skip-dup:hover {
+    background: #e0e0e0;
+  }
+
+  .btn-decision:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .error-detail {

@@ -4,7 +4,7 @@ import { debug, error, log, warn } from '../shared/logger';
 import { buildShortenPrompt } from '../shared/prompts';
 import { generatePersonalizedMessage } from '../shared/utils';
 import { logActivity } from './activity';
-import { type FormValues, tryAIAnalysis, trySolveCaptcha } from './ai';
+import { type FormValues, lastAIError, tryAIAnalysis, trySolveCaptcha } from './ai';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
 import { addToPendingApproval } from './pending-approval';
@@ -100,7 +100,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
   log('Processing new listing:', listing.url);
 
   await new Promise((resolve) => setTimeout(resolve, humanDelay(500, 300)));
-  const listingTab = await chrome.tabs.create({ url: listing.url, active: true });
+  const listingTab = await chrome.tabs.create({ url: listing.url, active: false });
   const currentListingTabId = listingTab.id!;
 
   // Wait for page load via event instead of fixed delay
@@ -346,9 +346,11 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       const aiConfig = await getAIConfig();
       if (aiConfig.enabled) {
         // Distinguish: aiResult null = analysis/server failed; aiResult exists but no message = message generation failed
-        const failReason = aiResult
+        const genericReason = aiResult
           ? 'AI message generation failed'
           : 'AI analysis failed (server unreachable or extraction error)';
+        // Use the detailed AI error as the primary visible reason when available
+        const failReason = lastAIError || genericReason;
         error(`[Messaging] ${failReason} — aborting send to prevent template fallback`);
         await sendActivityLog({
           lastResult: 'failed',

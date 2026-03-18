@@ -4,7 +4,7 @@ import { debug, error, log, warn } from '../shared/logger';
 import { buildShortenPrompt } from '../shared/prompts';
 import { generatePersonalizedMessage } from '../shared/utils';
 import { logActivity } from './activity';
-import { type FormValues, tryAIAnalysis, trySolveCaptcha } from './ai';
+import { type FormValues, lastAIError, tryAIAnalysis, trySolveCaptcha } from './ai';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
 import { addToPendingApproval } from './pending-approval';
@@ -100,7 +100,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
   log('Processing new listing:', listing.url);
 
   await new Promise((resolve) => setTimeout(resolve, humanDelay(500, 300)));
-  const listingTab = await chrome.tabs.create({ url: listing.url, active: true });
+  const listingTab = await chrome.tabs.create({ url: listing.url, active: false });
   const currentListingTabId = listingTab.id!;
 
   // Wait for page load via event instead of fixed delay
@@ -355,6 +355,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
           lastId: listing.id,
           lastTitle: listing.title || '',
           error: failReason,
+          errorDetail: lastAIError || undefined,
         });
         await logActivity({
           listingId: listing.id,

@@ -1,5 +1,125 @@
 <script lang="ts">
 const version = chrome.runtime.getManifest().version;
+
+let copyBugText = $state('Copy Bug Report to Clipboard');
+let bugReportGenerating = $state(false);
+
+function maskKey(key: string | undefined | null): string {
+  if (!key) return '(not set)';
+  if (key.length <= 8) return '***';
+  return key.slice(0, 4) + '...' + key.slice(-4);
+}
+
+async function generateBugReport() {
+  bugReportGenerating = true;
+  try {
+    const allData = await chrome.storage.local.get(null);
+
+    // Extension & browser info
+    const manifest = chrome.runtime.getManifest();
+    const ua = navigator.userAgent;
+
+    // Settings (sanitized)
+    const settingsSummary = {
+      aiMode: allData.aiMode ?? 'direct',
+      aiProvider: allData.aiProvider ?? 'gemini',
+      aiApiKeyGemini: maskKey(allData.aiApiKeyGemini),
+      aiApiKeyOpenai: maskKey(allData.aiApiKeyOpenai),
+      aiMinScore: allData.aiMinScore ?? 5,
+      aiEnabled: allData.aiEnabled ?? true,
+      aiServerUrl: allData.aiServerUrl ?? 'http://localhost:3456',
+      checkInterval: allData.checkInterval ?? 60,
+      rateLimit: allData.rateLimit ?? 10,
+      minDelay: allData.minDelay ?? 30,
+      autoSendMode: allData.autoSendMode ?? 'auto',
+      searchUrls: allData.searchUrls ?? allData.searchUrl ?? '(not set)',
+      convCheckInterval: allData.convCheckInterval ?? 0,
+    };
+
+    // Stats
+    const stats = {
+      totalMessagesSent: allData.totalMessagesSent ?? 0,
+      seenListings: Array.isArray(allData.seenListings) ? allData.seenListings.length : 0,
+      contactedLandlords: Array.isArray(allData.contactedLandlords) ? allData.contactedLandlords.length : 0,
+      syncedContactedCount: allData.syncedContactedCount ?? 0,
+      aiListingsScored: allData.aiListingsScored ?? 0,
+      aiListingsSkipped: allData.aiListingsSkipped ?? 0,
+      aiPromptTokens: allData.aiUsagePromptTokens ?? 0,
+      aiCompletionTokens: allData.aiUsageCompletionTokens ?? 0,
+      isMonitoring: allData.isMonitoring ?? false,
+      isQueueProcessing: allData.isQueueProcessing ?? false,
+    };
+
+    // Queue
+    const queue = allData.manualQueue ?? [];
+    const pendingApproval = allData.pendingApprovalListings ?? [];
+    const blacklisted = allData.blacklistedListings ?? [];
+
+    // Activity log (last 30 entries)
+    const activityLog: any[] = allData.activityLog ?? [];
+    const recentLog = activityLog.slice(-30);
+
+    // Conversations metadata (no message content)
+    const conversations: any[] = allData.conversations ?? [];
+    const convSummary = {
+      total: conversations.length,
+      unreadCount: allData.convUnreadCount ?? 0,
+      lastCheck: allData.convLastCheck ? new Date(allData.convLastCheck).toISOString() : 'never',
+    };
+
+    // Rate limit state
+    const rateState = {
+      lastMessageTime: allData.rateLastMessageTime ? new Date(allData.rateLastMessageTime).toISOString() : 'none',
+      messageCount: allData.rateMessageCount ?? 0,
+      countResetTime: allData.rateCountResetTime ? new Date(allData.rateCountResetTime).toISOString() : 'none',
+      lastCheckTime: allData.lastCheckTime ? new Date(allData.lastCheckTime).toISOString() : 'none',
+    };
+
+    const report = [
+      `=== Bug Report — Apartment Messenger v${manifest.version} ===`,
+      `Generated: ${new Date().toISOString()}`,
+      `User Agent: ${ua}`,
+      '',
+      '--- Settings ---',
+      JSON.stringify(settingsSummary, null, 2),
+      '',
+      '--- Stats ---',
+      JSON.stringify(stats, null, 2),
+      '',
+      '--- Rate Limit State ---',
+      JSON.stringify(rateState, null, 2),
+      '',
+      '--- Conversations ---',
+      JSON.stringify(convSummary, null, 2),
+      '',
+      `--- Queue (${queue.length} items) ---`,
+      queue.length > 0 ? JSON.stringify(queue.slice(-10), null, 2) : '(empty)',
+      '',
+      `--- Pending Approval (${pendingApproval.length} items) ---`,
+      pendingApproval.length > 0 ? JSON.stringify(pendingApproval.slice(-10), null, 2) : '(empty)',
+      '',
+      `--- Blacklisted (${blacklisted.length} items) ---`,
+      blacklisted.length > 0 ? JSON.stringify(blacklisted.slice(-10), null, 2) : '(empty)',
+      '',
+      `--- Activity Log (last ${recentLog.length} of ${activityLog.length}) ---`,
+      ...recentLog.map((e: any) => {
+        const ts = e.timestamp ? new Date(e.timestamp).toISOString() : '?';
+        return `[${ts}] [${e.type ?? '?'}] ${e.message ?? JSON.stringify(e)}`;
+      }),
+      '',
+      '=== End of Bug Report ===',
+    ].join('\n');
+
+    await navigator.clipboard.writeText(report);
+    copyBugText = 'Copied!';
+    setTimeout(() => { copyBugText = 'Copy Bug Report to Clipboard'; }, 2500);
+  } catch (err: any) {
+    copyBugText = `Failed: ${err.message}`;
+    setTimeout(() => { copyBugText = 'Copy Bug Report to Clipboard'; }, 3000);
+  } finally {
+    bugReportGenerating = false;
+  }
+}
 </script>
 
 <div class="help-tab">
@@ -172,6 +292,14 @@ const version = chrome.runtime.getManifest().version;
     </div>
   </div>
 
+  <div class="section-title">Report a Bug</div>
+
+  <p>Something not working? Copy a bug report with your current settings, stats, and recent activity log to share with the developer. <strong>API keys are masked</strong> and no personal messages are included.</p>
+
+  <button class="btn btn-test bug-report-btn" onclick={generateBugReport} disabled={bugReportGenerating}>
+    {copyBugText}
+  </button>
+
   <div class="version-info">Apartment Messenger v{version}</div>
 </div>
 
@@ -286,6 +414,11 @@ const version = chrome.runtime.getManifest().version;
   .info-box strong {
     display: block;
     margin-bottom: 2px;
+  }
+
+  .bug-report-btn {
+    width: 100%;
+    margin-top: 8px;
   }
 
   .version-info {

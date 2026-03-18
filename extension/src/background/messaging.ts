@@ -346,16 +346,17 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       const aiConfig = await getAIConfig();
       if (aiConfig.enabled) {
         // Distinguish: aiResult null = analysis/server failed; aiResult exists but no message = message generation failed
-        const failReason = aiResult
+        const genericReason = aiResult
           ? 'AI message generation failed'
           : 'AI analysis failed (server unreachable or extraction error)';
+        // Use the detailed AI error as the primary visible reason when available
+        const failReason = lastAIError || genericReason;
         error(`[Messaging] ${failReason} — aborting send to prevent template fallback`);
         await sendActivityLog({
           lastResult: 'failed',
           lastId: listing.id,
           lastTitle: listing.title || '',
           error: failReason,
-          errorDetail: lastAIError || undefined,
         });
         await logActivity({
           listingId: listing.id,

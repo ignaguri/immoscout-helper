@@ -66,23 +66,25 @@ const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;'
   {@const info = getResultInfo(entry.lastResult)}
   {@const lid = entry.lastId}
   {@const lurl = `https://www.immobilienscout24.de/expose/${lid}`}
-  {@const hasError = entry.lastResult === 'failed' && (entry.error || entry.errorDetail)}
+  {@const hasError = entry.lastResult === 'failed' && entry.error}
   <div style={getLogStyle(info.type)}>
     {#if !entry.current && !entry.message}{@render timestamp()}{/if}
     {info.icon} {info.label}:
     <a href={lurl} target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:none;">({lid})</a>
     {' '}{entry.lastTitle || ''}
     {#if hasError}
-      <button class="error-info-btn" onclick={() => showErrorDetail = !showErrorDetail} title={showErrorDetail ? 'Hide details' : 'Show error details'}>
+      <button
+        class="error-info-btn"
+        onclick={() => showErrorDetail = !showErrorDetail}
+        aria-label={showErrorDetail ? 'Hide error details' : 'Show error details'}
+        aria-expanded={showErrorDetail}
+      >
         {showErrorDetail ? '▾' : 'ⓘ'}
       </button>
     {/if}
   </div>
   {#if hasError && showErrorDetail}
-    <div class="error-detail">
-      {#if entry.error}<div class="error-reason">{entry.error}</div>{/if}
-      {#if entry.errorDetail}<div class="error-raw">{entry.errorDetail}</div>{/if}
-    </div>
+    <div class="error-detail">{entry.error}</div>
   {/if}
 {/if}
 
@@ -102,8 +104,10 @@ const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;'
     vertical-align: middle;
   }
 
-  .error-info-btn:hover {
+  .error-info-btn:hover,
+  .error-info-btn:focus-visible {
     background: rgba(192, 57, 43, 0.1);
+    outline: 1px solid #c0392b;
   }
 
   .error-detail {
@@ -116,18 +120,6 @@ const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;'
     font-weight: 400;
     color: #7f1d1d;
     word-break: break-word;
-  }
-
-  .error-reason {
-    font-weight: 600;
-    margin-bottom: 2px;
-  }
-
-  .error-raw {
-    color: #991b1b;
-    font-family: 'SF Mono', Monaco, monospace;
-    font-size: 10px;
     white-space: pre-wrap;
-    margin-top: 4px;
   }
 </style>

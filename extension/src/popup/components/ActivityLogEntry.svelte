@@ -1,5 +1,6 @@
 <script lang="ts">
 let { entry }: { entry: any } = $props();
+let showErrorDetail = $state(false);
 
 function escapeHtml(text: string): string {
   const div = document.createElement('div');
@@ -65,10 +66,60 @@ const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;'
   {@const info = getResultInfo(entry.lastResult)}
   {@const lid = entry.lastId}
   {@const lurl = `https://www.immobilienscout24.de/expose/${lid}`}
+  {@const hasError = entry.lastResult === 'failed' && entry.error}
   <div style={getLogStyle(info.type)}>
     {#if !entry.current && !entry.message}{@render timestamp()}{/if}
     {info.icon} {info.label}:
     <a href={lurl} target="_blank" rel="noopener noreferrer" style="color:inherit; text-decoration:none;">({lid})</a>
     {' '}{entry.lastTitle || ''}
+    {#if hasError}
+      <button
+        class="error-info-btn"
+        onclick={() => showErrorDetail = !showErrorDetail}
+        aria-label={showErrorDetail ? 'Hide error details' : 'Show error details'}
+        aria-expanded={showErrorDetail}
+      >
+        {showErrorDetail ? '▾' : 'ⓘ'}
+      </button>
+    {/if}
   </div>
+  {#if hasError && showErrorDetail}
+    <div class="error-detail">{entry.error}</div>
+  {/if}
 {/if}
+
+<style>
+  .error-info-btn {
+    all: unset;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    font-size: 12px;
+    color: #c0392b;
+    border-radius: 50%;
+    vertical-align: middle;
+  }
+
+  .error-info-btn:hover,
+  .error-info-btn:focus-visible {
+    background: rgba(192, 57, 43, 0.1);
+    outline: 1px solid #c0392b;
+  }
+
+  .error-detail {
+    margin: 2px 0 4px 12px;
+    padding: 6px 8px;
+    background: #fef2f2;
+    border-left: 3px solid #c0392b;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 400;
+    color: #7f1d1d;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+</style>

@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onMount } from 'svelte';
+import { PENDING_DUPLICATE_DECISION_KEY } from '../../shared/constants';
 import { sendDuplicateLandlordDecision } from '../lib/messages';
 
 let { entry }: { entry: any } = $props();
@@ -11,8 +12,8 @@ let decisionSent = $state(false);
 onMount(async () => {
   if (entry.duplicateDecisionId) {
     try {
-      const stored = await chrome.storage.local.get('pendingDuplicateDecision');
-      duplicatePending = stored.pendingDuplicateDecision?.decisionId === entry.duplicateDecisionId;
+      const stored = await chrome.storage.local.get(PENDING_DUPLICATE_DECISION_KEY);
+      duplicatePending = stored[PENDING_DUPLICATE_DECISION_KEY]?.decisionId === entry.duplicateDecisionId;
     } catch (_e) {
       duplicatePending = false;
     }

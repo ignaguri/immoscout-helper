@@ -71,38 +71,90 @@ async function resolveDuplicateDecisionInLog(decisionId: string, outcome: string
   }
 }
 
+// Alarm name for duplicate landlord decision timeout (survives SW suspension)
+const DUP_LANDLORD_ALARM = 'dup-landlord-timeout';
+
+// Singleton resolver — set while a decision is pending so the alarm handler can resolve it
+let pendingDecisionResolve: ((decision: 'send' | 'skip' | 'defer') => void) | null = null;
+
+/** Called from index.ts alarm listener when the dup-landlord-timeout alarm fires. */
+export function handleDuplicateLandlordAlarm(): void {
+  if (pendingDecisionResolve) {
+    pendingDecisionResolve('defer');
+  }
+}
+
 // Prompt user about duplicate landlord via chrome.notifications + popup buttons.
-// Returns 'send' | 'skip' | 'defer' (defer = timeout, move to end of queue)
+// Returns 'send' | 'skip' | 'defer' (defer = alarm timeout, move to end of queue)
 //
 // Stores a pending decision record in chrome.storage.local so the popup can
 // render interactive "Send Anyway" / "Skip" buttons in the activity log.
 // Also creates a chrome.notification as fallback (note: buttons only work on
 // ChromeOS/Windows; on macOS, clicking the notification body resolves to 'send').
-function promptDuplicateLandlordDecision(
+// Uses chrome.alarms for timeout instead of setTimeout to survive MV3 SW suspension.
+async function promptDuplicateLandlordDecision(
   landlordName: string,
   listing: Listing | QueueItem,
 ): Promise<'send' | 'skip' | 'defer'> {
-  return new Promise(async (resolve) => {
-    const decisionId = crypto.randomUUID();
-    const notifId = `dup-landlord-${Date.now()}`;
-    let resolved = false;
+  const decisionId = crypto.randomUUID();
+  const notifId = `dup-landlord-${Date.now()}`;
+  let resolved = false;
 
-    const cleanup = async (outcome?: string) => {
+  // Declare listeners at function scope so removeListeners can reference them
+  let popupListener: (request: any, sender: any, sendResponse: any) => boolean | void;
+  let buttonListener: (clickedId: string, buttonIndex: number) => void;
+  let clickListener: (clickedId: string) => void;
+
+  // Synchronous listener cleanup — safe to call from any listener context
+  const removeListeners = () => {
+    chrome.notifications.onButtonClicked.removeListener(buttonListener);
+    chrome.notifications.onClicked.removeListener(clickListener);
+    chrome.runtime.onMessage.removeListener(popupListener);
+    chrome.notifications.clear(notifId);
+    chrome.alarms.clear(DUP_LANDLORD_ALARM);
+    pendingDecisionResolve = null;
+  };
+
+  // Async post-resolution work — fire-and-forget with error protection
+  const cleanupStorage = (outcome: string) => {
+    chrome.storage.local.remove(C.PENDING_DUPLICATE_DECISION_KEY).catch(() => {});
+    resolveDuplicateDecisionInLog(decisionId, outcome).catch(() => {});
+  };
+
+  // Do async setup before awaiting the decision promise
+  await chrome.storage.local.set({
+    [C.PENDING_DUPLICATE_DECISION_KEY]: {
+      decisionId,
+      landlordName,
+      listingId: listing.id,
+      listingTitle: listing.title || '',
+      createdAt: Date.now(),
+    },
+  });
+
+  await sendActivityLog({
+    message: `Duplicate landlord detected: "${landlordName}" — waiting for user decision...`,
+    type: 'wait',
+    duplicateDecisionId: decisionId,
+    duplicateLandlordName: landlordName,
+  });
+
+  // Await the user's decision (resolved by popup buttons, notification, or alarm timeout)
+  const decision = await new Promise<'send' | 'skip' | 'defer'>((resolve) => {
+    const settle = (outcome: 'send' | 'skip' | 'defer') => {
       if (resolved) return;
       resolved = true;
-      chrome.notifications.onButtonClicked.removeListener(buttonListener);
-      chrome.notifications.onClicked.removeListener(clickListener);
-      chrome.runtime.onMessage.removeListener(popupListener);
-      chrome.notifications.clear(notifId);
-      await chrome.storage.local.remove(C.PENDING_DUPLICATE_DECISION_KEY);
-      await resolveDuplicateDecisionInLog(decisionId, outcome || 'defer');
+      removeListeners();
+      cleanupStorage(outcome);
+      resolve(outcome);
     };
 
-    // Listen for popup decision via runtime message
-    const popupListener = (request: any, _sender: any, sendResponse: any) => {
+    // Expose settle so the alarm handler in index.ts can trigger defer
+    pendingDecisionResolve = settle;
+
+    popupListener = (request: any, _sender: any, sendResponse: any) => {
       if (request.action === 'duplicateLandlordDecision' && request.decisionId === decisionId) {
-        cleanup(request.decision);
-        resolve(request.decision);
+        settle(request.decision);
         sendResponse({ success: true });
         return true;
       }
@@ -110,39 +162,18 @@ function promptDuplicateLandlordDecision(
     };
     chrome.runtime.onMessage.addListener(popupListener);
 
-    const buttonListener = (clickedNotifId: string, buttonIndex: number) => {
+    buttonListener = (clickedNotifId: string, buttonIndex: number) => {
       if (clickedNotifId !== notifId) return;
-      cleanup(buttonIndex === 0 ? 'send' : 'skip');
-      resolve(buttonIndex === 0 ? 'send' : 'skip');
+      settle(buttonIndex === 0 ? 'send' : 'skip');
     };
 
-    const clickListener = (clickedNotifId: string) => {
+    clickListener = (clickedNotifId: string) => {
       if (clickedNotifId !== notifId) return;
-      cleanup('send');
-      resolve('send');
+      settle('send');
     };
 
     chrome.notifications.onButtonClicked.addListener(buttonListener);
     chrome.notifications.onClicked.addListener(clickListener);
-
-    // Store pending decision for popup discovery
-    await chrome.storage.local.set({
-      [C.PENDING_DUPLICATE_DECISION_KEY]: {
-        decisionId,
-        landlordName,
-        listingId: listing.id,
-        listingTitle: listing.title || '',
-        createdAt: Date.now(),
-      },
-    });
-
-    // Send activity log entry with decision ID so popup can render buttons
-    await sendActivityLog({
-      message: `Duplicate landlord detected: "${landlordName}" — waiting for user decision...`,
-      type: 'wait',
-      duplicateDecisionId: decisionId,
-      duplicateLandlordName: landlordName,
-    });
 
     chrome.notifications.create(notifId, {
       type: 'basic',
@@ -153,14 +184,13 @@ function promptDuplicateLandlordDecision(
       requireInteraction: true,
     });
 
-    // Timeout → defer (move to end of queue)
-    setTimeout(async () => {
-      if (!resolved) {
-        await cleanup('defer');
-        resolve('defer');
-      }
-    }, C.DUPLICATE_LANDLORD_TIMEOUT_MS);
+    // Use chrome.alarms for timeout — survives MV3 service worker suspension
+    chrome.alarms.create(DUP_LANDLORD_ALARM, {
+      delayInMinutes: C.DUPLICATE_LANDLORD_TIMEOUT_MS / 60000,
+    });
   });
+
+  return decision;
 }
 
 export async function handleNewListing(listing: Listing | QueueItem): Promise<HandleListingResult> {

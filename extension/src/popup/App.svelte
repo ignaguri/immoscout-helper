@@ -342,6 +342,12 @@ onMount(() => {
           queue = q;
         });
       }
+    } else if (request.action === 'duplicateDecisionResolved') {
+      activityLog = activityLog.map((e: any) =>
+        e.duplicateDecisionId === request.decisionId
+          ? { ...e, duplicateDecisionId: undefined, message: e.message }
+          : e,
+      );
     } else if (request.action === 'conversationUpdate') {
       loadConversations();
     } else if (request.action === 'queueDone') {

@@ -342,6 +342,22 @@ onMount(() => {
           queue = q;
         });
       }
+    } else if (request.action === 'duplicateDecisionResolved') {
+      const outcomeLabel =
+        request.outcome === 'send'
+          ? 'User chose: Send Anyway'
+          : request.outcome === 'skip'
+            ? 'User chose: Skip'
+            : 'No response — deferred to end of queue';
+      activityLog = activityLog.map((e: any) =>
+        e.duplicateDecisionId === request.decisionId
+          ? {
+              ...e,
+              duplicateDecisionId: undefined,
+              message: `"${e.duplicateLandlordName || 'Duplicate landlord'}": ${outcomeLabel}`,
+            }
+          : e,
+      );
     } else if (request.action === 'conversationUpdate') {
       loadConversations();
     } else if (request.action === 'queueDone') {

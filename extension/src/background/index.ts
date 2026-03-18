@@ -5,6 +5,7 @@ import { checkForNewReplies } from './conversations';
 import { scheduleNextAlarm } from './helpers';
 import { checkForNewListings } from './listings';
 import { registerMessageHandler, registerNotificationHandler } from './message-handler';
+import { handleDuplicateLandlordAlarm } from './messaging';
 import { updateCheckInterval } from './monitoring';
 import {
   isMonitoring,
@@ -105,6 +106,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         await scheduleNextAlarm();
       }
     }
+  } else if (alarm.name === 'dup-landlord-timeout') {
+    log('[Duplicate] Alarm fired — deferring pending duplicate landlord decision');
+    handleDuplicateLandlordAlarm();
   } else if (alarm.name === C.CONVERSATIONS_ALARM_NAME) {
     log(`[${new Date().toLocaleTimeString()}] Conversation alarm triggered - checking for replies...`);
     try {

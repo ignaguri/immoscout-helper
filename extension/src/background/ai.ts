@@ -8,6 +8,7 @@ import {
 } from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { error, log, warn } from '../shared/logger';
+import { shouldNotify } from './notifications';
 import {
   buildMessagePrompt,
   buildScoringPrompt,
@@ -559,11 +560,13 @@ export async function trySolveCaptcha(
   }
 
   error('[Captcha] All attempts failed');
-  chrome.notifications.create(`captcha-fail-${Date.now()}`, {
-    type: 'basic',
-    iconUrl: C.ICON_PATH,
-    title: 'Captcha Failed',
-    message: 'All captcha attempts failed — manual intervention may be needed.',
-  });
+  if (await shouldNotify('captchaFailed')) {
+    chrome.notifications.create(`captcha-fail-${Date.now()}`, {
+      type: 'basic',
+      iconUrl: C.ICON_PATH,
+      title: 'Captcha Failed',
+      message: 'All captcha attempts failed — manual intervention may be needed.',
+    });
+  }
   return false;
 }

@@ -11,6 +11,7 @@ import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';
 import { sendActivityLog } from './listings';
+import { shouldNotify } from './notifications';
 
 export type { ConversationEntry, ConversationMessage };
 
@@ -152,16 +153,18 @@ export async function checkForNewReplies(): Promise<void> {
           );
 
           // Send desktop notification
-          try {
-            chrome.notifications.create(`conv-reply-${conversationId}`, {
-              type: 'basic',
-              iconUrl: C.ICON_PATH,
-              title: 'New reply from landlord',
-              message: `${landlordName || 'Landlord'}: ${lastMessagePreview.substring(0, 100) || 'New message'}`,
-              priority: 2,
-            });
-          } catch (_e) {
-            debug('[Conversations] Desktop notification for new reply failed');
+          if (await shouldNotify('newReply')) {
+            try {
+              chrome.notifications.create(`conv-reply-${conversationId}`, {
+                type: 'basic',
+                iconUrl: C.ICON_PATH,
+                title: 'New reply from landlord',
+                message: `${landlordName || 'Landlord'}: ${lastMessagePreview.substring(0, 100) || 'New message'}`,
+                priority: 2,
+              });
+            } catch (_e) {
+              debug('[Conversations] Desktop notification for new reply failed');
+            }
           }
 
           // Log to activity

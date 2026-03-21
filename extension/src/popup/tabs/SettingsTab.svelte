@@ -1,5 +1,11 @@
 <script lang="ts">
 import { PROVIDERS } from '../../shared/ai-router';
+import {
+  NOTIFICATION_PREFS_KEY,
+  DEFAULT_NOTIFICATION_PREFS,
+  NOTIFICATION_LABELS,
+  type NotificationEvent,
+} from '../../shared/constants';
 import CollapsibleSection from '../components/CollapsibleSection.svelte';
 import { clearSeenListings } from '../lib/messages';
 import type { PopupSettings } from '../lib/storage';
@@ -30,6 +36,30 @@ let {
 let showApiKey = $state(false);
 let copySetupText = $state('Copy command');
 let fileInput: HTMLInputElement | undefined = $state();
+
+// Notification preferences
+let notifPrefs: Record<NotificationEvent, boolean> = $state({ ...DEFAULT_NOTIFICATION_PREFS });
+let notifPrefsLoaded = $state(false);
+
+async function loadNotifPrefs() {
+  const stored = await chrome.storage.local.get([NOTIFICATION_PREFS_KEY]);
+  if (stored[NOTIFICATION_PREFS_KEY]) {
+    notifPrefs = { ...DEFAULT_NOTIFICATION_PREFS, ...stored[NOTIFICATION_PREFS_KEY] };
+  }
+  notifPrefsLoaded = true;
+}
+
+async function saveNotifPrefs() {
+  await chrome.storage.local.set({ [NOTIFICATION_PREFS_KEY]: { ...notifPrefs } });
+}
+
+function handleNotifToggle(event: NotificationEvent) {
+  notifPrefs[event] = !notifPrefs[event];
+  saveNotifPrefs();
+}
+
+// Load notification prefs on mount
+loadNotifPrefs();
 
 // Active provider metadata (reactive to settings.aiProvider)
 let activeProvider = $derived(PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini);
@@ -245,6 +275,8 @@ const ALLOWED_IMPORT_KEYS = new Set([
   'syncedContactedCount',
   // Stats
   'totalMessagesSent',
+  // Notification preferences
+  'notificationPrefs',
 ]);
 
 async function handleImport(e: Event) {
@@ -420,6 +452,22 @@ async function handleImport(e: Event) {
   <button class="btn btn-secondary" onclick={handleResetUsage} style="font-size:11px;">Reset Usage Stats</button>
 </div>
 
+<CollapsibleSection title="Notifications" open={false}>
+  <div class="notif-prefs">
+    {#each Object.entries(NOTIFICATION_LABELS) as [event, label]}
+      <label class="notif-toggle">
+        <input
+          type="checkbox"
+          checked={notifPrefs[event as NotificationEvent]}
+          onchange={() => handleNotifToggle(event as NotificationEvent)}
+          disabled={!notifPrefsLoaded}
+        />
+        <span>{label}</span>
+      </label>
+    {/each}
+  </div>
+</CollapsibleSection>
+
 <div class="section-title">Data</div>
 
 <button class="btn btn-danger" onclick={handleClearSeen}>
@@ -478,5 +526,25 @@ async function handleImport(e: Event) {
 
   .internal-link:hover {
     color: #2a9d8f;
+  }
+
+  .notif-prefs {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .notif-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #333;
+    cursor: pointer;
+  }
+
+  .notif-toggle input[type='checkbox'] {
+    margin: 0;
+    cursor: pointer;
   }
 </style>

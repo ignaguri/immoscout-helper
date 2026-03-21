@@ -1,5 +1,5 @@
 // Typed chrome.runtime.sendMessage wrappers
-import type { AppointmentInfo, CaptureQueueResponse, PendingApprovalItem, QueueItem, QueueStatusResponse } from '../../shared/types';
+import type { AppointmentInfo, CaptureQueueResponse, ManualReviewData, PendingApprovalItem, QueueItem, QueueStatusResponse } from '../../shared/types';
 
 export async function sendAction(action: string, data?: Record<string, unknown>): Promise<unknown> {
   return chrome.runtime.sendMessage({ action, ...data });
@@ -121,4 +121,19 @@ export async function generateDocuments(
     address,
     moveIn,
   });
+}
+
+export async function getManualReview(): Promise<ManualReviewData | null> {
+  const result: any = await chrome.runtime.sendMessage({ action: 'getManualReview' });
+  return result?.review || null;
+}
+
+export async function refineManualMessage(
+  instructions: string,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  return chrome.runtime.sendMessage({ action: 'refineManualMessage', instructions });
+}
+
+export async function dismissManualReview(): Promise<void> {
+  await chrome.runtime.sendMessage({ action: 'dismissManualReview' });
 }

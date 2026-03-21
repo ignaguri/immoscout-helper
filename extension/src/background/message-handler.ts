@@ -1,7 +1,7 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { debug, error, log, warn } from '../shared/logger';
-import type { PendingApprovalItem } from '../shared/types';
+import type { ManualReviewData, PendingApprovalItem } from '../shared/types';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import { getProfile } from './ai';
 import type { ConversationEntry } from './conversations';
@@ -251,7 +251,7 @@ export function registerMessageHandler(): void {
             }
 
             // Open the messenger conversation page
-            const messengerUrl = `${C.MESSENGER_BASE_URL}${conversationId}`;
+            const messengerUrl = C.getMessengerUrl(conversationId);
             const tab = await chrome.tabs.create({ url: messengerUrl, active: false });
 
             await waitForTabLoad(tab.id!, C.TAB_LOAD_TIMEOUT);
@@ -394,7 +394,7 @@ export function registerMessageHandler(): void {
             }
 
             // Open the messenger conversation page
-            const messengerUrl = `${C.MESSENGER_BASE_URL}${conversationId}`;
+            const messengerUrl = C.getMessengerUrl(conversationId);
             const tab = await chrome.tabs.create({ url: messengerUrl, active: false });
 
             await waitForTabLoad(tab.id!, C.TAB_LOAD_TIMEOUT);
@@ -651,6 +651,136 @@ export function registerMessageHandler(): void {
           } catch (err: any) {
             sendResponse({ success: false, error: err.message });
           }
+        })();
+        return true;
+      } else if (request.action === 'getManualReview') {
+        (async () => {
+          try {
+            const stored = await chrome.storage.local.get([C.PENDING_MANUAL_REVIEW_KEY]);
+            const review: ManualReviewData | null = stored[C.PENDING_MANUAL_REVIEW_KEY] || null;
+            if (!review) {
+              sendResponse({ success: true, review: null });
+              return;
+            }
+            // Verify tab still exists
+            try {
+              await chrome.tabs.get(review.tabId);
+            } catch {
+              // Tab was closed — clear the review
+              await chrome.storage.local.remove(C.PENDING_MANUAL_REVIEW_KEY);
+              sendResponse({ success: true, review: null });
+              return;
+            }
+            sendResponse({ success: true, review });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      } else if (request.action === 'refineManualMessage') {
+        (async () => {
+          try {
+            const { instructions } = request;
+            const stored = await chrome.storage.local.get([C.PENDING_MANUAL_REVIEW_KEY]);
+            const review: ManualReviewData | null = stored[C.PENDING_MANUAL_REVIEW_KEY] || null;
+            if (!review) {
+              sendResponse({ success: false, error: 'No pending manual review found' });
+              return;
+            }
+
+            const aiConfig = await getAIConfig();
+            if (!canUseDirect(aiConfig) && !canUseServer(aiConfig)) {
+              sendResponse({ success: false, error: 'No valid AI configuration' });
+              return;
+            }
+
+            const profile = await getProfile();
+            const landlordInfo = { name: review.landlordName, title: review.landlordTitle };
+            const userContext = `CURRENT MESSAGE:\n${review.message}\n\nREFINEMENT INSTRUCTIONS:\n${instructions}`;
+
+            // Build prompt using the same AI pipeline as initial message generation
+            const { buildMessagePrompt } = await import('../shared/prompts');
+            const systemPrompt = buildMessagePrompt(
+              { aboutMe: '', phone: '' },
+              landlordInfo,
+              undefined,
+              profile,
+            );
+
+            let newMessage: string | null = null;
+
+            if (canUseDirect(aiConfig) && aiConfig.apiKey) {
+              const provider = getProvider(aiConfig);
+              const result = await provider.generateText(
+                aiConfig.apiKey,
+                systemPrompt,
+                userContext,
+                { maxTokens: 2048 },
+              );
+              newMessage = result.text.trim() || null;
+              if (result.usage) {
+                await trackTokenUsage(result.usage.promptTokens, result.usage.completionTokens);
+              }
+            } else if (canUseServer(aiConfig)) {
+              const response = await fetch(`${aiConfig.serverUrl}/refine`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  currentMessage: review.message,
+                  instructions,
+                  landlordInfo,
+                  listingTitle: review.listingTitle,
+                  apiKey: aiConfig.apiKey,
+                  provider: aiConfig.provider,
+                  profile,
+                  isTenantNetwork: review.isTenantNetwork,
+                }),
+              });
+              if (response.ok) {
+                const result: any = await response.json();
+                newMessage = result.message || null;
+                if (result.usage) {
+                  await trackTokenUsage(result.usage.promptTokens || 0, result.usage.completionTokens || 0);
+                }
+              }
+            }
+
+            if (!newMessage) {
+              sendResponse({ success: false, error: 'AI failed to generate refined message' });
+              return;
+            }
+
+            // Re-fill the form on the tab
+            try {
+              await chrome.tabs.get(review.tabId); // verify tab exists
+              const fillResult: any = await chrome.tabs.sendMessage(review.tabId, {
+                action: 'sendMessage',
+                message: newMessage,
+                formValues: {},
+                autoSend: false,
+                refill: true, // signal to content script to just refill, not re-fill form fields
+              });
+
+              if (fillResult?.success) {
+                // Update stored review with new message
+                review.message = newMessage;
+                await chrome.storage.local.set({ [C.PENDING_MANUAL_REVIEW_KEY]: review });
+                sendResponse({ success: true, message: newMessage });
+              } else {
+                sendResponse({ success: false, error: fillResult?.error || 'Failed to refill form' });
+              }
+            } catch (e: any) {
+              sendResponse({ success: false, error: `Tab error: ${e.message}` });
+            }
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      } else if (request.action === 'dismissManualReview') {
+        (async () => {
+          await chrome.storage.local.remove(C.PENDING_MANUAL_REVIEW_KEY);
+          sendResponse({ success: true });
         })();
         return true;
       }

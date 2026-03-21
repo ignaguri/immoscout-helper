@@ -1,4 +1,4 @@
-import { MESSENGER_BASE_URL } from '../../shared/constants';
+import { getMessengerUrl } from '../../shared/constants';
 import type { ConversationEntry } from '../../shared/types';
 
 // Parse a date string to a Date object.
@@ -50,7 +50,7 @@ function buildEventData(conv: ConversationEntry): {
 } {
   const appt = conv.appointment;
   const location = appt?.address || appt?.location || conv.listingTitle || '';
-  const conversationUrl = `${MESSENGER_BASE_URL}${conv.conversationId}`;
+  const conversationUrl = getMessengerUrl(conv.conversationId);
 
   // Parse start time: prefer ISO `start` field, fall back to legacy date/time fields
   let start: Date | null = null;

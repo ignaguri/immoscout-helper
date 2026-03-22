@@ -1,11 +1,18 @@
 <script lang="ts">
+import type { ManualReviewData, PendingApprovalItem } from '../../shared/types';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
 import AnalyzeSection from '../components/AnalyzeSection.svelte';
 import CollapsibleSection from '../components/CollapsibleSection.svelte';
 import ManualReviewPanel from '../components/ManualReviewPanel.svelte';
-import { approvePendingListing, captureQueueItems, getManualReview, skipPendingListing, startQueueProcessing, stopQueueProcessing } from '../lib/messages';
+import {
+  approvePendingListing,
+  captureQueueItems,
+  getManualReview,
+  skipPendingListing,
+  startQueueProcessing,
+  stopQueueProcessing,
+} from '../lib/messages';
 import type { PopupSettings } from '../lib/storage';
-import type { ManualReviewData, PendingApprovalItem } from '../../shared/types';
 import { clearActivityLog, clearQueue, loadQueue, saveAllSettings } from '../lib/storage';
 
 let {
@@ -43,9 +50,17 @@ let manualReview = $state<ManualReviewData | null>(null);
 
 // Load manual review data on mount and poll for changes
 $effect(() => {
-  getManualReview().then((r) => { manualReview = r; }).catch(() => {});
+  getManualReview()
+    .then((r) => {
+      manualReview = r;
+    })
+    .catch(() => {});
   const interval = setInterval(() => {
-    getManualReview().then((r) => { manualReview = r; }).catch(() => {});
+    getManualReview()
+      .then((r) => {
+        manualReview = r;
+      })
+      .catch(() => {});
   }, 3000);
   return () => clearInterval(interval);
 });

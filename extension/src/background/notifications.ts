@@ -1,4 +1,4 @@
-import { NOTIFICATION_PREFS_KEY, DEFAULT_NOTIFICATION_PREFS, type NotificationEvent } from '../shared/constants';
+import { DEFAULT_NOTIFICATION_PREFS, NOTIFICATION_PREFS_KEY, type NotificationEvent } from '../shared/constants';
 
 export type NotificationPrefs = Record<NotificationEvent, boolean>;
 

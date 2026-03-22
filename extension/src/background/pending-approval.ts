@@ -2,8 +2,8 @@
 // These listings require explicit user confirmation before a message is sent.
 
 import * as C from '../shared/constants';
-import { capSeenListings } from '../shared/utils';
 import type { PendingApprovalItem } from '../shared/types';
+import { capSeenListings } from '../shared/utils';
 
 export async function getPendingApprovalListings(): Promise<PendingApprovalItem[]> {
   const result = await chrome.storage.local.get(C.PENDING_APPROVAL_KEY);

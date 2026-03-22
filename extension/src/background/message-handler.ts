@@ -1,8 +1,8 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { debug, error, log, warn } from '../shared/logger';
-import type { ManualReviewData, PendingApprovalItem } from '../shared/types';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
+import type { ManualReviewData, PendingApprovalItem } from '../shared/types';
 import { getProfile } from './ai';
 import type { ConversationEntry } from './conversations';
 import {
@@ -15,11 +15,7 @@ import { scheduleNextAlarm, waitForTabLoad } from './helpers';
 import type { Listing } from './listings';
 import { handleNewListing } from './messaging';
 import { startMonitoring, stopMonitoring, updateCheckInterval } from './monitoring';
-import {
-  approvePendingListing,
-  getPendingApprovalListings,
-  skipPendingListing,
-} from './pending-approval';
+import { approvePendingListing, getPendingApprovalListings, skipPendingListing } from './pending-approval';
 import { enqueueListings, processQueue } from './queue';
 import {
   currentCheckInterval,
@@ -724,9 +720,14 @@ export function registerMessageHandler(): void {
 
             // Load user profile from storage (same keys as initial message generation)
             const formKeys = [
-              C.AI_ABOUT_ME_KEY, C.FORM_ADULTS_KEY, C.FORM_CHILDREN_KEY,
-              C.FORM_PETS_KEY, C.FORM_SMOKER_KEY, C.FORM_INCOME_KEY,
-              C.FORM_INCOME_RANGE_KEY, C.FORM_PHONE_KEY,
+              C.AI_ABOUT_ME_KEY,
+              C.FORM_ADULTS_KEY,
+              C.FORM_CHILDREN_KEY,
+              C.FORM_PETS_KEY,
+              C.FORM_SMOKER_KEY,
+              C.FORM_INCOME_KEY,
+              C.FORM_INCOME_RANGE_KEY,
+              C.FORM_PHONE_KEY,
             ];
             const formData: Record<string, any> = await chrome.storage.local.get(formKeys);
             const userProfile = {
@@ -742,23 +743,15 @@ export function registerMessageHandler(): void {
 
             // Build prompt using the same AI pipeline as initial message generation
             const { buildMessagePrompt } = await import('../shared/prompts');
-            const systemPrompt = buildMessagePrompt(
-              userProfile,
-              landlordInfo,
-              undefined,
-              profile,
-            );
+            const systemPrompt = buildMessagePrompt(userProfile, landlordInfo, undefined, profile);
 
             let newMessage: string | null = null;
 
             if (canUseDirect(aiConfig) && aiConfig.apiKey) {
               const provider = getProvider(aiConfig);
-              const result = await provider.generateText(
-                aiConfig.apiKey,
-                systemPrompt,
-                userContext,
-                { maxTokens: 2048 },
-              );
+              const result = await provider.generateText(aiConfig.apiKey, systemPrompt, userContext, {
+                maxTokens: 2048,
+              });
               newMessage = result.text.trim() || null;
               if (result.usage) {
                 await trackTokenUsage(result.usage.promptTokens, result.usage.completionTokens);

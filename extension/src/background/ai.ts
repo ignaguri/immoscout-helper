@@ -8,7 +8,6 @@ import {
 } from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { error, log, warn } from '../shared/logger';
-import { shouldNotify } from './notifications';
 import {
   buildMessagePrompt,
   buildScoringPrompt,
@@ -18,6 +17,7 @@ import {
   parseScoreJSON,
 } from '../shared/prompts';
 import { waitForTabLoad } from './helpers';
+import { shouldNotify } from './notifications';
 
 export interface UserProfile {
   name?: string;
@@ -117,7 +117,10 @@ async function tryAIAnalysisDirect(
     lastAIError = `Failed to extract listing details: ${e.message}`;
     return null;
   }
-  if (!listingDetails) { lastAIError = 'Content script returned empty listing details'; return null; }
+  if (!listingDetails) {
+    lastAIError = 'Content script returned empty listing details';
+    return null;
+  }
 
   const listingText = formatListingForPrompt(listingDetails);
   const userProfile = { ...formValues, aboutMe: config.aboutMe };
@@ -217,9 +220,7 @@ async function tryAIAnalysisDirect(
     return null;
   }
 
-  log(
-    `[AI/Direct] Score ${score}/10 — message generated${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
-  );
+  log(`[AI/Direct] Score ${score}/10 — message generated${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`);
   return {
     score,
     reason,
@@ -253,7 +254,10 @@ async function tryAIAnalysisServer(
     lastAIError = `Failed to extract listing details: ${e.message}`;
     return null;
   }
-  if (!listingDetails) { lastAIError = 'Content script returned empty listing details'; return null; }
+  if (!listingDetails) {
+    lastAIError = 'Content script returned empty listing details';
+    return null;
+  }
 
   const payload = {
     listingDetails,
@@ -280,7 +284,9 @@ async function tryAIAnalysisServer(
 
     if (!response.ok) {
       let body = '';
-      try { body = await response.text(); } catch {}
+      try {
+        body = await response.text();
+      } catch {}
       error(`[AI/Server] Server returned ${response.status}`);
       lastAIError = `Server returned HTTP ${response.status}${body ? `: ${body.slice(0, 500)}` : ''}`;
       return null;

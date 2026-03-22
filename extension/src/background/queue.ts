@@ -177,7 +177,12 @@ export async function processQueue(): Promise<void> {
       try {
         const result = await handleNewListing(item);
 
-        if (result?.success) {
+        if (result?.pendingApproval) {
+          // Pending approval: remove from queue but do NOT mark as seen or log as sent.
+          // The listing is now in the pending-approval list awaiting user action.
+          await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+          log(`[Queue] ${normalizedId} moved to pending approval — ${remaining.length} remaining`);
+        } else if (result?.success) {
           // Success: remove from queue, mark as seen
           const freshSeen: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
           const freshList: string[] = freshSeen[C.STORAGE_KEY] || [];

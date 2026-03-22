@@ -41,10 +41,11 @@ ANALYSIS FRAMEWORK:
 
 1. FINANCIAL REALITY:
    - Calculate the true "Warmmiete" (Kaltmiete + Nebenkosten + Heizkosten if separate). This is the real monthly cost.
-   - Calculate €/m² (Kaltmiete ÷ Wohnfläche) and classify:
+   - Calculate Kaltmiete €/m² (Kaltmiete ÷ Wohnfläche) and classify:
      • Bargain: under 15 €/m² (rare in Munich — verify it's not a scam or WBS)
      • Fair: 15-22 €/m² (Munich average)
      • Overpriced: over 22 €/m²
+   - Calculate Warmmiete €/m² (true Warmmiete ÷ Wohnfläche) — this is the real cost per m². Report both values in the summary.
 ${budgetRule}
    - Energy classes F-H mean significant hidden heating costs — factor into true affordability.
 
@@ -93,7 +94,7 @@ Reply with a JSON object only:
 - score 8-10: Great match (nearly ideal)
 - When data is missing: Neutral (5-6)
 - reason: One-sentence key takeaway (used in logs and automated pipeline)
-- summary: Concise pros/cons analysis. Include: price assessment (bargain/fair/overpriced with €/m²), contract type, location quality, key amenities present/missing, and any concerns. Be specific with numbers.
+- summary: Concise pros/cons analysis. Include: price assessment (bargain/fair/overpriced with Kaltmiete €/m² and Warmmiete €/m²), contract type, location quality, key amenities present/missing, and any concerns. Be specific with numbers.
 - flags: Array of detected red flag identifiers. Empty array [] if none.
   Valid flags: "ablöse-risk", "swap-only", "suspicious-price", "wbs-required", "befristet", "indexmiete", "high-energy-costs", "unrenovated"
 

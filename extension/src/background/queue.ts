@@ -4,6 +4,7 @@ import { capSeenListings } from '../shared/utils';
 import { humanDelay } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
 import { handleNewListing } from './messaging';
+import { shouldNotify } from './notifications';
 import { getPendingApprovalListings } from './pending-approval';
 import { checkRateLimit } from './rate-limit';
 import {
@@ -243,7 +244,7 @@ export async function processQueue(): Promise<void> {
 
     // Desktop notification with processing summary
     const totalProcessed = queueSentCount + queueFailedCount + queueSkippedCount;
-    if (totalProcessed > 0) {
+    if (totalProcessed > 0 && (await shouldNotify('queueComplete'))) {
       const parts: string[] = [];
       if (queueSentCount > 0) parts.push(`${queueSentCount} sent`);
       if (queueFailedCount > 0) parts.push(`${queueFailedCount} failed`);

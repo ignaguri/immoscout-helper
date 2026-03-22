@@ -2,11 +2,13 @@ import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage }
 import * as C from '../shared/constants';
 import { debug, error, log, warn } from '../shared/logger';
 import { buildShortenPrompt } from '../shared/prompts';
+import type { ManualReviewData } from '../shared/types';
 import { generatePersonalizedMessage } from '../shared/utils';
 import { logActivity } from './activity';
 import { type FormValues, lastAIError, tryAIAnalysis, trySolveCaptcha } from './ai';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
+import { loadNotificationPrefs, shouldNotifyWith } from './notifications';
 import { addToPendingApproval } from './pending-approval';
 import type { QueueItem } from './queue';
 import {
@@ -196,6 +198,9 @@ async function promptDuplicateLandlordDecision(
 export async function handleNewListing(listing: Listing | QueueItem): Promise<HandleListingResult> {
   log('Processing new listing:', listing.url);
 
+  // Load notification prefs once for the entire listing processing
+  const notifPrefs = await loadNotificationPrefs();
+
   await new Promise((resolve) => setTimeout(resolve, humanDelay(500, 300)));
   const listingTab = await chrome.tabs.create({ url: listing.url, active: false });
   const currentListingTabId = listingTab.id!;
@@ -296,6 +301,26 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       const contactedLandlords: string[] = landlordStored[C.CONTACTED_LANDLORDS_KEY] || [];
 
       if (contactedLandlords.includes(normalizedLandlord)) {
+        // If duplicate landlord notifications are disabled, skip silently (can't ask user)
+        if (!shouldNotifyWith(notifPrefs, 'duplicateLandlord')) {
+          log(`[Duplicate] Landlord "${landlordName}" already contacted — notifications disabled, skipping`);
+          await sendActivityLog({ lastResult: 'skipped', lastId: listing.id, lastTitle: listing.title || '' });
+          await logActivity({
+            listingId: listing.id,
+            title: listing.title,
+            url: listing.url,
+            action: 'skipped',
+            reason: `Duplicate landlord: ${landlordName} (auto-skipped, notifications disabled)`,
+            landlord: landlordName,
+          });
+          try {
+            await chrome.tabs.remove(currentListingTabId);
+          } catch (_e) {
+            debug('[Messaging] Tab cleanup failed after duplicate auto-skip');
+          }
+          return { success: true, skipped: true, listing };
+        }
+
         log(`[Duplicate] Landlord "${landlordName}" already contacted — prompting user`);
 
         const decision = await promptDuplicateLandlordDecision(landlordName, listing);
@@ -411,15 +436,17 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         action: 'skipped',
         landlord: landlordInfo,
       });
-      try {
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: C.ICON_PATH,
-          title: `Skipped (${aiResult.score}/10)`,
-          message: `${landlordInfo}: ${aiResult.reason || listing.title || 'Low score'}`,
-        });
-      } catch (_e) {
-        debug('[Messaging] Skip notification failed');
+      if (shouldNotifyWith(notifPrefs, 'listingSkipped')) {
+        try {
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: C.ICON_PATH,
+            title: `Skipped (${aiResult.score}/10)`,
+            message: `${landlordInfo}: ${aiResult.reason || listing.title || 'Low score'}`,
+          });
+        } catch (_e) {
+          debug('[Messaging] Skip notification failed');
+        }
       }
 
       try {
@@ -637,7 +664,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         url: listing.url,
         score: aiResult?.score,
         reason: aiResult?.reason,
-        action: 'sent',
+        action: isAutoSend ? 'sent' : 'filled',
         landlord: landlordInfo,
       });
 
@@ -649,7 +676,8 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       setLastMessageTime(Date.now());
       const totalStored: Record<string, any> = await chrome.storage.local.get([C.TOTAL_MESSAGES_SENT_KEY]);
       await chrome.storage.local.set({
-        [C.TOTAL_MESSAGES_SENT_KEY]: (totalStored[C.TOTAL_MESSAGES_SENT_KEY] || 0) + 1,
+        // Only count as "sent" in auto mode; manual mode just fills the form
+        [C.TOTAL_MESSAGES_SENT_KEY]: (totalStored[C.TOTAL_MESSAGES_SENT_KEY] || 0) + (isAutoSend ? 1 : 0),
         [C.RATE_MESSAGE_COUNT_KEY]: messageCount,
         [C.RATE_LAST_MESSAGE_TIME_KEY]: lastMessageTime,
       });
@@ -659,30 +687,51 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
 
       // Send browser notification
       if (isAutoSend) {
-        try {
-          chrome.notifications.create({
-            type: 'basic',
-            iconUrl: C.ICON_PATH,
-            title: 'Message Sent',
-            message: `Sent to ${landlordInfo}: ${listing.title || 'New Listing'}${aiResult ? ` (Score: ${aiResult.score}/10)` : ''}`,
-          });
-        } catch (e) {
-          error('Notification error:', e);
+        if (shouldNotifyWith(notifPrefs, 'messageSent')) {
+          try {
+            chrome.notifications.create({
+              type: 'basic',
+              iconUrl: C.ICON_PATH,
+              title: 'Message Sent',
+              message: `Sent to ${landlordInfo}: ${listing.title || 'New Listing'}${aiResult ? ` (Score: ${aiResult.score}/10)` : ''}`,
+            });
+          } catch (e) {
+            error('Notification error:', e);
+          }
         }
       } else {
-        // Manual mode: persistent notification with click-to-focus
-        const notifId = `manual-review-${listing.id || Date.now()}`;
-        try {
-          chrome.notifications.create(notifId, {
-            type: 'basic',
-            iconUrl: C.ICON_PATH,
-            title: 'Nachricht bereit zur Überprüfung',
-            message: `${landlordInfo}: ${listing.title || 'New Listing'}${aiResult ? ` (Score: ${aiResult.score}/10)` : ''}`,
-            requireInteraction: true,
-          });
-        } catch (e) {
-          error('Notification error:', e);
+        // Manual mode: store review data for popup refine feature
+        const reviewData: ManualReviewData = {
+          message: personalizedMessage,
+          listingId: listing.id,
+          listingUrl: listing.url,
+          listingTitle: listing.title || '',
+          landlordName: landlordName || '',
+          landlordTitle: landlordTitle || '',
+          isTenantNetwork,
+          isPrivateLandlord,
+          tabId: currentListingTabId,
+          aiScore: aiResult?.score,
+          aiReason: aiResult?.reason,
+          timestamp: Date.now(),
+        };
+        // Persistent notification with click-to-focus
+        if (shouldNotifyWith(notifPrefs, 'manualReview')) {
+          const notifId = `manual-review-${listing.id || Date.now()}`;
+          reviewData.notificationId = notifId;
+          try {
+            chrome.notifications.create(notifId, {
+              type: 'basic',
+              iconUrl: C.ICON_PATH,
+              title: 'Nachricht bereit zur Überprüfung',
+              message: `${landlordInfo}: ${listing.title || 'New Listing'}${aiResult ? ` (Score: ${aiResult.score}/10)` : ''}`,
+              requireInteraction: true,
+            });
+          } catch (e) {
+            error('Notification error:', e);
+          }
         }
+        await chrome.storage.local.set({ [C.PENDING_MANUAL_REVIEW_KEY]: reviewData });
       }
     }
 

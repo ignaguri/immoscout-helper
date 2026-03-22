@@ -75,7 +75,22 @@ export function registerMessageHandler(): void {
               C.AI_USAGE_COMPLETION_TOKENS_KEY,
               C.SYNCED_CONTACTED_KEY,
               C.QUEUE_KEY,
+              C.ACTIVITY_LOG_KEY,
             ]);
+
+            // Derive accurate counts from activity log
+            const activityLog: any[] = stats[C.ACTIVITY_LOG_KEY] || [];
+            let actSent = 0;
+            let actFilled = 0;
+            let actSkipped = 0;
+            let actFailed = 0;
+            for (const entry of activityLog) {
+              if (entry.action === 'sent') actSent++;
+              else if (entry.action === 'filled') actFilled++;
+              else if (entry.action === 'skipped') actSkipped++;
+              else if (entry.action === 'failed') actFailed++;
+            }
+
             sendResponse({
               isMonitoring,
               checkInterval: currentCheckInterval / 1000,
@@ -91,6 +106,10 @@ export function registerMessageHandler(): void {
               aiCompletionTokens: stats[C.AI_USAGE_COMPLETION_TOKENS_KEY] || 0,
               isProcessingQueue,
               queueLength: (stats[C.QUEUE_KEY] || []).length,
+              activitySent: actSent,
+              activityFilled: actFilled,
+              activitySkipped: actSkipped,
+              activityFailed: actFailed,
             });
           } catch (_error) {
             sendResponse({ isMonitoring, checkInterval: currentCheckInterval / 1000 });

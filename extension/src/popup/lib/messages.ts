@@ -15,6 +15,10 @@ export async function getStatus(): Promise<{
   aiSkipped: number;
   aiPromptTokens: number;
   aiCompletionTokens: number;
+  activitySent: number;
+  activityFilled: number;
+  activitySkipped: number;
+  activityFailed: number;
 }> {
   return chrome.runtime.sendMessage({ action: 'getStatus' });
 }

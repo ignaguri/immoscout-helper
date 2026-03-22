@@ -664,7 +664,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         url: listing.url,
         score: aiResult?.score,
         reason: aiResult?.reason,
-        action: 'sent',
+        action: isAutoSend ? 'sent' : 'filled',
         landlord: landlordInfo,
       });
 
@@ -676,7 +676,8 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       setLastMessageTime(Date.now());
       const totalStored: Record<string, any> = await chrome.storage.local.get([C.TOTAL_MESSAGES_SENT_KEY]);
       await chrome.storage.local.set({
-        [C.TOTAL_MESSAGES_SENT_KEY]: (totalStored[C.TOTAL_MESSAGES_SENT_KEY] || 0) + 1,
+        // Only count as "sent" in auto mode; manual mode just fills the form
+        [C.TOTAL_MESSAGES_SENT_KEY]: (totalStored[C.TOTAL_MESSAGES_SENT_KEY] || 0) + (isAutoSend ? 1 : 0),
         [C.RATE_MESSAGE_COUNT_KEY]: messageCount,
         [C.RATE_LAST_MESSAGE_TIME_KEY]: lastMessageTime,
       });

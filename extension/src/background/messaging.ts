@@ -7,7 +7,7 @@ import { logActivity } from './activity';
 import { type FormValues, lastAIError, tryAIAnalysis, trySolveCaptcha } from './ai';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
-import { shouldNotify } from './notifications';
+import { loadNotificationPrefs, shouldNotifyWith } from './notifications';
 import type { ManualReviewData } from '../shared/types';
 import { addToPendingApproval } from './pending-approval';
 import type { QueueItem } from './queue';
@@ -198,6 +198,9 @@ async function promptDuplicateLandlordDecision(
 export async function handleNewListing(listing: Listing | QueueItem): Promise<HandleListingResult> {
   log('Processing new listing:', listing.url);
 
+  // Load notification prefs once for the entire listing processing
+  const notifPrefs = await loadNotificationPrefs();
+
   await new Promise((resolve) => setTimeout(resolve, humanDelay(500, 300)));
   const listingTab = await chrome.tabs.create({ url: listing.url, active: false });
   const currentListingTabId = listingTab.id!;
@@ -299,7 +302,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
 
       if (contactedLandlords.includes(normalizedLandlord)) {
         // If duplicate landlord notifications are disabled, skip silently (can't ask user)
-        if (!(await shouldNotify('duplicateLandlord'))) {
+        if (!(shouldNotifyWith(notifPrefs, 'duplicateLandlord'))) {
           log(`[Duplicate] Landlord "${landlordName}" already contacted — notifications disabled, skipping`);
           await sendActivityLog({ lastResult: 'skipped', lastId: listing.id, lastTitle: listing.title || '' });
           await logActivity({
@@ -433,7 +436,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         action: 'skipped',
         landlord: landlordInfo,
       });
-      if (await shouldNotify('listingSkipped')) {
+      if (shouldNotifyWith(notifPrefs, 'listingSkipped')) {
         try {
           chrome.notifications.create({
             type: 'basic',
@@ -683,7 +686,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
 
       // Send browser notification
       if (isAutoSend) {
-        if (await shouldNotify('messageSent')) {
+        if (shouldNotifyWith(notifPrefs, 'messageSent')) {
           try {
             chrome.notifications.create({
               type: 'basic',
@@ -714,7 +717,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
         await chrome.storage.local.set({ [C.PENDING_MANUAL_REVIEW_KEY]: reviewData });
 
         // Persistent notification with click-to-focus
-        if (await shouldNotify('manualReview')) {
+        if (shouldNotifyWith(notifPrefs, 'manualReview')) {
           const notifId = `manual-review-${listing.id || Date.now()}`;
           try {
             chrome.notifications.create(notifId, {

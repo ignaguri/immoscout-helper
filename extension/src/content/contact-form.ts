@@ -320,3 +320,25 @@ export async function sendMessageToLandlord(
     return { success: false, error: (error as Error).message, log };
   }
 }
+
+/** Re-fill only the message textarea (no form fields, no submit). Used for message refinement. */
+export async function refillMessageOnly(message: string): Promise<SendMessageResult> {
+  try {
+    const textarea = findElement(S.TEXTAREA_SELECTORS) as HTMLTextAreaElement | null;
+    if (!textarea) {
+      return { success: false, error: 'Message textarea not found', log: [] };
+    }
+    textarea.focus();
+    textarea.value = '';
+    const chunkSize = 20 + Math.floor(Math.random() * 30);
+    for (let i = 0; i < message.length; i += chunkSize) {
+      textarea.value += message.slice(i, i + chunkSize);
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      await sleep(randomDelay(50, 30));
+    }
+    setReactValue(textarea, message);
+    return { success: true, messageSent: message, log: [] };
+  } catch (error) {
+    return { success: false, error: (error as Error).message, log: [] };
+  }
+}

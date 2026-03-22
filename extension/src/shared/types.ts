@@ -37,6 +37,7 @@ export interface ManualReviewData {
   tabId: number;
   aiScore?: number;
   aiReason?: string;
+  notificationId?: string;
   timestamp: number;
 }
 

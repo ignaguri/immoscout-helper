@@ -1,5 +1,5 @@
 <script lang="ts">
-import { MESSENGER_BASE_URL } from '../../shared/constants';
+import { getMessengerUrl } from '../../shared/constants';
 import type { ConversationEntry } from '../../shared/types';
 import { generateDocuments, regenerateDraft, sendConversationReply } from '../lib/messages';
 
@@ -18,6 +18,12 @@ let sendBtnStyle = $state('');
 let regenBtnText = $state('Generate');
 let regenBtnDisabled = $state(false);
 
+// Refine state
+let refineInput = $state('');
+let showRefineInput = $state(false);
+let refineBtnDisabled = $state(false);
+let refineBtnText = $state('Apply');
+
 // Docs form state
 let showDocsForm = $state(false);
 let docsAddress = $state('');
@@ -34,6 +40,8 @@ let moveInDate = $state(nextMonth.toISOString().split('T')[0]);
 $effect(() => {
   draftText = conversation.draftReply || '';
   regenBtnText = conversation.draftReply ? 'Regenerate' : 'Generate';
+  showRefineInput = false;
+  refineInput = '';
 });
 
 // Pre-fill docs address when the form is opened (tracked by conversationId to avoid overwriting edits)
@@ -76,10 +84,9 @@ async function handleSendReply() {
 async function handleRegenerate() {
   regenBtnDisabled = true;
   regenBtnText = 'Generating...';
-  const userContext = draftText.trim();
   draftText = '';
   try {
-    await regenerateDraft(conversation.conversationId, userContext);
+    await regenerateDraft(conversation.conversationId, '');
   } catch {
     regenBtnText = 'Error';
   }
@@ -89,9 +96,28 @@ async function handleRegenerate() {
   }, 3000);
 }
 
+async function handleRefine() {
+  if (!refineInput.trim()) return;
+  refineBtnDisabled = true;
+  refineBtnText = 'Applying...';
+  const userContext = `CURRENT DRAFT:\n${draftText}\n\nREFINEMENT INSTRUCTIONS:\n${refineInput.trim()}`;
+  draftText = '';
+  try {
+    await regenerateDraft(conversation.conversationId, userContext);
+  } catch {
+    refineBtnText = 'Error';
+  }
+  refineInput = '';
+  showRefineInput = false;
+  setTimeout(() => {
+    refineBtnDisabled = false;
+    refineBtnText = 'Apply';
+  }, 3000);
+}
+
 function handleOpen() {
   chrome.tabs.create({
-    url: `${MESSENGER_BASE_URL}${conversation.conversationId}`,
+    url: getMessengerUrl(conversation.conversationId),
     active: true,
   });
 }
@@ -140,6 +166,12 @@ async function handleGenerateDocs() {
         disabled={regenBtnDisabled}
         onclick={handleRegenerate}
       >{regenBtnText}</button>
+      {#if conversation.draftReply}
+        <button
+          class="draft-btn refine"
+          onclick={() => { showRefineInput = !showRefineInput; }}
+        >Refine</button>
+      {/if}
       <button
         class="draft-btn send"
         disabled={sendBtnDisabled}
@@ -147,6 +179,21 @@ async function handleGenerateDocs() {
         onclick={handleSendReply}
       >{sendBtnText}</button>
     </div>
+    {#if showRefineInput}
+      <div class="refine-area">
+        <textarea
+          class="refine-textarea"
+          bind:value={refineInput}
+          placeholder="e.g., rewrite in Sie form, be more formal, shorter..."
+          rows="2"
+        ></textarea>
+        <button
+          class="draft-btn refine-apply"
+          disabled={refineBtnDisabled || !refineInput.trim()}
+          onclick={handleRefine}
+        >{refineBtnText}</button>
+      </div>
+    {/if}
     {#if aiMode === 'server'}
       {#if !showDocsForm}
         <button
@@ -256,7 +303,41 @@ async function handleGenerateDocs() {
     color: #333;
   }
 
+  .draft-btn.refine {
+    background: #f0f0f0;
+    color: #333;
+  }
+
   .draft-btn:disabled { opacity: 0.6; }
+
+  /* Refine area */
+  .refine-area {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    align-items: flex-end;
+  }
+
+  .refine-textarea {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: inherit;
+    resize: none;
+  }
+
+  .refine-textarea:focus {
+    outline: none;
+    border-color: #83F1DC;
+  }
+
+  .draft-btn.refine-apply {
+    background: #83F1DC;
+    color: #1a1a1a;
+    white-space: nowrap;
+  }
 
   /* Generate Docs toggle button */
   .draft-btn.docs-toggle {

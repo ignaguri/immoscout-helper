@@ -25,6 +25,22 @@ export interface PendingApprovalItem {
   addedAt: number;
 }
 
+export interface ManualReviewData {
+  message: string;
+  listingId: string;
+  listingUrl: string;
+  listingTitle: string;
+  landlordName: string;
+  landlordTitle: string;
+  isTenantNetwork: boolean;
+  isPrivateLandlord: boolean;
+  tabId: number;
+  aiScore?: number;
+  aiReason?: string;
+  notificationId?: string;
+  timestamp: number;
+}
+
 export interface FormValues {
   adults?: number | string;
   children?: number | string;

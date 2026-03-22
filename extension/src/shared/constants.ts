@@ -86,6 +86,9 @@ export const QUEUE_MAX_RETRIES = 3;
 // Pending approval (tenant-recommendation listings requiring user confirmation)
 export const PENDING_APPROVAL_KEY = 'pendingApprovalListings' as const;
 
+// Pending manual review (message filled in form, waiting for user to review/refine/send)
+export const PENDING_MANUAL_REVIEW_KEY = 'pendingManualReview' as const;
+
 // Blacklist
 export const BLACKLIST_KEY = 'blacklistedListings' as const;
 
@@ -126,6 +129,42 @@ export const MAX_CONVERSATION_SYNC = 2000;
 export const TYPING_CHUNK_MIN = 20;
 export const TYPING_CHUNK_MAX = 49;
 
+// Notification preferences
+export const NOTIFICATION_PREFS_KEY = 'notificationPrefs' as const;
+
+export type NotificationEvent =
+  | 'duplicateLandlord'
+  | 'listingSkipped'
+  | 'messageSent'
+  | 'manualReview'
+  | 'newReply'
+  | 'queueComplete'
+  | 'captchaFailed';
+
+export const DEFAULT_NOTIFICATION_PREFS: Record<NotificationEvent, boolean> = {
+  duplicateLandlord: true,
+  listingSkipped: true,
+  messageSent: true,
+  manualReview: true,
+  newReply: true,
+  queueComplete: true,
+  captchaFailed: true,
+};
+
+export const NOTIFICATION_LABELS: Record<NotificationEvent, string> = {
+  duplicateLandlord: 'Duplicate landlord warnings',
+  listingSkipped: 'Skipped listings',
+  messageSent: 'Messages sent',
+  manualReview: 'Manual review alerts',
+  newReply: 'New landlord replies',
+  queueComplete: 'Queue completion',
+  captchaFailed: 'Captcha failures',
+};
+
 // Shared paths & URLs
 export const ICON_PATH = 'icons/icon128.png';
-export const MESSENGER_BASE_URL = 'https://www.immobilienscout24.de/messenger/conversations/';
+export const MESSENGER_BASE_URL = 'https://www.immobilienscout24.de/messenger/messages/';
+
+export function getMessengerUrl(conversationId: string): string {
+  return `${MESSENGER_BASE_URL}${conversationId}?communicationType=CONVERSATION`;
+}

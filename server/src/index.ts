@@ -455,6 +455,60 @@ app.post('/reply', async (req: Request<Record<string, never>, unknown, ReplyRequ
   }
 });
 
+// Message refinement endpoint
+app.post('/refine', async (req: Request, res: Response) => {
+  const {
+    currentMessage,
+    instructions,
+    landlordInfo,
+    listingTitle,
+    apiKey,
+    provider,
+    profile,
+    isTenantNetwork,
+    userProfile,
+  } = req.body;
+
+  if (!currentMessage || !instructions) {
+    return res.status(400).json({ error: 'currentMessage and instructions are required' });
+  }
+
+  try {
+    const mergedLandlordInfo = {
+      ...(landlordInfo || {}),
+      ...(typeof isTenantNetwork === 'boolean' ? { isTenantNetwork } : {}),
+    };
+
+    const systemPrompt = buildMessagePrompt(
+      userProfile || { aboutMe: '', phone: '' },
+      mergedLandlordInfo,
+      undefined,
+      profile,
+    );
+
+    const userPrompt = `CURRENT MESSAGE:\n${currentMessage}\n\nREFINEMENT INSTRUCTIONS:\n${instructions}`;
+
+    const model = getModel(provider, apiKey);
+
+    const { text, usage: refineUsage } = await generateText({
+      model,
+      system: systemPrompt,
+      prompt: userPrompt,
+      maxTokens: 2048,
+    });
+
+    const message = text.trim();
+    console.log(`[Refine] Refined message (${message.length} chars)`);
+    res.json({
+      message,
+      usage: { promptTokens: refineUsage?.promptTokens || 0, completionTokens: refineUsage?.completionTokens || 0 },
+    });
+  } catch (error) {
+    console.error('[Refine] Error:', (error as Error).message);
+    res.status(502).json({ error: 'Refinement failed', details: (error as Error).message });
+  }
+});
+
 // Documents generation endpoint
 const DOCUMENTS_SCRIPT = join(__dirname, '..', '..', 'documents', 'fill_selbstauskunft.py');
 const PYTHON_PATH = process.env.DOCUMENTS_PYTHON_PATH || 'python3';

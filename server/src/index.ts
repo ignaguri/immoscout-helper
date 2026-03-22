@@ -470,12 +470,7 @@ app.post('/refine', async (req: Request, res: Response) => {
       ...(typeof isTenantNetwork === 'boolean' ? { isTenantNetwork } : {}),
     };
 
-    const systemPrompt = buildMessagePrompt(
-      { aboutMe: '', phone: '' },
-      mergedLandlordInfo,
-      undefined,
-      profile,
-    );
+    const systemPrompt = buildMessagePrompt({ aboutMe: '', phone: '' }, mergedLandlordInfo, undefined, profile);
 
     const userPrompt = `CURRENT MESSAGE:\n${currentMessage}\n\nREFINEMENT INSTRUCTIONS:\n${instructions}`;
 

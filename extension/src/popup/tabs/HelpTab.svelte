@@ -112,10 +112,14 @@ async function generateBugReport() {
 
     await navigator.clipboard.writeText(report);
     copyBugText = 'Copied!';
-    setTimeout(() => { copyBugText = 'Copy Bug Report to Clipboard'; }, 2500);
+    setTimeout(() => {
+      copyBugText = 'Copy Bug Report to Clipboard';
+    }, 2500);
   } catch (err: any) {
     copyBugText = `Failed: ${err.message}`;
-    setTimeout(() => { copyBugText = 'Copy Bug Report to Clipboard'; }, 3000);
+    setTimeout(() => {
+      copyBugText = 'Copy Bug Report to Clipboard';
+    }, 3000);
   } finally {
     bugReportGenerating = false;
   }

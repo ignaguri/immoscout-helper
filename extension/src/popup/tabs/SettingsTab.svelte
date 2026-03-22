@@ -1,9 +1,9 @@
 <script lang="ts">
 import { PROVIDERS } from '../../shared/ai-router';
 import {
-  NOTIFICATION_PREFS_KEY,
   DEFAULT_NOTIFICATION_PREFS,
   NOTIFICATION_LABELS,
+  NOTIFICATION_PREFS_KEY,
   type NotificationEvent,
 } from '../../shared/constants';
 import CollapsibleSection from '../components/CollapsibleSection.svelte';

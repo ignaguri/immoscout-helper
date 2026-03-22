@@ -2,13 +2,13 @@ import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage }
 import * as C from '../shared/constants';
 import { debug, error, log, warn } from '../shared/logger';
 import { buildShortenPrompt } from '../shared/prompts';
+import type { ManualReviewData } from '../shared/types';
 import { generatePersonalizedMessage } from '../shared/utils';
 import { logActivity } from './activity';
 import { type FormValues, lastAIError, tryAIAnalysis, trySolveCaptcha } from './ai';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
 import { loadNotificationPrefs, shouldNotifyWith } from './notifications';
-import type { ManualReviewData } from '../shared/types';
 import { addToPendingApproval } from './pending-approval';
 import type { QueueItem } from './queue';
 import {
@@ -302,7 +302,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
 
       if (contactedLandlords.includes(normalizedLandlord)) {
         // If duplicate landlord notifications are disabled, skip silently (can't ask user)
-        if (!(shouldNotifyWith(notifPrefs, 'duplicateLandlord'))) {
+        if (!shouldNotifyWith(notifPrefs, 'duplicateLandlord')) {
           log(`[Duplicate] Landlord "${landlordName}" already contacted — notifications disabled, skipping`);
           await sendActivityLog({ lastResult: 'skipped', lastId: listing.id, lastTitle: listing.title || '' });
           await logActivity({

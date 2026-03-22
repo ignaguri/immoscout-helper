@@ -2,9 +2,9 @@
 import { onMount } from 'svelte';
 import { PROVIDERS } from '../shared/ai-router';
 import { ALARM_NAME } from '../shared/constants';
+import type { PendingApprovalItem } from '../shared/types';
 import { getPendingApprovalListings, getStatus, startMonitoring, stopMonitoring } from './lib/messages';
 import type { PopupSettings } from './lib/storage';
-import type { PendingApprovalItem } from '../shared/types';
 import {
   loadActivityLog as loadActivityLogStorage,
   loadAllSettings,

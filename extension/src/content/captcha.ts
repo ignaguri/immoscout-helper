@@ -101,14 +101,20 @@ export async function fillCaptchaAndSubmit(text: string): Promise<CaptchaSubmitR
     }
 
     if (!submitBtn) {
-      // Last resort: walk up parent chain from the input
+      // Last resort: walk up parent chain from the input, but only match buttons
+      // whose text looks like a submit action to avoid matching unrelated buttons.
+      const submitKeywords = ['absenden', 'senden', 'submit', 'ok', 'bestätigen', 'weiter'];
       let parent = captchaInput.parentElement;
       while (parent && parent !== document.body) {
-        const btn = parent.querySelector('button[type="submit"], button') as HTMLButtonElement | null;
-        if (btn) {
-          submitBtn = btn;
-          break;
+        const btns = parent.querySelectorAll('button[type="submit"], button') as NodeListOf<HTMLButtonElement>;
+        for (const btn of btns) {
+          const btnText = (btn.textContent?.trim() || '').toLowerCase();
+          if (submitKeywords.some((kw) => btnText.includes(kw))) {
+            submitBtn = btn;
+            break;
+          }
         }
+        if (submitBtn) break;
         parent = parent.parentElement;
       }
     }

@@ -136,6 +136,22 @@ export interface StatusResponse {
   syncedContacted: number;
 }
 
+// Activity log entry stored in chrome.storage and broadcast via runtime messages
+export interface ActivityLogEntry {
+  _id?: string;
+  timestamp?: number;
+  message?: string;
+  type?: string;
+  current?: { id: string; title?: string; url?: string };
+  lastResult?: 'success' | 'skipped' | 'failed';
+  lastId?: string;
+  lastTitle?: string;
+  error?: string;
+  duplicateDecisionId?: string;
+  duplicateLandlordName?: string;
+  action?: string;
+}
+
 // Queue item stored in chrome.storage
 export interface QueueItem {
   id: string;
@@ -145,6 +161,7 @@ export interface QueueItem {
   status: 'pending' | 'processing' | 'sent' | 'failed' | 'skipped';
   retries: number;
   error?: string;
+  source?: string;
 }
 
 // Appointment info in conversations (matches ImmoScout API)

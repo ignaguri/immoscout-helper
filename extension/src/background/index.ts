@@ -5,7 +5,7 @@ import { checkForNewReplies } from './conversations';
 import { scheduleNextAlarm } from './helpers';
 import { checkForNewListings } from './listings';
 import { registerMessageHandler, registerNotificationHandler } from './message-handler';
-import { handleDuplicateLandlordAlarm } from './messaging';
+import { handleDuplicateLandlordAlarm } from './duplicates';
 import { updateCheckInterval } from './monitoring';
 import {
   isMonitoring,
@@ -16,6 +16,8 @@ import {
   setMessageCount,
   setMessageCountResetTime,
 } from './state';
+// Note: setLastMessageTime, setMessageCount, setMessageCountResetTime are still
+// used by the onInstalled handler to reset rate limits on install/reload.
 import { initializeStorage } from './storage';
 
 // Open side panel when extension icon is clicked
@@ -63,16 +65,11 @@ chrome.runtime.onStartup.addListener(async () => {
 async function restoreMonitoringState(): Promise<void> {
   const stored: Record<string, any> = await chrome.storage.local.get([
     C.MONITORING_STATE_KEY,
-    C.RATE_LAST_MESSAGE_TIME_KEY,
-    C.RATE_MESSAGE_COUNT_KEY,
-    C.RATE_COUNT_RESET_TIME_KEY,
     C.QUEUE_PROCESSING_KEY,
   ]);
 
-  // Restore rate limit state
-  setLastMessageTime(stored[C.RATE_LAST_MESSAGE_TIME_KEY] || 0);
-  setMessageCount(stored[C.RATE_MESSAGE_COUNT_KEY] || 0);
-  setMessageCountResetTime(stored[C.RATE_COUNT_RESET_TIME_KEY] || Date.now() + 3600000);
+  // Rate limit state is now restored eagerly on module load in state.ts
+  // (via rateStateRestored promise) to prevent race conditions.
 
   // Clear stale queue processing flag (SW was killed mid-run)
   if (stored[C.QUEUE_PROCESSING_KEY]) {

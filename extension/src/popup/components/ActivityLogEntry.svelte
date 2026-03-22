@@ -1,9 +1,10 @@
 <script lang="ts">
 import { onMount } from 'svelte';
 import { PENDING_DUPLICATE_DECISION_KEY } from '../../shared/constants';
+import type { ActivityLogEntry } from '../../shared/types';
 import { sendDuplicateLandlordDecision } from '../lib/messages';
 
-let { entry }: { entry: any } = $props();
+let { entry }: { entry: ActivityLogEntry } = $props();
 let showErrorDetail = $state(false);
 let duplicatePending = $state(false);
 let decisionSending = $state(false);

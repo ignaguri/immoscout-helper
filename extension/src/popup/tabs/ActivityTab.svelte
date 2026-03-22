@@ -1,5 +1,6 @@
 <script lang="ts">
-import type { ManualReviewData, PendingApprovalItem } from '../../shared/types';
+import { onMount } from 'svelte';
+import type { ActivityLogEntry as ActivityLogEntryType, ManualReviewData, PendingApprovalItem, QueueItem } from '../../shared/types';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
 import AnalyzeSection from '../components/AnalyzeSection.svelte';
 import CollapsibleSection from '../components/CollapsibleSection.svelte';
@@ -32,13 +33,13 @@ let {
 }: {
   settings: PopupSettings;
   settingsLoaded: boolean;
-  activityLog: any[];
+  activityLog: ActivityLogEntryType[];
   testResultVisible: boolean;
   testResultContent: string;
   testResultIsError: boolean;
   analyzeResult: any;
   lastAnalyzeContext: any;
-  queue: any[];
+  queue: QueueItem[];
   isQueueProcessing: boolean;
   queueProgressLines: Array<{ text: string; type: string }>;
   pendingApproval: PendingApprovalItem[];
@@ -49,7 +50,7 @@ let logBoxEl: HTMLDivElement | undefined = $state();
 let manualReview = $state<ManualReviewData | null>(null);
 
 // Load manual review data on mount and poll for changes
-$effect(() => {
+onMount(() => {
   getManualReview()
     .then((r) => {
       manualReview = r;

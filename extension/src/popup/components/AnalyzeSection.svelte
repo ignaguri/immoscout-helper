@@ -9,8 +9,8 @@ import {
   formatListingForPrompt,
   parseScoreJSON,
 } from '../../shared/prompts';
+import { trackTokenUsage } from '../../shared/ai-router';
 import type { PopupSettings } from '../lib/storage';
-import { trackTokenUsage } from '../lib/storage';
 
 let {
   settings,

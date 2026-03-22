@@ -5,11 +5,13 @@ import {
   lastMessageTime,
   messageCount,
   messageCountResetTime,
+  rateStateRestored,
   setMessageCount,
   setMessageCountResetTime,
 } from './state';
 
 export async function checkRateLimit(): Promise<RateLimitResult> {
+  await rateStateRestored;
   const now = Date.now();
 
   if (now >= messageCountResetTime) {

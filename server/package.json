@@ -11,6 +11,7 @@
     "lint:fix": "../node_modules/.bin/biome check --write ."
   },
   "dependencies": {
+    "@repo/shared-prompts": "*",
     "@repo/shared-types": "*",
     "@ai-sdk/google": "^1.2.0",
     "@ai-sdk/openai": "^1.2.0",

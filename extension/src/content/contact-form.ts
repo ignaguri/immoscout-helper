@@ -94,9 +94,14 @@ export async function fillFormFields(formValues: FormValues = {}): Promise<numbe
       continue;
     }
 
-    // Try radio buttons
+    // Try radio buttons — scope search to the contact form container to avoid
+    // iterating thousands of elements across the full page.
+    const formRoot =
+      document.querySelector('form[class*="contact"], form[class*="Contact"], [class*="contactForm"], [class*="ContactForm"]') ||
+      document.querySelector('form') ||
+      document;
     for (const keyword of field.keywords) {
-      for (const label of document.querySelectorAll('label, span, div')) {
+      for (const label of formRoot.querySelectorAll('label, span, div')) {
         if (!(label.textContent || '').toLowerCase().includes(keyword)) continue;
 
         const container = label.closest('div, fieldset, li') || label.parentElement;
@@ -300,6 +305,17 @@ export async function sendMessageToLandlord(
         if (captchaAfterImg || captchaAfterHeading) {
           addLog('🔒 CAPTCHA detected after form disappeared — message not sent');
           return { success: false, error: 'Captcha appeared after submit', captchaBlocked: true, log };
+        }
+        // Check for positive confirmation indicators before assuming success
+        const confirmIndicator =
+          document.querySelector('[class*="status-confirm"]') ||
+          Array.from(document.querySelectorAll('div, span, h4, p')).find((el) => {
+            const t = (el.textContent || '').trim();
+            return t.includes('Nachricht gesendet') || t.includes('erfolgreich gesendet') || t.includes('Vielen Dank');
+          });
+        if (!confirmIndicator) {
+          addLog('⚠️ Form disappeared without confirmation indicator');
+          return { success: false, error: 'Form disappeared without confirmation', log };
         }
         addLog('🎉 SUCCESS: Message sent!');
         return { success: true, messageSent: message, log };

@@ -8,16 +8,24 @@ import { createOpenAI, openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
-import { buildMessagePrompt, buildReplyPrompt, buildScoringPrompt } from './prompts.js';
+import {
+  CAPTCHA_SYSTEM_PROMPT,
+  CAPTCHA_USER_PROMPT,
+  buildConversationText,
+  buildMessagePrompt,
+  buildReplyPrompt,
+  buildScoringPrompt,
+  buildShortenPrompt,
+  formatListingForPrompt,
+  parseScoreJSON,
+} from './prompts.js';
 import type {
   AnalyzeRequestBody,
   CaptchaRequestBody,
   DocumentsRequestBody,
-  ListingDetails,
   LogEntryBody,
   ProviderId,
   ReplyRequestBody,
-  ScoreResult,
   ShortenRequestBody,
 } from './types.js';
 
@@ -44,57 +52,6 @@ function getModel(provider?: ProviderId, apiKey?: string) {
 function geminiNoThinking(provider?: ProviderId) {
   if (provider === 'openai') return {};
   return { providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } } };
-}
-
-// Format listing details into readable text for the AI
-function formatListingForPrompt(details: ListingDetails): string {
-  const lines: string[] = [];
-  if (details.title) lines.push(`Titel: ${details.title}`);
-  if (details.address) lines.push(`Adresse: ${details.address}`);
-  if (details.kaltmiete) lines.push(`Kaltmiete: ${details.kaltmiete}`);
-  if (details.warmmiete) lines.push(`Warmmiete: ${details.warmmiete}`);
-  if (details.nebenkosten) lines.push(`Nebenkosten: ${details.nebenkosten}`);
-  if (details.kaution) lines.push(`Kaution: ${details.kaution}`);
-  if (details.wohnflaeche) lines.push(`Wohnfläche: ${details.wohnflaeche}`);
-  if (details.zimmer) lines.push(`Zimmer: ${details.zimmer}`);
-  if (details.etage) lines.push(`Etage: ${details.etage}`);
-  if (details.bezugsfrei) lines.push(`Bezugsfrei ab: ${details.bezugsfrei}`);
-  if (details.haustiere) lines.push(`Haustiere: ${details.haustiere}`);
-  if (details.rauchen) lines.push(`Rauchen: ${details.rauchen}`);
-  if (details.baujahr) lines.push(`Baujahr: ${details.baujahr}`);
-  if (details.objekttyp) lines.push(`Objekttyp: ${details.objekttyp}`);
-  if (details.heizungsart) lines.push(`Heizungsart: ${details.heizungsart}`);
-  if (details.energieverbrauch) lines.push(`Energieverbrauch: ${details.energieverbrauch}`);
-  if (details.energieeffizienzklasse) lines.push(`Energieeffizienzklasse: ${details.energieeffizienzklasse}`);
-  if (details.balkon) lines.push(`Balkon/Terrasse: ${details.balkon}`);
-  if (details.garage) lines.push(`Garage/Stellplatz: ${details.garage}`);
-  if (details.aufzug) lines.push(`Aufzug: ${details.aufzug}`);
-  if (details.keller) lines.push(`Keller: ${details.keller}`);
-  if (details.internet) lines.push(`Internet: ${details.internet}`);
-  if (details.wbs) lines.push(`WBS: ${details.wbs}`);
-  if (details.heizkosten) lines.push(`Heizkosten: ${details.heizkosten}`);
-  if (details.energietraeger) lines.push(`Energieträger: ${details.energietraeger}`);
-  if (details.objektzustand) lines.push(`Objektzustand: ${details.objektzustand}`);
-
-  if (details.extraAttributes) {
-    for (const [key, value] of Object.entries(details.extraAttributes)) {
-      lines.push(`${key}: ${value}`);
-    }
-  }
-
-  if (details.amenities?.length) {
-    lines.push(`Ausstattung: ${details.amenities.join(', ')}`);
-  }
-
-  if (details.description) {
-    lines.push(`\nBeschreibung:\n${details.description}`);
-  }
-
-  if (lines.length === 0 && details.rawText) {
-    lines.push(`Inseratstext:\n${details.rawText}`);
-  }
-
-  return lines.join('\n');
 }
 
 // Health check
@@ -143,49 +100,12 @@ app.post('/analyze', async (req: Request<Record<string, never>, unknown, Analyze
     totalPromptTokens += scoreUsage_?.promptTokens || 0;
     totalCompletionTokens += scoreUsage_?.completionTokens || 0;
 
-    // Try direct JSON.parse first (if model returned clean JSON)
-    try {
-      const directParse = JSON.parse(scoreText.trim()) as ScoreResult;
-      score = directParse.score;
-      reason = directParse.reason;
-      summary = directParse.summary;
-      flags = directParse.flags || [];
-    } catch {
-      // Fall through to extraction
-    }
-
-    // If direct parse failed, extract JSON object from text
-    if (score === undefined) {
-      const scoreIdx = scoreText.indexOf('"score"');
-      if (scoreIdx !== -1) {
-        const start = scoreText.lastIndexOf('{', scoreIdx);
-        if (start !== -1) {
-          // Find matching closing brace
-          let depth = 0;
-          let end = -1;
-          for (let i = start; i < scoreText.length; i++) {
-            if (scoreText[i] === '{') depth++;
-            else if (scoreText[i] === '}') {
-              depth--;
-              if (depth === 0) {
-                end = i;
-                break;
-              }
-            }
-          }
-          if (end !== -1) {
-            try {
-              const parsed = JSON.parse(scoreText.substring(start, end + 1)) as ScoreResult;
-              score = parsed.score;
-              reason = parsed.reason;
-              summary = parsed.summary;
-              flags = parsed.flags || [];
-            } catch (e) {
-              console.warn('[Analyze] JSON parse failed:', (e as Error).message);
-            }
-          }
-        }
-      }
+    const parsed = parseScoreJSON(scoreText);
+    if (parsed) {
+      score = parsed.score;
+      reason = parsed.reason;
+      summary = parsed.summary;
+      flags = parsed.flags || [];
     }
     if (score === undefined) {
       console.warn('[Analyze] Could not parse score JSON, defaulting to 5');
@@ -296,8 +216,7 @@ app.post('/captcha', async (req: Request<Record<string, never>, unknown, Captcha
 
     const { text, usage: captchaUsage } = await generateText({
       model,
-      system:
-        'You are a captcha solver. The image contains a security captcha with 5–7 distorted alphanumeric characters (only ASCII letters a–z and digits 0–9, no special characters, no spaces). The text may be warped, have noise, or an unusual background. Examine every character carefully. Output ONLY the alphanumeric characters you see — nothing else, no explanation, no punctuation, no newlines.',
+      system: CAPTCHA_SYSTEM_PROMPT,
       messages: [
         {
           role: 'user',
@@ -309,7 +228,7 @@ app.post('/captcha', async (req: Request<Record<string, never>, unknown, Captcha
             },
             {
               type: 'text',
-              text: 'What are the characters in this captcha?',
+              text: CAPTCHA_USER_PROMPT,
             },
           ],
         },
@@ -350,16 +269,7 @@ app.post('/shorten', async (req: Request<Record<string, never>, unknown, Shorten
   try {
     const { text, usage: shortenUsage } = await generateText({
       model,
-      system: `Du bist ein Assistent, der Bewerbungsnachrichten für Wohnungsinserate kürzt.
-
-REGELN:
-1. Die Nachricht MUSS maximal ${maxLength} Zeichen lang sein (inklusive Leerzeichen und Zeilenumbrüche). Das ist ein hartes Limit.
-2. Behalte die Anrede (erste Zeile) und den Abschluss (Grußformel + Name + ggf. Telefonnummer) exakt bei.
-3. Kürze nur den Hauptteil: Entferne Wiederholungen, fasse ähnliche Aussagen zusammen, streiche weniger wichtige Details.
-4. Behalte die wichtigsten Argumente: Berufliche Stabilität, konkreter Bezug zur Wohnung, persönliche Stärken.
-5. Der Ton und Stil müssen gleich bleiben (formal/informell wie im Original).
-6. Kein Markdown, keine Formatierung — nur Fließtext.
-7. Schreibe NUR die gekürzte Nachricht, nichts anderes.`,
+      system: buildShortenPrompt(maxLength),
       prompt: `Kürze diese Nachricht auf maximal ${maxLength} Zeichen:\n\n${message}`,
       maxTokens: 2048,
       ...geminiNoThinking(provider),
@@ -402,39 +312,7 @@ app.post('/reply', async (req: Request<Record<string, never>, unknown, ReplyRequ
   try {
     const systemPrompt = buildReplyPrompt(userProfile || {}, landlordInfo || {}, profile);
 
-    const conversationText = conversationHistory
-      .map((msg) => {
-        const label = msg.role === 'user' ? 'ICH (Bewerber)' : 'VERMIETER/ANBIETER';
-        const time = msg.timestamp ? ` [${msg.timestamp}]` : '';
-        return `${label}${time}:\n${msg.text}`;
-      })
-      .join('\n\n');
-
-    let appointmentContext = '';
-    if (appointmentAction) {
-      const actionLabels: Record<string, string> = {
-        accept: 'ZUSAGE (Termin annehmen)',
-        reject: 'ABSAGE (Termin ablehnen)',
-        alternative: 'ALTERNATIVVORSCHLAG (anderen Termin anfragen)',
-      };
-      const parts = [
-        `\nTERMINEINLADUNG:`,
-        appointmentAction.date ? `Datum: ${appointmentAction.date}` : null,
-        appointmentAction.time ? `Zeit: ${appointmentAction.time}` : null,
-        appointmentAction.location ? `Ort: ${appointmentAction.location}` : null,
-        `GEWÜNSCHTE AKTION: ${actionLabels[appointmentAction.type] || appointmentAction.type}`,
-        appointmentAction.userContext ? `ZUSÄTZLICHER KONTEXT VOM NUTZER: ${appointmentAction.userContext}` : null,
-        `Schreibe eine passende kurze Antwort (30-60 Wörter). Berücksichtige den Kontext des Nutzers falls vorhanden.`,
-      ]
-        .filter(Boolean)
-        .join('\n');
-      appointmentContext = parts;
-    }
-
-    const userInstruction = userContext
-      ? `\nKONTEXT/ANWEISUNGEN VOM NUTZER: ${userContext}\nBerücksichtige diese Anweisungen in deiner Antwort.`
-      : '';
-    const prompt = `${listingTitle ? `WOHNUNG: ${listingTitle}\n\n` : ''}GESPRÄCHSVERLAUF:\n\n${conversationText}\n\n${appointmentContext ? appointmentContext : `${userInstruction}\nSchreibe die nächste Antwort des Bewerbers.`}`;
+    const prompt = buildConversationText(conversationHistory, listingTitle, appointmentAction, userContext);
 
     const { text, usage: replyUsage } = await generateText({
       model,

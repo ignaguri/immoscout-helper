@@ -5,7 +5,7 @@ import { checkForNewReplies } from './conversations';
 import { scheduleNextAlarm } from './helpers';
 import { checkForNewListings } from './listings';
 import { registerMessageHandler, registerNotificationHandler } from './message-handler';
-import { handleDuplicateLandlordAlarm } from './messaging';
+import { handleDuplicateLandlordAlarm } from './duplicates';
 import { updateCheckInterval } from './monitoring';
 import {
   isMonitoring,

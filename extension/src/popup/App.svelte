@@ -79,6 +79,12 @@ let statsSyncedCount = $state(0);
 let statsNextCheck = $state('--');
 let nextAlarmTime: number | null = $state(null);
 
+// Activity-log-derived stats
+let actSent = $state(0);
+let actFilled = $state(0);
+let actSkipped = $state(0);
+let actFailed = $state(0);
+
 // AI
 let aiServerConnected = $state(false);
 let aiStatsScored = $state(0);
@@ -127,6 +133,10 @@ async function updateStats() {
     statsSentTotal = status.totalMessagesSent || 0;
     statsSeenCount = status.seenListingsCount || 0;
     statsSyncedCount = status.syncedContacted || 0;
+    actSent = status.activitySent || 0;
+    actFilled = status.activityFilled || 0;
+    actSkipped = status.activitySkipped || 0;
+    actFailed = status.activityFailed || 0;
 
     if (status.isMonitoring) {
       try {
@@ -405,24 +415,25 @@ onMount(() => {
   <div class="stats-bar">
     <div class="stat">
       <span class="stat-value">{statsSentHour}</span>
-      <span class="stat-label">This hour</span>
+      <span class="stat-label">/hour</span>
     </div>
     <div class="stat">
-      <span class="stat-value">{statsSentTotal}</span>
-      <span class="stat-label">Total sent</span>
+      <span class="stat-value">{actSent}</span>
+      <span class="stat-label">Sent</span>
     </div>
     <div class="stat">
-      <span class="stat-value">{statsSeenCount}</span>
-      <span class="stat-label">Seen</span>
+      <span class="stat-value">{actSkipped}</span>
+      <span class="stat-label">Skipped</span>
     </div>
     <div class="stat">
-      <span class="stat-value">{statsSyncedCount}</span>
-      <span class="stat-label">Synced</span>
+      <span class="stat-value">{actFailed}</span>
+      <span class="stat-label">Failed</span>
     </div>
-    <div class="stat">
-      <span class="stat-value">{statsNextCheck}</span>
-      <span class="stat-label">Next check</span>
-    </div>
+  </div>
+  <div class="stats-bar stats-bar-secondary">
+    <span class="stat-secondary">{statsSeenCount} seen</span>
+    {#if actFilled > 0}<span class="stat-secondary">{actFilled} pending review</span>{/if}
+    <span class="stat-secondary">Next: {statsNextCheck}</span>
   </div>
 
   <!-- Tabs -->
@@ -613,9 +624,20 @@ onMount(() => {
   .stats-bar {
     display: flex;
     justify-content: space-around;
-    padding: 8px 20px 12px;
+    padding: 8px 20px 6px;
     background: white;
+  }
+
+  .stats-bar-secondary {
+    justify-content: center;
+    gap: 12px;
+    padding: 0 20px 8px;
     border-bottom: 1px solid #eee;
+  }
+
+  .stat-secondary {
+    font-size: 10px;
+    color: #999;
   }
 
   .stat {

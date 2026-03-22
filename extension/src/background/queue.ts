@@ -106,15 +106,25 @@ export async function processQueue(): Promise<void> {
   let queueFailedCount = 0;
   let queueSkippedCount = 0;
 
-  try {
-    // Load seen and blacklist sets once before the loop (they only grow, never shrink during processing)
-    const preloadStored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.BLACKLIST_KEY]);
-    const seenList: string[] = preloadStored[C.STORAGE_KEY] || [];
-    const seenSet = new Set(seenList.map((id: string) => String(id).toLowerCase().trim()));
-    const blacklistSet = new Set(
-      (preloadStored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()),
-    );
+  // Load seen and blacklist sets once before the loop, kept in sync via storage listener
+  const preloadStored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.BLACKLIST_KEY]);
+  const seenList: string[] = preloadStored[C.STORAGE_KEY] || [];
+  const seenSet = new Set(seenList.map((id: string) => String(id).toLowerCase().trim()));
+  const blacklistSet = new Set(
+    (preloadStored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()),
+  );
 
+  // Keep blacklist in sync if updated mid-run (e.g. user blacklists via popup)
+  const storageListener = (changes: Record<string, chrome.storage.StorageChange>) => {
+    if (changes[C.BLACKLIST_KEY]) {
+      const updated: string[] = changes[C.BLACKLIST_KEY].newValue || [];
+      blacklistSet.clear();
+      for (const id of updated) blacklistSet.add(String(id).toLowerCase().trim());
+    }
+  };
+  chrome.storage.local.onChanged.addListener(storageListener);
+
+  try {
     while (!queueAbortRequested) {
       if (!isMonitoring && !userTriggeredProcessing) break;
 
@@ -266,6 +276,7 @@ export async function processQueue(): Promise<void> {
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   } finally {
+    chrome.storage.local.onChanged.removeListener(storageListener);
     setIsProcessingQueue(false);
     setQueueAbortRequested(false);
     setUserTriggeredProcessing(false);

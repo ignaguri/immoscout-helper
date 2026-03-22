@@ -1,3 +1,4 @@
+import type { ActivityLogEntry, ConversationEntry, QueueItem } from '../../shared/types';
 import {
   ACTIVITY_LOG_KEY,
   AI_ABOUT_ME_KEY,
@@ -273,7 +274,7 @@ export async function saveAllSettings(s: PopupSettings): Promise<void> {
   });
 }
 
-export async function loadActivityLog(): Promise<any[]> {
+export async function loadActivityLog(): Promise<ActivityLogEntry[]> {
   const stored = await chrome.storage.local.get([ACTIVITY_LOG_KEY]);
   return stored[ACTIVITY_LOG_KEY] || [];
 }
@@ -282,7 +283,7 @@ export async function clearActivityLog(): Promise<void> {
   await chrome.storage.local.set({ [ACTIVITY_LOG_KEY]: [] });
 }
 
-export async function loadQueue(): Promise<any[]> {
+export async function loadQueue(): Promise<QueueItem[]> {
   const stored = await chrome.storage.local.get([QUEUE_KEY]);
   return stored[QUEUE_KEY] || [];
 }
@@ -292,7 +293,7 @@ export async function clearQueue(): Promise<void> {
 }
 
 export async function loadConversations(): Promise<{
-  conversations: any[];
+  conversations: ConversationEntry[];
   lastCheck: string | null;
   unreadCount: number;
 }> {
@@ -312,13 +313,5 @@ export async function resetAiUsage(): Promise<void> {
   await chrome.storage.local.set({
     [AI_USAGE_PROMPT_TOKENS_KEY]: 0,
     [AI_USAGE_COMPLETION_TOKENS_KEY]: 0,
-  });
-}
-
-export async function trackTokenUsage(promptTokens: number, completionTokens: number): Promise<void> {
-  const stats = await chrome.storage.local.get([AI_USAGE_PROMPT_TOKENS_KEY, AI_USAGE_COMPLETION_TOKENS_KEY]);
-  await chrome.storage.local.set({
-    [AI_USAGE_PROMPT_TOKENS_KEY]: (stats[AI_USAGE_PROMPT_TOKENS_KEY] || 0) + promptTokens,
-    [AI_USAGE_COMPLETION_TOKENS_KEY]: (stats[AI_USAGE_COMPLETION_TOKENS_KEY] || 0) + completionTokens,
   });
 }

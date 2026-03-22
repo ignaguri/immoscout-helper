@@ -695,7 +695,11 @@ export function registerMessageHandler(): void {
       } else if (request.action === 'refineManualMessage') {
         (async () => {
           try {
-            const { instructions } = request;
+            const instructions = (request.instructions || '').trim();
+            if (!instructions) {
+              sendResponse({ success: false, error: 'Refinement instructions cannot be empty' });
+              return;
+            }
             const stored = await chrome.storage.local.get([C.PENDING_MANUAL_REVIEW_KEY]);
             const review: ManualReviewData | null = stored[C.PENDING_MANUAL_REVIEW_KEY] || null;
             if (!review) {
@@ -768,6 +772,7 @@ export function registerMessageHandler(): void {
                   apiKey: aiConfig.apiKey,
                   provider: aiConfig.provider,
                   profile,
+                  userProfile,
                   isTenantNetwork: review.isTenantNetwork,
                 }),
               });
@@ -811,8 +816,18 @@ export function registerMessageHandler(): void {
         return true;
       } else if (request.action === 'dismissManualReview') {
         (async () => {
-          await chrome.storage.local.remove(C.PENDING_MANUAL_REVIEW_KEY);
-          sendResponse({ success: true });
+          try {
+            // Clear the persistent notification if one exists
+            const stored = await chrome.storage.local.get([C.PENDING_MANUAL_REVIEW_KEY]);
+            const review: ManualReviewData | null = stored[C.PENDING_MANUAL_REVIEW_KEY] || null;
+            if (review?.notificationId) {
+              chrome.notifications.clear(review.notificationId);
+            }
+            await chrome.storage.local.remove(C.PENDING_MANUAL_REVIEW_KEY);
+            sendResponse({ success: true });
+          } catch (e: any) {
+            sendResponse({ success: false, error: e?.message ?? 'Failed to dismiss' });
+          }
         })();
         return true;
       }

@@ -457,8 +457,17 @@ app.post('/reply', async (req: Request<Record<string, never>, unknown, ReplyRequ
 
 // Message refinement endpoint
 app.post('/refine', async (req: Request, res: Response) => {
-  const { currentMessage, instructions, landlordInfo, listingTitle, apiKey, provider, profile, isTenantNetwork } =
-    req.body;
+  const {
+    currentMessage,
+    instructions,
+    landlordInfo,
+    listingTitle,
+    apiKey,
+    provider,
+    profile,
+    isTenantNetwork,
+    userProfile,
+  } = req.body;
 
   if (!currentMessage || !instructions) {
     return res.status(400).json({ error: 'currentMessage and instructions are required' });
@@ -470,7 +479,12 @@ app.post('/refine', async (req: Request, res: Response) => {
       ...(typeof isTenantNetwork === 'boolean' ? { isTenantNetwork } : {}),
     };
 
-    const systemPrompt = buildMessagePrompt({ aboutMe: '', phone: '' }, mergedLandlordInfo, undefined, profile);
+    const systemPrompt = buildMessagePrompt(
+      userProfile || { aboutMe: '', phone: '' },
+      mergedLandlordInfo,
+      undefined,
+      profile,
+    );
 
     const userPrompt = `CURRENT MESSAGE:\n${currentMessage}\n\nREFINEMENT INSTRUCTIONS:\n${instructions}`;
 

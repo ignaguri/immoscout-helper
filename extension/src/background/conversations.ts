@@ -11,12 +11,14 @@ import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';
 import { sendActivityLog } from './listings';
-import { shouldNotify } from './notifications';
+import { loadNotificationPrefs, shouldNotifyWith } from './notifications';
 
 export type { ConversationEntry, ConversationMessage };
 
 export async function checkForNewReplies(): Promise<void> {
   try {
+    const notifPrefs = await loadNotificationPrefs();
+
     // Fetch conversations from ImmoScout API
     const allConversations: IS24Conversation[] = [];
     let cursor: string | null = null;
@@ -153,7 +155,7 @@ export async function checkForNewReplies(): Promise<void> {
           );
 
           // Send desktop notification
-          if (await shouldNotify('newReply')) {
+          if (shouldNotifyWith(notifPrefs, 'newReply')) {
             try {
               chrome.notifications.create(`conv-reply-${conversationId}`, {
                 type: 'basic',

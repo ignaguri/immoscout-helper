@@ -715,11 +715,10 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
           aiReason: aiResult?.reason,
           timestamp: Date.now(),
         };
-        await chrome.storage.local.set({ [C.PENDING_MANUAL_REVIEW_KEY]: reviewData });
-
         // Persistent notification with click-to-focus
         if (shouldNotifyWith(notifPrefs, 'manualReview')) {
           const notifId = `manual-review-${listing.id || Date.now()}`;
+          reviewData.notificationId = notifId;
           try {
             chrome.notifications.create(notifId, {
               type: 'basic',
@@ -732,6 +731,7 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
             error('Notification error:', e);
           }
         }
+        await chrome.storage.local.set({ [C.PENDING_MANUAL_REVIEW_KEY]: reviewData });
       }
     }
 

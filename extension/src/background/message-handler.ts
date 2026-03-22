@@ -695,13 +695,36 @@ export function registerMessageHandler(): void {
             }
 
             const profile = await getProfile();
-            const landlordInfo = { name: review.landlordName, title: review.landlordTitle };
+            const landlordInfo = {
+              name: review.landlordName,
+              title: review.landlordTitle,
+              isTenantNetwork: review.isTenantNetwork,
+              isPrivate: review.isPrivateLandlord,
+            };
             const userContext = `CURRENT MESSAGE:\n${review.message}\n\nREFINEMENT INSTRUCTIONS:\n${instructions}`;
+
+            // Load user profile from storage (same keys as initial message generation)
+            const formKeys = [
+              C.AI_ABOUT_ME_KEY, C.FORM_ADULTS_KEY, C.FORM_CHILDREN_KEY,
+              C.FORM_PETS_KEY, C.FORM_SMOKER_KEY, C.FORM_INCOME_KEY,
+              C.FORM_INCOME_RANGE_KEY, C.FORM_PHONE_KEY,
+            ];
+            const formData: Record<string, any> = await chrome.storage.local.get(formKeys);
+            const userProfile = {
+              adults: formData[C.FORM_ADULTS_KEY],
+              children: formData[C.FORM_CHILDREN_KEY],
+              pets: formData[C.FORM_PETS_KEY],
+              smoker: formData[C.FORM_SMOKER_KEY],
+              income: formData[C.FORM_INCOME_KEY],
+              incomeRange: formData[C.FORM_INCOME_RANGE_KEY],
+              aboutMe: formData[C.AI_ABOUT_ME_KEY],
+              phone: formData[C.FORM_PHONE_KEY],
+            };
 
             // Build prompt using the same AI pipeline as initial message generation
             const { buildMessagePrompt } = await import('../shared/prompts');
             const systemPrompt = buildMessagePrompt(
-              { aboutMe: '', phone: '' },
+              userProfile,
               landlordInfo,
               undefined,
               profile,
@@ -750,15 +773,12 @@ export function registerMessageHandler(): void {
               return;
             }
 
-            // Re-fill the form on the tab
+            // Re-fill only the message textarea on the tab (no form fields)
             try {
               await chrome.tabs.get(review.tabId); // verify tab exists
               const fillResult: any = await chrome.tabs.sendMessage(review.tabId, {
-                action: 'sendMessage',
+                action: 'refillMessage',
                 message: newMessage,
-                formValues: {},
-                autoSend: false,
-                refill: true, // signal to content script to just refill, not re-fill form fields
               });
 
               if (fillResult?.success) {

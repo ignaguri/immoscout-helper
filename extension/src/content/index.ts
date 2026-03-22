@@ -6,7 +6,7 @@ import { BLACKLIST_KEY, QUEUE_KEY, STORAGE_KEY } from '../shared/constants';
 import { debug, log } from '../shared/logger';
 import type { CheckMessageSentResult, ContentRequest } from '../shared/types';
 import { detectCaptcha, detectCaptchaElement, fillCaptchaAndSubmit } from './captcha';
-import { sendMessageToLandlord } from './contact-form';
+import { refillMessageOnly, sendMessageToLandlord } from './contact-form';
 import { simulateHumanEngagement } from './dom-helpers';
 import { detectListingType, extractLandlordName, extractListingDetails } from './listing-details';
 import { extractListings, extractPaginationInfo } from './listings';
@@ -64,6 +64,13 @@ chrome.runtime.onMessage.addListener(
           .then((result) => sendResponse(result))
           .catch((error) => sendResponse({ success: false, error: (error as Error).message }));
         return true; // Keep channel open for async response
+
+      case 'refillMessage':
+        // Re-fill only the message textarea (no form fields, no submit). Used for refinement.
+        refillMessageOnly(request.message!)
+          .then((result) => sendResponse(result))
+          .catch((error) => sendResponse({ success: false, error: (error as Error).message }));
+        return true;
 
       case 'fillConversationReply':
         // Fill reply textarea on ImmoScout messenger conversation page

@@ -465,9 +465,14 @@ app.post('/refine', async (req: Request, res: Response) => {
   }
 
   try {
+    const mergedLandlordInfo = {
+      ...(landlordInfo || {}),
+      ...(typeof isTenantNetwork === 'boolean' ? { isTenantNetwork } : {}),
+    };
+
     const systemPrompt = buildMessagePrompt(
       { aboutMe: '', phone: '' },
-      landlordInfo || {},
+      mergedLandlordInfo,
       undefined,
       profile,
     );

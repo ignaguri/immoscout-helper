@@ -10,6 +10,7 @@
     "lint:fix": "../node_modules/.bin/biome check --write ."
   },
   "dependencies": {
+    "@repo/shared-prompts": "*",
     "@repo/shared-types": "*"
   },
   "devDependencies": {

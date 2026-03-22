@@ -82,6 +82,7 @@ export async function handleAppointment(
     if (convId) {
       // Look for links containing the conversation ID
       const convLinks = document.querySelectorAll(`a[href*="${convId}"], [data-testid*="conversation"]`);
+
       for (const link of convLinks) {
         if ((link as HTMLAnchorElement).href?.includes(convId) || link.closest(`a[href*="${convId}"]`)) {
           (link as HTMLElement).click();
@@ -98,7 +99,10 @@ export async function handleAppointment(
         '[data-testid^="conversation-list-item"], [class*="conversationList"] a, [class*="ConversationList"] a',
       );
       for (const item of convItems) {
-        if ((item as HTMLAnchorElement).href?.includes(convId || '') || item.querySelector(`[href*="${convId}"]`)) {
+        if (
+          (convId && (item as HTMLAnchorElement).href?.includes(convId)) ||
+          (convId && item.querySelector(`[href*="${convId}"]`))
+        ) {
           (item as HTMLElement).click();
           log('[IS24] Clicked conversation list item');
           clicked = true;

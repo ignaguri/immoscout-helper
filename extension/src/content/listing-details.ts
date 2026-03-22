@@ -30,7 +30,7 @@ export function detectListingType(): ListingType {
   };
 }
 
-export function extractLandlordName(): LandlordInfo {
+export function extractLandlordName(precomputedBodyText?: string): LandlordInfo {
   let nameEl: Element | null = findElement(S.LANDLORD_NAME_SELECTORS);
 
   // Fallback: search contact sections
@@ -50,7 +50,7 @@ export function extractLandlordName(): LandlordInfo {
   // Detect if listing is from a private person or commercial agent
   const isPrivate =
     !!document.querySelector('[class*="private-offer-logo"], [class*="PrivateOfferLogo"]') ||
-    document.body.innerText.includes('von privat');
+    (precomputedBodyText ?? document.body.innerText).includes('von privat');
 
   if (!nameEl) return { title: null, name: null, isPrivate };
 
@@ -66,6 +66,8 @@ export function extractLandlordName(): LandlordInfo {
 }
 
 export function extractListingDetails(): ListingDetails {
+  // Cache document.body.innerText once — it triggers an expensive full layout reflow
+  const bodyText = document.body.innerText;
   const details: ListingDetails = {};
 
   // Title
@@ -222,7 +224,6 @@ export function extractListingDetails(): ListingDetails {
   if (amenities.length > 0) details.amenities = amenities;
 
   // Pet/smoking restrictions via body text (only if not already extracted)
-  const bodyText = document.body.innerText;
   if (!details.haustiere) {
     const petMatch = bodyText.match(/haustiere[:\s]*(erlaubt|nicht erlaubt|nach absprache|ja|nein)/i);
     if (petMatch) details.haustiere = petMatch[0].trim();

@@ -1,5 +1,6 @@
 <script lang="ts">
 import { error } from '../../shared/logger';
+import type { ConversationEntry } from '../../shared/types';
 import ConversationCard from '../components/ConversationCard.svelte';
 import { checkRepliesNow } from '../lib/messages';
 import { loadConversations as loadConvStorage } from '../lib/storage';
@@ -10,7 +11,7 @@ let {
   unreadCount = $bindable(),
   aiMode = 'direct',
 }: {
-  conversations: any[];
+  conversations: ConversationEntry[];
   lastCheckTime: string | null;
   unreadCount: number;
   aiMode?: string;

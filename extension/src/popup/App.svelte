@@ -2,7 +2,7 @@
 import { onMount } from 'svelte';
 import { PROVIDERS } from '../shared/ai-router';
 import { ALARM_NAME } from '../shared/constants';
-import type { PendingApprovalItem } from '../shared/types';
+import type { ActivityLogEntry, ConversationEntry, PendingApprovalItem, QueueItem } from '../shared/types';
 import { getPendingApprovalListings, getStatus, startMonitoring, stopMonitoring } from './lib/messages';
 import type { PopupSettings } from './lib/storage';
 import {
@@ -93,7 +93,7 @@ let aiPromptTokens = $state(0);
 let aiCompletionTokens = $state(0);
 
 // Activity
-let activityLog: any[] = $state([]);
+let activityLog: ActivityLogEntry[] = $state([]);
 let testResultVisible = $state(false);
 let testResultContent = $state('');
 let testResultIsError = $state(false);
@@ -101,7 +101,7 @@ let analyzeResult: any = $state(null);
 let lastAnalyzeContext: any = $state(null);
 
 // Queue
-let queue: any[] = $state([]);
+let queue: QueueItem[] = $state([]);
 let isQueueProcessing = $state(false);
 let queueProgressLines: Array<{ text: string; type: string }> = $state([]);
 
@@ -109,7 +109,7 @@ let queueProgressLines: Array<{ text: string; type: string }> = $state([]);
 let pendingApproval: PendingApprovalItem[] = $state([]);
 
 // Conversations
-let conversations: any[] = $state([]);
+let conversations: ConversationEntry[] = $state([]);
 let convLastCheckTime: string | null = $state(null);
 let convUnreadCount = $state(0);
 
@@ -324,7 +324,7 @@ onMount(() => {
       appendToResult(request.message);
     } else if (request.action === 'activityLog') {
       // Deduplicate: skip if an entry with the same _id already exists (race between storage load and runtime message)
-      if (request._id && activityLog.some((e: any) => e._id === request._id)) {
+      if (request._id && activityLog.some((e) => e._id === request._id)) {
         // already loaded from storage — skip
       } else {
         activityLog = [...activityLog, request];
@@ -359,7 +359,7 @@ onMount(() => {
           : request.outcome === 'skip'
             ? 'User chose: Skip'
             : 'No response — deferred to end of queue';
-      activityLog = activityLog.map((e: any) =>
+      activityLog = activityLog.map((e) =>
         e.duplicateDecisionId === request.decisionId
           ? {
               ...e,

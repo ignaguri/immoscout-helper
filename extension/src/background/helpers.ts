@@ -22,6 +22,14 @@ export async function scheduleNextAlarm(): Promise<void> {
   log(`[Alarm] Next check in ${Math.round(nextSeconds)}s (base ${baseSeconds}s ± 20%)`);
 }
 
+export async function safeCloseTab(tabId: number): Promise<void> {
+  try {
+    await chrome.tabs.remove(tabId);
+  } catch (_e) {
+    /* tab may already be closed */
+  }
+}
+
 // Wait for a tab to finish loading using chrome.tabs.onUpdated
 export function waitForTabLoad(tabId: number, timeoutMs: number = 10000): Promise<void> {
   return new Promise((resolve) => {

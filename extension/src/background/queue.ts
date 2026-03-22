@@ -106,10 +106,29 @@ export async function processQueue(): Promise<void> {
   let queueFailedCount = 0;
   let queueSkippedCount = 0;
 
+  // Load seen and blacklist sets once before the loop, kept in sync via storage listener
+  const preloadStored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.BLACKLIST_KEY]);
+  const seenList: string[] = preloadStored[C.STORAGE_KEY] || [];
+  const seenSet = new Set(seenList.map((id: string) => String(id).toLowerCase().trim()));
+  const blacklistSet = new Set(
+    (preloadStored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()),
+  );
+
+  // Keep blacklist in sync if updated mid-run (e.g. user blacklists via popup)
+  const storageListener = (changes: Record<string, chrome.storage.StorageChange>) => {
+    if (changes[C.BLACKLIST_KEY]) {
+      const updated: string[] = changes[C.BLACKLIST_KEY].newValue || [];
+      blacklistSet.clear();
+      for (const id of updated) blacklistSet.add(String(id).toLowerCase().trim());
+    }
+  };
+  chrome.storage.local.onChanged.addListener(storageListener);
+
   try {
     while (!queueAbortRequested) {
       if (!isMonitoring && !userTriggeredProcessing) break;
 
+      // Read queue at the start of each iteration to pick up newly-enqueued items
       const stored: Record<string, any> = await chrome.storage.local.get([C.QUEUE_KEY]);
       const queue: QueueItem[] = stored[C.QUEUE_KEY] || [];
 
@@ -120,25 +139,36 @@ export async function processQueue(): Promise<void> {
       }
 
       const item = queue[0];
-      const remaining = queue.slice(1);
       const normalizedId = String(item.id).toLowerCase().trim();
 
-      // Skip if already in seen list or blacklisted
-      const seenStored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.BLACKLIST_KEY]);
-      const seenSet = new Set((seenStored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
-      const blacklistSet = new Set(
-        (seenStored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()),
-      );
+      // Helper: re-read queue from storage, remove processed item by ID, write back.
+      // This preserves any items added by enqueueListings during handleNewListing.
+      const removeFromQueue = async (id: string) => {
+        const fresh: Record<string, any> = await chrome.storage.local.get([C.QUEUE_KEY]);
+        const currentQueue: QueueItem[] = fresh[C.QUEUE_KEY] || [];
+        return currentQueue.filter((q) => String(q.id).toLowerCase().trim() !== id);
+      };
+
+      // Helper: re-read queue, remove processed item, append replacement(s), write back.
+      const replaceInQueue = async (id: string, ...append: QueueItem[]) => {
+        const filtered = await removeFromQueue(id);
+        await chrome.storage.local.set({ [C.QUEUE_KEY]: [...filtered, ...append] });
+        return filtered.length + append.length;
+      };
+
+      // Skip if already in seen list or blacklisted (using in-memory sets)
       if (seenSet.has(normalizedId)) {
         log(`[Queue] ${normalizedId} already seen — removing from queue`);
-        await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+        const updated = await removeFromQueue(normalizedId);
+        await chrome.storage.local.set({ [C.QUEUE_KEY]: updated });
         await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (already contacted)` });
         queueSkippedCount++;
         continue;
       }
       if (blacklistSet.has(normalizedId)) {
         log(`[Queue] ${normalizedId} is blacklisted — removing from queue`);
-        await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+        const updated = await removeFromQueue(normalizedId);
+        await chrome.storage.local.set({ [C.QUEUE_KEY]: updated });
         await sendActivityLog({ message: `Skipped ${item.title || normalizedId} (blacklisted)` });
         queueSkippedCount++;
         continue;
@@ -147,7 +177,8 @@ export async function processQueue(): Promise<void> {
       // Skip if max retries exceeded
       if (item.retries >= C.QUEUE_MAX_RETRIES) {
         log(`[Queue] ${normalizedId} exceeded max retries (${item.retries}) — dropping`);
-        await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+        const updated = await removeFromQueue(normalizedId);
+        await chrome.storage.local.set({ [C.QUEUE_KEY]: updated });
         await sendActivityLog({
           message: `Dropped ${item.title || normalizedId} (failed ${item.retries}x)`,
           type: 'wait',
@@ -177,17 +208,26 @@ export async function processQueue(): Promise<void> {
       try {
         const result = await handleNewListing(item);
 
-        if (result?.success) {
+        if (result?.pendingApproval) {
+          // Pending approval: remove from queue but do NOT mark as seen or log as sent.
+          // The listing is now in the pending-approval list awaiting user action.
+          const updated = await removeFromQueue(normalizedId);
+          await chrome.storage.local.set({ [C.QUEUE_KEY]: updated });
+          log(`[Queue] ${normalizedId} moved to pending approval — ${updated.length} remaining`);
+        } else if (result?.success) {
           // Success: remove from queue, mark as seen
-          const freshSeen: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
-          const freshList: string[] = freshSeen[C.STORAGE_KEY] || [];
-          const freshSet = new Set(freshList.map((id: string) => String(id).toLowerCase().trim()));
-
-          if (!freshSet.has(normalizedId)) {
+          if (!seenSet.has(normalizedId)) {
+            // Re-read seen list from storage for the write (other code may have added entries)
+            const freshSeen: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
+            const freshList: string[] = freshSeen[C.STORAGE_KEY] || [];
             const updatedSeen = capSeenListings([...freshList, normalizedId]);
-            await chrome.storage.local.set({ [C.STORAGE_KEY]: updatedSeen, [C.QUEUE_KEY]: remaining });
+            const updatedQueue = await removeFromQueue(normalizedId);
+            await chrome.storage.local.set({ [C.STORAGE_KEY]: updatedSeen, [C.QUEUE_KEY]: updatedQueue });
+            // Update in-memory seen set
+            seenSet.add(normalizedId);
           } else {
-            await chrome.storage.local.set({ [C.QUEUE_KEY]: remaining });
+            const updatedQueue = await removeFromQueue(normalizedId);
+            await chrome.storage.local.set({ [C.QUEUE_KEY]: updatedQueue });
           }
 
           if (result.skipped) {
@@ -195,7 +235,7 @@ export async function processQueue(): Promise<void> {
           } else {
             queueSentCount++;
           }
-          log(`[Queue] Processed ${normalizedId} — ${remaining.length} remaining`);
+          log(`[Queue] Processed ${normalizedId}`);
           await sendActivityLog({
             lastResult: result.skipped ? 'skipped' : 'success',
             lastId: item.id,
@@ -203,12 +243,12 @@ export async function processQueue(): Promise<void> {
           });
         } else if (result?.error === 'duplicate-landlord-deferred') {
           // Deferred due to duplicate landlord — move to end without incrementing retries
-          await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, item] });
+          await replaceInQueue(normalizedId, item);
           log(`[Queue] ${normalizedId} deferred (duplicate landlord) — moved to end without retry increment`);
         } else {
           // Failure: increment retries, move to end
           const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
-          await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, updatedItem] });
+          await replaceInQueue(normalizedId, updatedItem);
           log(`[Queue] ${normalizedId} failed (attempt ${updatedItem.retries}/${C.QUEUE_MAX_RETRIES}) — moved to end`);
           queueFailedCount++;
           await sendActivityLog({
@@ -222,7 +262,7 @@ export async function processQueue(): Promise<void> {
         error('[Queue] Error processing listing:', err);
         queueFailedCount++;
         const updatedItem = { ...item, retries: (item.retries || 0) + 1 };
-        await chrome.storage.local.set({ [C.QUEUE_KEY]: [...remaining, updatedItem] });
+        await replaceInQueue(normalizedId, updatedItem);
         await sendActivityLog({
           lastResult: 'failed',
           lastId: item.id,
@@ -236,6 +276,7 @@ export async function processQueue(): Promise<void> {
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   } finally {
+    chrome.storage.local.onChanged.removeListener(storageListener);
     setIsProcessingQueue(false);
     setQueueAbortRequested(false);
     setUserTriggeredProcessing(false);

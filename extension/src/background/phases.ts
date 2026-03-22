@@ -21,6 +21,7 @@ import {
   isProcessingQueue,
   lastMessageTime,
   messageCount,
+  rateStateRestored,
   setLastMessageTime,
   userTriggeredProcessing,
 } from './state';
@@ -505,7 +506,9 @@ export async function recordOutcome(params: RecordOutcomeParams): Promise<Handle
       landlord: landlordDisplay,
     });
 
-    // Track landlord and increment rate limit counter
+    // Track landlord and increment rate limit counter.
+    // Ensure restored state is loaded before mutating counters.
+    await rateStateRestored;
     if (landlordName) {
       await recordContactedLandlord(landlordName);
     }

@@ -12,10 +12,16 @@ interface UpdateInfo {
   checkedAt: number;
 }
 
+/** Strip pre-release/build metadata and return only numeric segments. */
+function normalizeVersion(v: string): number[] {
+  return v.replace(/-.*$/, '').replace(/\+.*$/, '').split('.').map(Number).filter((n) => !isNaN(n));
+}
+
 /** Compare semver strings. Returns true if remote > local. */
 function isNewerVersion(remote: string, local: string): boolean {
-  const r = remote.split('.').map(Number);
-  const l = local.split('.').map(Number);
+  const r = normalizeVersion(remote);
+  const l = normalizeVersion(local);
+  if (r.length === 0 || l.length === 0) return false;
   for (let i = 0; i < Math.max(r.length, l.length); i++) {
     const rv = r[i] ?? 0;
     const lv = l[i] ?? 0;
@@ -40,11 +46,14 @@ export async function checkForUpdate(): Promise<void> {
     const release = await response.json();
     const remoteVersion = (release.tag_name || '').replace(/^v/, '');
     const localVersion = chrome.runtime.getManifest().version;
+    const htmlUrl = release?.html_url;
+    const isValidUrl =
+      typeof htmlUrl === 'string' && htmlUrl.startsWith('https://github.com/');
 
-    if (remoteVersion && isNewerVersion(remoteVersion, localVersion)) {
+    if (remoteVersion && isNewerVersion(remoteVersion, localVersion) && isValidUrl) {
       const info: UpdateInfo = {
         version: remoteVersion,
-        url: release.html_url,
+        url: htmlUrl,
         checkedAt: Date.now(),
       };
       await chrome.storage.local.set({ [UPDATE_AVAILABLE_KEY]: info });
@@ -58,11 +67,11 @@ export async function checkForUpdate(): Promise<void> {
   }
 }
 
-export function setupUpdateAlarm(): void {
+export async function setupUpdateAlarm(): Promise<void> {
   chrome.alarms.create(UPDATE_CHECK_ALARM, {
     periodInMinutes: UPDATE_CHECK_INTERVAL_HOURS * 60,
   });
   // Run an immediate check on startup
-  checkForUpdate();
+  await checkForUpdate();
   log(`[Update] Alarm set — checking every ${UPDATE_CHECK_INTERVAL_HOURS}h`);
 }

@@ -161,6 +161,13 @@ export const NOTIFICATION_LABELS: Record<NotificationEvent, string> = {
   captchaFailed: 'Captcha failures',
 };
 
+// Update checker
+export const GITHUB_REPO = 'ignaguri/immoscout-helper';
+export const UPDATE_CHECK_ALARM = 'checkForUpdates' as const;
+export const UPDATE_CHECK_INTERVAL_HOURS = 12;
+export const UPDATE_AVAILABLE_KEY = 'updateAvailable' as const;
+export const UPDATE_DISMISSED_KEY = 'updateDismissedVersion' as const;
+
 // Shared paths & URLs
 export const ICON_PATH = 'icons/icon128.png';
 export const MESSENGER_BASE_URL = 'https://www.immobilienscout24.de/messenger/messages/';

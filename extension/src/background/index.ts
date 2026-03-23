@@ -19,6 +19,7 @@ import {
 // Note: setLastMessageTime, setMessageCount, setMessageCountResetTime are still
 // used by the onInstalled handler to reset rate limits on install/reload.
 import { initializeStorage } from './storage';
+import { checkForUpdate, setupUpdateAlarm } from './update-checker';
 
 // Open side panel when extension icon is clicked
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -48,6 +49,9 @@ chrome.runtime.onInstalled.addListener(async () => {
   // Start conversation reply checking alarm (runs even when monitoring is off)
   chrome.alarms.create(C.CONVERSATIONS_ALARM_NAME, { periodInMinutes: 5 });
   log('[Conversations] Reply checking alarm started (every 5 min)');
+
+  // Start update checker alarm
+  setupUpdateAlarm();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
@@ -55,6 +59,8 @@ chrome.runtime.onStartup.addListener(async () => {
   await restoreMonitoringState();
   // Ensure conversation alarm is running
   chrome.alarms.create(C.CONVERSATIONS_ALARM_NAME, { periodInMinutes: 5 });
+  // Ensure update checker alarm is running
+  setupUpdateAlarm();
 });
 
 (async () => {
@@ -113,5 +119,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     } catch (err) {
       error('[Conversations] Error checking replies:', err);
     }
+  } else if (alarm.name === C.UPDATE_CHECK_ALARM) {
+    log('[Update] Periodic update check triggered');
+    checkForUpdate();
   }
 });

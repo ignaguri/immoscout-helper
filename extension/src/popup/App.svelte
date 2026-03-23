@@ -12,6 +12,7 @@ import {
   loadQueue,
   saveAllSettings,
 } from './lib/storage';
+import UpdateBanner from './components/UpdateBanner.svelte';
 import ActivityTab from './tabs/ActivityTab.svelte';
 import ConversationsTab from './tabs/ConversationsTab.svelte';
 import HelpTab from './tabs/HelpTab.svelte';
@@ -399,6 +400,8 @@ onMount(() => {
     </div>
     <span class="status-badge {statusClass}">{statusText}</span>
   </div>
+
+  <UpdateBanner />
 
   <!-- Toggle Button -->
   <button

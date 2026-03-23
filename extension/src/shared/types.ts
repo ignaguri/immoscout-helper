@@ -212,3 +212,9 @@ export interface CaptureQueueResponse {
   total: number;
   error?: string;
 }
+
+export interface UpdateInfo {
+  version: string;
+  url: string;
+  checkedAt: number;
+}

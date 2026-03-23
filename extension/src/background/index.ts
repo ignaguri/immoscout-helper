@@ -51,7 +51,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   log('[Conversations] Reply checking alarm started (every 5 min)');
 
   // Start update checker alarm
-  setupUpdateAlarm();
+  await setupUpdateAlarm();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
@@ -60,7 +60,7 @@ chrome.runtime.onStartup.addListener(async () => {
   // Ensure conversation alarm is running
   chrome.alarms.create(C.CONVERSATIONS_ALARM_NAME, { periodInMinutes: 5 });
   // Ensure update checker alarm is running
-  setupUpdateAlarm();
+  await setupUpdateAlarm();
 });
 
 (async () => {
@@ -121,6 +121,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
   } else if (alarm.name === C.UPDATE_CHECK_ALARM) {
     log('[Update] Periodic update check triggered');
-    checkForUpdate();
+    await checkForUpdate();
   }
 });

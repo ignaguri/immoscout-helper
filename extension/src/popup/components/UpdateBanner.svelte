@@ -1,12 +1,7 @@
 <script lang="ts">
 import { onMount } from 'svelte';
 import { UPDATE_AVAILABLE_KEY, UPDATE_DISMISSED_KEY } from '../../shared/constants';
-
-interface UpdateInfo {
-  version: string;
-  url: string;
-  checkedAt: number;
-}
+import type { UpdateInfo } from '../../shared/types';
 
 let updateInfo: UpdateInfo | null = $state(null);
 let dismissed = $state(false);
@@ -26,11 +21,16 @@ onMount(() => {
   });
 
   const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
-    if (UPDATE_AVAILABLE_KEY in changes || UPDATE_DISMISSED_KEY in changes) {
-      chrome.storage.local.get([UPDATE_AVAILABLE_KEY, UPDATE_DISMISSED_KEY], (result) => {
-        applyState(result[UPDATE_AVAILABLE_KEY], result[UPDATE_DISMISSED_KEY]);
-      });
-    }
+    if (!(UPDATE_AVAILABLE_KEY in changes) && !(UPDATE_DISMISSED_KEY in changes)) return;
+
+    const newInfo = UPDATE_AVAILABLE_KEY in changes
+      ? changes[UPDATE_AVAILABLE_KEY].newValue as UpdateInfo | undefined
+      : updateInfo ?? undefined;
+    const newDismissed = UPDATE_DISMISSED_KEY in changes
+      ? changes[UPDATE_DISMISSED_KEY].newValue as string | undefined
+      : dismissed ? updateInfo?.version : undefined;
+
+    applyState(newInfo, newDismissed);
   };
   chrome.storage.onChanged.addListener(listener);
 

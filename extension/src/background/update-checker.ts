@@ -5,19 +5,12 @@ import {
   UPDATE_CHECK_INTERVAL_HOURS,
 } from '../shared/constants';
 import { error, log } from '../shared/logger';
+import type { UpdateInfo } from '../shared/types';
 
-interface UpdateInfo {
-  version: string;
-  url: string;
-  checkedAt: number;
-}
-
-/** Strip pre-release/build metadata and return only numeric segments. */
 function normalizeVersion(v: string): number[] {
   return v.replace(/-.*$/, '').replace(/\+.*$/, '').split('.').map(Number).filter((n) => !isNaN(n));
 }
 
-/** Compare semver strings. Returns true if remote > local. */
 function isNewerVersion(remote: string, local: string): boolean {
   const r = normalizeVersion(remote);
   const l = normalizeVersion(local);
@@ -33,6 +26,15 @@ function isNewerVersion(remote: string, local: string): boolean {
 
 export async function checkForUpdate(): Promise<void> {
   try {
+    // Skip if checked recently (within half the interval)
+    const stored = await chrome.storage.local.get(UPDATE_AVAILABLE_KEY);
+    const existing = stored[UPDATE_AVAILABLE_KEY] as UpdateInfo | undefined;
+    const minInterval = (UPDATE_CHECK_INTERVAL_HOURS * 60 * 60 * 1000) / 2;
+    if (existing?.checkedAt && Date.now() - existing.checkedAt < minInterval) {
+      log('[Update] Skipping — checked recently');
+      return;
+    }
+
     const response = await fetch(
       `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
       { headers: { Accept: 'application/vnd.github.v3+json' } },
@@ -59,7 +61,10 @@ export async function checkForUpdate(): Promise<void> {
       await chrome.storage.local.set({ [UPDATE_AVAILABLE_KEY]: info });
       log(`[Update] New version available: ${remoteVersion} (current: ${localVersion})`);
     } else {
-      await chrome.storage.local.remove(UPDATE_AVAILABLE_KEY);
+      // Only remove if it was previously set
+      if (existing) {
+        await chrome.storage.local.remove(UPDATE_AVAILABLE_KEY);
+      }
       log(`[Update] Up to date (${localVersion})`);
     }
   } catch (err) {
@@ -71,7 +76,6 @@ export async function setupUpdateAlarm(): Promise<void> {
   chrome.alarms.create(UPDATE_CHECK_ALARM, {
     periodInMinutes: UPDATE_CHECK_INTERVAL_HOURS * 60,
   });
-  // Run an immediate check on startup
   await checkForUpdate();
   log(`[Update] Alarm set — checking every ${UPDATE_CHECK_INTERVAL_HOURS}h`);
 }

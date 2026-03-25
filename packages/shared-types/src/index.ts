@@ -90,4 +90,52 @@ export interface ScoreResult {
   flags?: string[];
 }
 
-export type ProviderId = 'gemini' | 'openai';
+export type ProviderId = 'gemini' | 'openai' | 'litellm';
+
+export const LITELLM_DEFAULT_MODEL = 'gemini-flash-latest';
+
+export interface LiteLLMConfig {
+  litellmClientId?: string;
+  litellmClientSecret?: string;
+  litellmTokenUrl?: string;
+  litellmBaseUrl?: string;
+  litellmModel?: string;
+}
+
+export interface AnalyzeRequestBody extends LiteLLMConfig {
+  listingDetails: ListingDetails;
+  landlordInfo?: LandlordInfo;
+  userProfile?: UserProfile;
+  messageTemplate?: string;
+  minScore?: number;
+  userNotes?: string;
+  apiKey?: string;
+  provider?: ProviderId;
+  profile?: Profile;
+  examples?: Example[];
+}
+
+export interface CaptchaRequestBody extends LiteLLMConfig {
+  imageBase64: string;
+  apiKey?: string;
+  provider?: ProviderId;
+}
+
+export interface ShortenRequestBody extends LiteLLMConfig {
+  message: string;
+  maxLength: number;
+  apiKey?: string;
+  provider?: ProviderId;
+}
+
+export interface ReplyRequestBody extends LiteLLMConfig {
+  conversationHistory: ConversationMessage[];
+  userProfile?: UserProfile;
+  landlordInfo?: LandlordInfo;
+  listingTitle?: string;
+  apiKey?: string;
+  provider?: ProviderId;
+  profile?: Profile;
+  appointmentAction?: AppointmentAction;
+  userContext?: string;
+}

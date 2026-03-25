@@ -2,6 +2,7 @@
 import { PROVIDERS } from '../../shared/ai-router';
 import {
   DEFAULT_NOTIFICATION_PREFS,
+  LITELLM_DEFAULT_MODEL,
   NOTIFICATION_LABELS,
   NOTIFICATION_PREFS_KEY,
   type NotificationEvent,
@@ -64,25 +65,85 @@ loadNotifPrefs();
 // Active provider metadata (reactive to settings.aiProvider)
 let activeProvider = $derived(PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini);
 
-// Per-provider key accessors
+// Per-provider key accessors (litellm uses separate OIDC credentials, not a simple API key)
+let isLitellm = $derived(settings.aiProvider === 'litellm');
 let currentApiKey = $derived(settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai);
 function setApiKey(val: string) {
   if (settings.aiProvider === 'gemini') settings.aiApiKeyGemini = val;
   else settings.aiApiKeyOpenai = val;
 }
 
+let showClientSecret = $state(false);
+let litellmModels: string[] = $state([]);
+let litellmModelsLoading = $state(false);
+
+async function fetchLitellmModels() {
+  const serverUrl = settings.aiServerUrl || 'http://localhost:3456';
+  if (
+    !settings.aiLitellmTokenUrl ||
+    !settings.aiLitellmBaseUrl ||
+    !settings.aiLitellmClientId ||
+    !settings.aiLitellmClientSecret
+  ) {
+    return;
+  }
+  litellmModelsLoading = true;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(`${serverUrl}/litellm/models`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        litellmTokenUrl: settings.aiLitellmTokenUrl,
+        litellmBaseUrl: settings.aiLitellmBaseUrl,
+        litellmClientId: settings.aiLitellmClientId,
+        litellmClientSecret: settings.aiLitellmClientSecret,
+      }),
+      signal: controller.signal,
+    });
+    if (response.ok) {
+      const data = await response.json();
+      litellmModels = data.models || [];
+      if (litellmModels.length > 0 && !litellmModels.includes(settings.aiLitellmModel)) {
+        settings.aiLitellmModel = litellmModels[0];
+        autoSaveImmediate();
+      }
+    }
+  } catch {
+    /* server unreachable or timeout */
+  } finally {
+    clearTimeout(timeout);
+    litellmModelsLoading = false;
+  }
+}
+
 // Cost calculation using the active provider's pricing
 let aiCost = $derived(
-  `$${((aiPromptTokens * activeProvider.pricing.input) / 1_000_000 + (aiCompletionTokens * activeProvider.pricing.output) / 1_000_000).toFixed(4)}`,
+  isLitellm
+    ? 'Managed by proxy'
+    : `$${((aiPromptTokens * activeProvider.pricing.input) / 1_000_000 + (aiCompletionTokens * activeProvider.pricing.output) / 1_000_000).toFixed(4)}`,
 );
 
-async function autoSave() {
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+$effect(() => () => clearTimeout(saveTimer));
+
+function autoSave() {
   if (!settingsLoaded) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveAllSettings(settings).catch(() => {});
+  }, 400);
+}
+
+async function autoSaveImmediate() {
+  if (!settingsLoaded) return;
+  clearTimeout(saveTimer);
   await saveAllSettings(settings);
 }
 
 async function handleCheckIntervalChange() {
-  await autoSave();
+  await autoSaveImmediate();
   try {
     const status = await chrome.runtime.sendMessage({ action: 'getStatus' });
     if (status.isMonitoring) {
@@ -126,13 +187,17 @@ async function checkHealth() {
 }
 
 async function handleAiModeChange() {
-  await autoSave();
+  await autoSaveImmediate();
   checkHealth();
 }
 
 async function handleProviderChange() {
-  await autoSave();
-  if (settings.aiMode === 'direct' && currentApiKey) {
+  // LiteLLM forces server mode
+  if (settings.aiProvider === 'litellm' && settings.aiMode !== 'server') {
+    settings.aiMode = 'server';
+  }
+  await autoSaveImmediate();
+  if ((settings.aiMode === 'direct' && currentApiKey) || settings.aiMode === 'server') {
     checkHealth();
   } else {
     aiServerConnected = false;
@@ -237,6 +302,11 @@ const ALLOWED_IMPORT_KEYS = new Set([
   'aiEnabled',
   'aiApiKeyGemini',
   'aiApiKeyOpenai',
+  'aiLitellmClientId',
+  'aiLitellmClientSecret',
+  'aiLitellmTokenUrl',
+  'aiLitellmBaseUrl',
+  'aiLitellmModel',
   'aiServerUrl',
   'aiMinScore',
   'aiAboutMe',
@@ -320,17 +390,17 @@ async function handleImport(e: Event) {
 <div class="grid-2">
   <div class="field">
     <label for="checkInterval">Check Interval (seconds)</label>
-    <input type="number" id="checkInterval" bind:value={settings.checkInterval} onchange={handleCheckIntervalChange} onblur={autoSave} min="60" max="3600" />
+    <input type="number" id="checkInterval" bind:value={settings.checkInterval} onchange={handleCheckIntervalChange} onblur={autoSaveImmediate} min="60" max="3600" />
   </div>
   <div class="field">
     <label for="rateLimit">Rate Limit (per hour)</label>
-    <input type="number" id="rateLimit" bind:value={settings.rateLimit} oninput={autoSave} onblur={autoSave} min="1" max="50" />
+    <input type="number" id="rateLimit" bind:value={settings.rateLimit} oninput={autoSave} onblur={autoSaveImmediate} min="1" max="50" />
   </div>
 </div>
 
 <div class="field">
   <label for="minDelay">Min Delay Between Messages (seconds)</label>
-  <input type="number" id="minDelay" bind:value={settings.minDelay} oninput={autoSave} onblur={autoSave} min="10" max="300" />
+  <input type="number" id="minDelay" bind:value={settings.minDelay} oninput={autoSave} onblur={autoSaveImmediate} min="10" max="300" />
 </div>
 
 <div class="section-title">AI Scoring</div>
@@ -352,11 +422,11 @@ async function handleImport(e: Event) {
 
   <div class="field">
     <label for="aiMode">AI Mode</label>
-    <select id="aiMode" bind:value={settings.aiMode} onchange={handleAiModeChange}>
+    <select id="aiMode" bind:value={settings.aiMode} onchange={handleAiModeChange} disabled={isLitellm}>
       <option value="direct">Direct (API key)</option>
       <option value="server">Server (local)</option>
     </select>
-    <div class="hint">{settings.aiMode === 'direct' ? 'Calls the AI provider directly — no server needed' : 'Uses local Express server for AI calls'}</div>
+    <div class="hint">{isLitellm ? 'LiteLLM requires server mode (OIDC token exchange)' : settings.aiMode === 'direct' ? 'Calls the AI provider directly — no server needed' : 'Uses local Express server for AI calls'}</div>
   </div>
 
   <div class="field">
@@ -368,38 +438,93 @@ async function handleImport(e: Event) {
     </select>
   </div>
 
-  <div class="field">
-    <label for="aiApiKey">{settings.aiMode === 'direct' ? `${activeProvider.label} API Key` : 'API Key (optional)'}</label>
-    <div class="password-field">
-      <input
-        type={showApiKey ? 'text' : 'password'}
-        id="aiApiKey"
-        value={currentApiKey}
-        oninput={(e) => { setApiKey((e.target as HTMLInputElement).value); autoSave(); }}
-        onblur={() => { autoSave(); checkHealth(); }}
-        placeholder={settings.aiMode === 'direct' ? `Paste your ${activeProvider.label} API key` : 'Optional — passed to server'}
-      />
-      <button class="password-toggle" onclick={toggleApiKey}>
-        {showApiKey ? 'hide' : 'show'}
-      </button>
-    </div>
-    {#if settings.aiMode === 'direct'}
-      <div class="hint">
-        <button type="button" class="internal-link" onclick={() => onNavigate('help')}>How do I get an API key?</button>
+  {#if isLitellm}
+    <div class="field">
+      <label for="litellmModel">Model</label>
+      <div class="model-picker">
+        <select id="litellmModel" bind:value={settings.aiLitellmModel} onchange={autoSaveImmediate} class="model-select">
+          {#if litellmModels.length > 0}
+            {#each litellmModels as m}
+              <option value={m}>{m}</option>
+            {/each}
+          {:else}
+            <option value={settings.aiLitellmModel}>{settings.aiLitellmModel || LITELLM_DEFAULT_MODEL}</option>
+          {/if}
+        </select>
+        <button class="btn btn-secondary" onclick={fetchLitellmModels} disabled={litellmModelsLoading}>
+          {litellmModelsLoading ? 'Loading...' : 'Fetch Models'}
+        </button>
       </div>
-    {/if}
-  </div>
+    </div>
+
+    <!-- LiteLLM OIDC configuration -->
+    <div class="field">
+      <label for="litellmTokenUrl">OIDC Token URL</label>
+      <input type="url" id="litellmTokenUrl" bind:value={settings.aiLitellmTokenUrl} oninput={autoSave} onblur={autoSaveImmediate} placeholder="https://auth.example.com/realms/.../token" />
+      <div class="hint">OAuth2 client_credentials token endpoint</div>
+    </div>
+
+    <div class="field">
+      <label for="litellmBaseUrl">LiteLLM Base URL</label>
+      <input type="url" id="litellmBaseUrl" bind:value={settings.aiLitellmBaseUrl} oninput={autoSave} onblur={autoSaveImmediate} placeholder="https://litellm.example.com/v1" />
+      <div class="hint">OpenAI-compatible API base URL</div>
+    </div>
+
+    <div class="field">
+      <label for="litellmClientId">Client ID</label>
+      <input type="text" id="litellmClientId" bind:value={settings.aiLitellmClientId} oninput={autoSave} onblur={autoSaveImmediate} placeholder="your-client-id" />
+    </div>
+
+    <div class="field">
+      <label for="litellmClientSecret">Client Secret</label>
+      <div class="password-field">
+        <input
+          type={showClientSecret ? 'text' : 'password'}
+          id="litellmClientSecret"
+          bind:value={settings.aiLitellmClientSecret}
+          oninput={autoSave}
+          onblur={autoSaveImmediate}
+          placeholder="your-client-secret"
+        />
+        <button class="password-toggle" onclick={() => showClientSecret = !showClientSecret}>
+          {showClientSecret ? 'hide' : 'show'}
+        </button>
+      </div>
+    </div>
+  {:else}
+    <div class="field">
+      <label for="aiApiKey">{settings.aiMode === 'direct' ? `${activeProvider.label} API Key` : 'API Key (optional)'}</label>
+      <div class="password-field">
+        <input
+          type={showApiKey ? 'text' : 'password'}
+          id="aiApiKey"
+          value={currentApiKey}
+          oninput={(e) => { setApiKey((e.target as HTMLInputElement).value); autoSave(); }}
+          onblur={() => { autoSaveImmediate(); checkHealth(); }}
+          placeholder={settings.aiMode === 'direct' ? `Paste your ${activeProvider.label} API key` : 'Optional — passed to server'}
+        />
+        <button class="password-toggle" onclick={toggleApiKey}>
+          {showApiKey ? 'hide' : 'show'}
+        </button>
+      </div>
+      {#if settings.aiMode === 'direct'}
+        <div class="hint">
+          <button type="button" class="internal-link" onclick={() => onNavigate('help')}>How do I get an API key?</button>
+        </div>
+      {/if}
+    </div>
+  {/if}
 
   {#if settings.aiMode === 'server'}
     <div class="field">
       <label for="aiServerUrl">Server URL</label>
-      <input type="url" id="aiServerUrl" bind:value={settings.aiServerUrl} oninput={autoSave} onblur={() => { autoSave(); checkHealth(); }} placeholder="http://localhost:3456" />
+      <input type="url" id="aiServerUrl" bind:value={settings.aiServerUrl} oninput={autoSave} onblur={() => { autoSaveImmediate(); checkHealth(); }} placeholder="http://localhost:3456" />
     </div>
   {/if}
 
   <div class="field">
     <label for="aiMinScore">Min Score (1-10)</label>
-    <input type="number" id="aiMinScore" bind:value={settings.aiMinScore} oninput={autoSave} onblur={autoSave} min="1" max="10" />
+    <input type="number" id="aiMinScore" bind:value={settings.aiMinScore} oninput={autoSave} onblur={autoSaveImmediate} min="1" max="10" />
     <div class="hint">Listings scoring below this will be skipped</div>
   </div>
 
@@ -410,7 +535,7 @@ async function handleImport(e: Event) {
         id="aiAboutMe"
         bind:value={settings.aiAboutMe}
         oninput={autoSave}
-        onblur={autoSave}
+        onblur={autoSaveImmediate}
         placeholder="Tell the AI about yourself..."
         style="min-height:60px;"
       ></textarea>
@@ -422,7 +547,7 @@ async function handleImport(e: Event) {
         id="messageTemplate"
         bind:value={settings.messageTemplate}
         oninput={autoSave}
-        onblur={autoSave}
+        onblur={autoSaveImmediate}
         placeholder="Sehr geehrte(r) {'{name}'},&#10;&#10;ich interessiere mich..."
         style="min-height:80px;"
       ></textarea>
@@ -546,5 +671,25 @@ async function handleImport(e: Event) {
   .notif-toggle input[type='checkbox'] {
     margin: 0;
     cursor: pointer;
+  }
+
+  .model-picker {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .model-select {
+    flex: 2;
+    min-width: 0;
+  }
+
+  .model-picker :global(.btn) {
+    flex: 1;
+    flex-shrink: 0;
+    font-size: 11px;
+    white-space: nowrap;
+    width: auto;
+    margin-top: 0;
   }
 </style>

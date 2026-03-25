@@ -1,6 +1,11 @@
 <script lang="ts">
 import { onMount } from 'svelte';
-import type { ActivityLogEntry as ActivityLogEntryType, ManualReviewData, PendingApprovalItem, QueueItem } from '../../shared/types';
+import type {
+  ActivityLogEntry as ActivityLogEntryType,
+  ManualReviewData,
+  PendingApprovalItem,
+  QueueItem,
+} from '../../shared/types';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
 import AnalyzeSection from '../components/AnalyzeSection.svelte';
 import CollapsibleSection from '../components/CollapsibleSection.svelte';

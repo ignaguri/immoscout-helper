@@ -1,7 +1,14 @@
 // Message-sending phases for the handleNewListing orchestrator.
 // Each phase is a focused function with explicit parameters.
 
-import { type AIConfig, canUseDirect, canUseServer, getProvider, trackTokenUsage } from '../shared/ai-router';
+import {
+  type AIConfig,
+  canUseDirect,
+  canUseServer,
+  getProvider,
+  litellmPayload,
+  trackTokenUsage,
+} from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { debug, error, log, warn } from '../shared/logger';
 import { buildShortenPrompt } from '../shared/prompts';
@@ -357,6 +364,7 @@ export async function sendAndRetry(
             maxLength: limit,
             apiKey: aiConfig.apiKey,
             provider: aiConfig.provider,
+            ...litellmPayload(aiConfig),
           }),
         });
         if (shortenResponse.ok) {

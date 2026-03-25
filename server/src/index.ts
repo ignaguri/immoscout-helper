@@ -9,20 +9,22 @@ import { generateText } from 'ai';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
 import {
-  CAPTCHA_SYSTEM_PROMPT,
-  CAPTCHA_USER_PROMPT,
   buildConversationText,
   buildMessagePrompt,
   buildReplyPrompt,
   buildScoringPrompt,
   buildShortenPrompt,
+  CAPTCHA_SYSTEM_PROMPT,
+  CAPTCHA_USER_PROMPT,
   formatListingForPrompt,
   parseScoreJSON,
 } from './prompts.js';
+import { LITELLM_DEFAULT_MODEL } from '@repo/shared-types';
 import type {
   AnalyzeRequestBody,
   CaptchaRequestBody,
   DocumentsRequestBody,
+  LiteLLMConfig,
   LogEntryBody,
   ProviderId,
   ReplyRequestBody,
@@ -38,7 +40,64 @@ app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 3456;
 
-function getModel(provider?: ProviderId, apiKey?: string) {
+// --- LiteLLM OIDC token management ---
+const TOKEN_REFRESH_MARGIN_MS = 2 * 60 * 1000; // refresh 2 min before expiry
+const tokenCache = new Map<string, { jwt: string; expiresAt: number }>();
+const tokenInflight = new Map<string, Promise<string>>();
+
+async function getOIDCToken(tokenUrl: string, clientId: string, clientSecret: string): Promise<string> {
+  if (!tokenUrl || !clientId || !clientSecret) {
+    throw new Error('LiteLLM OIDC credentials not configured (need tokenUrl, clientId, clientSecret)');
+  }
+
+  const cacheKey = `${tokenUrl}::${clientId}::${clientSecret}`;
+  const cached = tokenCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.jwt;
+  }
+
+  // Deduplicate concurrent refreshes for the same endpoint+clientId
+  const existing = tokenInflight.get(cacheKey);
+  if (existing) return existing;
+
+  const promise = fetchOIDCToken(tokenUrl, clientId, clientSecret, cacheKey).finally(() => tokenInflight.delete(cacheKey));
+  tokenInflight.set(cacheKey, promise);
+  return promise;
+}
+
+async function fetchOIDCToken(tokenUrl: string, clientId: string, clientSecret: string, cacheKey: string): Promise<string> {
+  const res = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`OIDC token error: ${res.status} ${res.statusText}`);
+  const data = await res.json();
+  const jwt = data.access_token;
+  if (!jwt) throw new Error('OIDC response missing access_token');
+  const expiresIn = data.expires_in || 1800;
+
+  const margin = Math.min(TOKEN_REFRESH_MARGIN_MS, expiresIn * 1000 * 0.1);
+  tokenCache.set(cacheKey, { jwt, expiresAt: Date.now() + expiresIn * 1000 - margin });
+  console.log(`[LiteLLM] Token refreshed for ${clientId}, expires in ${expiresIn}s`);
+  return jwt;
+}
+
+async function getModel(provider?: ProviderId, apiKey?: string, litellmConfig?: LiteLLMConfig) {
+  if (provider === 'litellm') {
+    const { litellmTokenUrl, litellmBaseUrl, litellmClientId, litellmClientSecret } = litellmConfig || {};
+    if (!litellmTokenUrl || !litellmBaseUrl || !litellmClientId || !litellmClientSecret) {
+      throw new Error('LiteLLM requires tokenUrl, baseUrl, clientId, and clientSecret');
+    }
+    const token = await getOIDCToken(litellmTokenUrl, litellmClientId, litellmClientSecret);
+    const model = litellmConfig?.litellmModel || LITELLM_DEFAULT_MODEL;
+    return createOpenAI({ apiKey: token, baseURL: litellmBaseUrl })(model);
+  }
   if (provider === 'openai') {
     if (apiKey) return createOpenAI({ apiKey })('gpt-4o-mini');
     return openai('gpt-4o-mini');
@@ -48,15 +107,45 @@ function getModel(provider?: ProviderId, apiKey?: string) {
   return google('gemini-2.5-flash');
 }
 
+/** Resolve model from request body. Throws on invalid config. */
+async function resolveModel(req: Request) {
+  const { provider, apiKey } = req.body;
+  return getModel(provider, apiKey, req.body);
+}
+
 /** Gemini-specific thinking suppression — omitted for other providers */
 function geminiNoThinking(provider?: ProviderId) {
-  if (provider === 'openai') return {};
-  return { providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } } };
+  if (!provider || provider === 'gemini') {
+    return { providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } } };
+  }
+  return {};
 }
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
+});
+
+// LiteLLM model listing — proxies GET /v1/models from the configured LiteLLM base URL
+app.post('/litellm/models', async (req: Request, res: Response) => {
+  const { litellmTokenUrl, litellmBaseUrl, litellmClientId, litellmClientSecret } = req.body;
+  if (!litellmTokenUrl || !litellmBaseUrl || !litellmClientId || !litellmClientSecret) {
+    return res.status(400).json({ error: 'LiteLLM credentials required' });
+  }
+  try {
+    const token = await getOIDCToken(litellmTokenUrl, litellmClientId, litellmClientSecret);
+    const response = await fetch(`${litellmBaseUrl}/models`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `LiteLLM API error: ${response.status}` });
+    }
+    const data = await response.json();
+    const models: string[] = (data.data || []).map((m: any) => m.id).filter(Boolean).sort();
+    res.json({ models });
+  } catch (e) {
+    res.status(502).json({ error: (e as Error).message });
+  }
 });
 
 // Main analysis endpoint
@@ -78,7 +167,12 @@ app.post('/analyze', async (req: Request<Record<string, never>, unknown, Analyze
     return res.status(400).json({ error: 'listingDetails is required' });
   }
 
-  const model = getModel(provider, apiKey);
+  let model: Awaited<ReturnType<typeof resolveModel>>;
+  try {
+    model = await resolveModel(req);
+  } catch (e) {
+    return res.status(400).json({ error: (e as Error).message });
+  }
   const listingText = formatListingForPrompt(listingDetails);
 
   // Step 1: Score the listing
@@ -175,7 +269,12 @@ app.post('/captcha', async (req: Request<Record<string, never>, unknown, Captcha
     return res.status(400).json({ error: 'imageBase64 is required' });
   }
 
-  const model = getModel(provider, apiKey);
+  let model: Awaited<ReturnType<typeof resolveModel>>;
+  try {
+    model = await resolveModel(req);
+  } catch (e) {
+    return res.status(400).json({ error: (e as Error).message });
+  }
 
   try {
     // Extract base64 data (strip data URL prefix if present)
@@ -262,7 +361,12 @@ app.post('/shorten', async (req: Request<Record<string, never>, unknown, Shorten
     return res.status(400).json({ error: 'message and maxLength are required' });
   }
 
-  const model = getModel(provider, apiKey);
+  let model: Awaited<ReturnType<typeof resolveModel>>;
+  try {
+    model = await resolveModel(req);
+  } catch (e) {
+    return res.status(400).json({ error: (e as Error).message });
+  }
 
   console.log(`[Shorten] Shortening message from ${message.length} to max ${maxLength} chars`);
 
@@ -307,7 +411,12 @@ app.post('/reply', async (req: Request<Record<string, never>, unknown, ReplyRequ
     return res.status(400).json({ error: 'conversationHistory is required and must not be empty' });
   }
 
-  const model = getModel(provider, apiKey);
+  let model: Awaited<ReturnType<typeof resolveModel>>;
+  try {
+    model = await resolveModel(req);
+  } catch (e) {
+    return res.status(400).json({ error: (e as Error).message });
+  }
 
   try {
     const systemPrompt = buildReplyPrompt(userProfile || {}, landlordInfo || {}, profile);
@@ -366,7 +475,12 @@ app.post('/refine', async (req: Request, res: Response) => {
 
     const userPrompt = `CURRENT MESSAGE:\n${currentMessage}\n\nREFINEMENT INSTRUCTIONS:\n${instructions}`;
 
-    const model = getModel(provider, apiKey);
+    let model: Awaited<ReturnType<typeof resolveModel>>;
+    try {
+      model = await resolveModel(req);
+    } catch (e) {
+      return res.status(400).json({ error: (e as Error).message });
+    }
 
     const { text, usage: refineUsage } = await generateText({
       model,

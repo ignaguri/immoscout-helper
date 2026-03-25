@@ -1,4 +1,11 @@
-import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
+import {
+  canUseDirect,
+  canUseServer,
+  getAIConfig,
+  getProvider,
+  litellmPayload,
+  trackTokenUsage,
+} from '../shared/ai-router';
 import * as C from '../shared/constants';
 import type {
   IS24Conversation,
@@ -319,6 +326,7 @@ export async function generateDraftReply(
           apiKey: apiKey || undefined,
           provider: config.provider,
           profile,
+          ...litellmPayload(config),
         }),
       });
 

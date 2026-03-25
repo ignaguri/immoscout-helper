@@ -1,5 +1,6 @@
 <script lang="ts">
-import { PROVIDERS } from '../../shared/ai-router';
+import type { AnalyzeRequestBody, CaptchaRequestBody } from '@repo/shared-types';
+import { PROVIDERS, trackTokenUsage } from '../../shared/ai-router';
 import { error } from '../../shared/logger';
 import {
   buildMessagePrompt,
@@ -9,7 +10,6 @@ import {
   formatListingForPrompt,
   parseScoreJSON,
 } from '../../shared/prompts';
-import { trackTokenUsage } from '../../shared/ai-router';
 import type { PopupSettings } from '../lib/storage';
 
 let {
@@ -47,6 +47,17 @@ $effect(() => {
     analyzeMessageText = analyzeResult.message;
   }
 });
+
+function settingsLitellm() {
+  if (settings.aiProvider !== 'litellm') return {};
+  return {
+    litellmClientId: settings.aiLitellmClientId,
+    litellmClientSecret: settings.aiLitellmClientSecret,
+    litellmTokenUrl: settings.aiLitellmTokenUrl,
+    litellmBaseUrl: settings.aiLitellmBaseUrl,
+    litellmModel: settings.aiLitellmModel,
+  };
+}
 
 function buildProfileFromSettings() {
   const parseList = (val: string) =>
@@ -146,10 +157,16 @@ async function trySolveCaptchaFromPopup(tabId: number): Promise<{ solved: boolea
         // Server mode
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
+        const captchaPayload: CaptchaRequestBody = {
+          imageBase64: detection.imageBase64,
+          apiKey,
+          provider: settings.aiProvider,
+          ...settingsLitellm(),
+        };
         const response = await fetch(`${serverUrl}/captcha`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey, provider: settings.aiProvider }),
+          body: JSON.stringify(captchaPayload),
           signal: controller.signal,
         });
         clearTimeout(timeout);
@@ -284,7 +301,7 @@ async function handleAnalyze() {
         };
       } else {
         // Server mode
-        const payload = {
+        const payload: AnalyzeRequestBody = {
           listingDetails,
           landlordInfo,
           userProfile: { ...formValues, aboutMe },
@@ -294,6 +311,7 @@ async function handleAnalyze() {
           apiKey,
           provider: settings.aiProvider,
           profile,
+          ...settingsLitellm(),
         };
 
         const controller = new AbortController();

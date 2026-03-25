@@ -8,7 +8,12 @@ import { error, log } from '../shared/logger';
 import type { UpdateInfo } from '../shared/types';
 
 function normalizeVersion(v: string): number[] {
-  return v.replace(/-.*$/, '').replace(/\+.*$/, '').split('.').map(Number).filter((n) => !isNaN(n));
+  return v
+    .replace(/-.*$/, '')
+    .replace(/\+.*$/, '')
+    .split('.')
+    .map(Number)
+    .filter((n) => !isNaN(n));
 }
 
 function isNewerVersion(remote: string, local: string): boolean {
@@ -35,10 +40,9 @@ export async function checkForUpdate(): Promise<void> {
       return;
     }
 
-    const response = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-      { headers: { Accept: 'application/vnd.github.v3+json' } },
-    );
+    const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+      headers: { Accept: 'application/vnd.github.v3+json' },
+    });
 
     if (!response.ok) {
       log(`[Update] GitHub API returned ${response.status} — skipping check`);
@@ -49,8 +53,7 @@ export async function checkForUpdate(): Promise<void> {
     const remoteVersion = (release.tag_name || '').replace(/^v/, '');
     const localVersion = chrome.runtime.getManifest().version;
     const htmlUrl = release?.html_url;
-    const isValidUrl =
-      typeof htmlUrl === 'string' && htmlUrl.startsWith('https://github.com/');
+    const isValidUrl = typeof htmlUrl === 'string' && htmlUrl.startsWith('https://github.com/');
 
     if (remoteVersion && isNewerVersion(remoteVersion, localVersion) && isValidUrl) {
       const info: UpdateInfo = {

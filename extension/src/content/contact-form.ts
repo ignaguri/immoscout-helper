@@ -97,7 +97,9 @@ export async function fillFormFields(formValues: FormValues = {}): Promise<numbe
     // Try radio buttons — scope search to the contact form container to avoid
     // iterating thousands of elements across the full page.
     const formRoot =
-      document.querySelector('form[class*="contact"], form[class*="Contact"], [class*="contactForm"], [class*="ContactForm"]') ||
+      document.querySelector(
+        'form[class*="contact"], form[class*="Contact"], [class*="contactForm"], [class*="ContactForm"]',
+      ) ||
       document.querySelector('form') ||
       document;
     for (const keyword of field.keywords) {

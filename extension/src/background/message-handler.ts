@@ -1,4 +1,11 @@
-import { canUseDirect, canUseServer, getAIConfig, getProvider, trackTokenUsage } from '../shared/ai-router';
+import {
+  canUseDirect,
+  canUseServer,
+  getAIConfig,
+  getProvider,
+  litellmPayload,
+  trackTokenUsage,
+} from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { debug, error, log, warn } from '../shared/logger';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
@@ -393,6 +400,7 @@ export function registerMessageHandler(): void {
                     provider: aiConfig.provider,
                     profile,
                     appointmentAction,
+                    ...litellmPayload(aiConfig),
                   }),
                 });
 
@@ -774,6 +782,7 @@ export function registerMessageHandler(): void {
                   profile,
                   userProfile,
                   isTenantNetwork: review.isTenantNetwork,
+                  ...litellmPayload(aiConfig),
                 }),
               });
               if (response.ok) {

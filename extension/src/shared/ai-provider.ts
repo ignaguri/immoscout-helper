@@ -14,7 +14,8 @@ export interface AIResult {
   usage: AIUsage;
 }
 
-export type ProviderId = 'gemini' | 'openai';
+import type { ProviderId } from '@repo/shared-types';
+export type { ProviderId };
 
 export interface AIProvider {
   readonly id: ProviderId;

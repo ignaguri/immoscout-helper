@@ -2,10 +2,10 @@
 import * as C from '../shared/constants';
 import { error, log } from '../shared/logger';
 import { checkForNewReplies } from './conversations';
+import { handleDuplicateLandlordAlarm } from './duplicates';
 import { scheduleNextAlarm } from './helpers';
 import { checkForNewListings } from './listings';
 import { registerMessageHandler, registerNotificationHandler } from './message-handler';
-import { handleDuplicateLandlordAlarm } from './duplicates';
 import { updateCheckInterval } from './monitoring';
 import {
   isMonitoring,
@@ -69,10 +69,7 @@ chrome.runtime.onStartup.addListener(async () => {
 })();
 
 async function restoreMonitoringState(): Promise<void> {
-  const stored: Record<string, any> = await chrome.storage.local.get([
-    C.MONITORING_STATE_KEY,
-    C.QUEUE_PROCESSING_KEY,
-  ]);
+  const stored: Record<string, any> = await chrome.storage.local.get([C.MONITORING_STATE_KEY, C.QUEUE_PROCESSING_KEY]);
 
   // Rate limit state is now restored eagerly on module load in state.ts
   // (via rateStateRestored promise) to prevent race conditions.

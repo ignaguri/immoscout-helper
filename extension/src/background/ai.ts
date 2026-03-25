@@ -4,6 +4,7 @@ import {
   canUseServer,
   getAIConfig,
   getProvider,
+  litellmPayload,
   trackTokenUsage,
 } from '../shared/ai-router';
 import * as C from '../shared/constants';
@@ -259,7 +260,7 @@ async function tryAIAnalysisServer(
     return null;
   }
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     listingDetails,
     landlordInfo: { title: landlordTitle, name: landlordName, isPrivate: isPrivateLandlord, isTenantNetwork },
     userProfile: { ...formValues, aboutMe: config.aboutMe },
@@ -268,6 +269,7 @@ async function tryAIAnalysisServer(
     apiKey: config.apiKey,
     provider: config.provider,
     profile,
+    ...litellmPayload(config),
   };
 
   const controller = new AbortController();
@@ -516,7 +518,12 @@ export async function trySolveCaptcha(
         const response = await fetch(`${serverUrl}/captcha`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: detection.imageBase64, apiKey, provider: config.provider }),
+          body: JSON.stringify({
+            imageBase64: detection.imageBase64,
+            apiKey,
+            provider: config.provider,
+            ...litellmPayload(config),
+          }),
           signal: controller.signal,
         });
         clearTimeout(timeout);

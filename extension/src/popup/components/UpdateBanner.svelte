@@ -23,12 +23,16 @@ onMount(() => {
   const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
     if (!(UPDATE_AVAILABLE_KEY in changes) && !(UPDATE_DISMISSED_KEY in changes)) return;
 
-    const newInfo = UPDATE_AVAILABLE_KEY in changes
-      ? changes[UPDATE_AVAILABLE_KEY].newValue as UpdateInfo | undefined
-      : updateInfo ?? undefined;
-    const newDismissed = UPDATE_DISMISSED_KEY in changes
-      ? changes[UPDATE_DISMISSED_KEY].newValue as string | undefined
-      : dismissed ? updateInfo?.version : undefined;
+    const newInfo =
+      UPDATE_AVAILABLE_KEY in changes
+        ? (changes[UPDATE_AVAILABLE_KEY].newValue as UpdateInfo | undefined)
+        : (updateInfo ?? undefined);
+    const newDismissed =
+      UPDATE_DISMISSED_KEY in changes
+        ? (changes[UPDATE_DISMISSED_KEY].newValue as string | undefined)
+        : dismissed
+          ? updateInfo?.version
+          : undefined;
 
     applyState(newInfo, newDismissed);
   };

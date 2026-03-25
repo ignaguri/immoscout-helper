@@ -1,9 +1,14 @@
-import type { ActivityLogEntry, ConversationEntry, QueueItem } from '../../shared/types';
+import type { ProviderId } from '../../shared/ai-provider';
 import {
   ACTIVITY_LOG_KEY,
   AI_ABOUT_ME_KEY,
   AI_API_KEY_GEMINI_KEY,
   AI_API_KEY_OPENAI_KEY,
+  AI_LITELLM_BASE_URL_KEY,
+  AI_LITELLM_CLIENT_ID_KEY,
+  AI_LITELLM_CLIENT_SECRET_KEY,
+  AI_LITELLM_MODEL_KEY,
+  AI_LITELLM_TOKEN_URL_KEY,
   AI_MIN_SCORE_KEY,
   AI_MODE_KEY,
   AI_PROVIDER_KEY,
@@ -26,6 +31,7 @@ import {
   FORM_PHONE_KEY,
   FORM_SALUTATION_KEY,
   FORM_SMOKER_KEY,
+  LITELLM_DEFAULT_MODEL,
   MESSAGE_TEMPLATE_KEY,
   MIN_DELAY_KEY,
   PROFILE_AGE_KEY,
@@ -53,6 +59,7 @@ import {
   SEARCH_URL_KEY,
   SEARCH_URLS_KEY,
 } from '../../shared/constants';
+import type { ActivityLogEntry, ConversationEntry, QueueItem } from '../../shared/types';
 
 export async function storageGet(keys: string | string[]): Promise<Record<string, any>> {
   return chrome.storage.local.get(keys);
@@ -108,9 +115,14 @@ export interface PopupSettings {
   formDocuments: string;
   // AI
   aiMode: 'direct' | 'server';
-  aiProvider: 'gemini' | 'openai';
+  aiProvider: ProviderId;
   aiApiKeyGemini: string;
   aiApiKeyOpenai: string;
+  aiLitellmClientId: string;
+  aiLitellmClientSecret: string;
+  aiLitellmTokenUrl: string;
+  aiLitellmBaseUrl: string;
+  aiLitellmModel: string;
   aiServerUrl: string;
   aiMinScore: number;
   aiAboutMe: string;
@@ -139,6 +151,11 @@ const ALL_SETTINGS_KEYS = [
   AI_PROVIDER_KEY,
   AI_API_KEY_GEMINI_KEY,
   AI_API_KEY_OPENAI_KEY,
+  AI_LITELLM_CLIENT_ID_KEY,
+  AI_LITELLM_CLIENT_SECRET_KEY,
+  AI_LITELLM_TOKEN_URL_KEY,
+  AI_LITELLM_BASE_URL_KEY,
+  AI_LITELLM_MODEL_KEY,
   AI_SERVER_URL_KEY,
   AI_MIN_SCORE_KEY,
   AI_ABOUT_ME_KEY,
@@ -216,6 +233,11 @@ export async function loadAllSettings(): Promise<PopupSettings> {
     aiProvider: result[AI_PROVIDER_KEY] || 'gemini',
     aiApiKeyGemini: result[AI_API_KEY_GEMINI_KEY] || '',
     aiApiKeyOpenai: result[AI_API_KEY_OPENAI_KEY] || '',
+    aiLitellmClientId: result[AI_LITELLM_CLIENT_ID_KEY] || '',
+    aiLitellmClientSecret: result[AI_LITELLM_CLIENT_SECRET_KEY] || '',
+    aiLitellmTokenUrl: result[AI_LITELLM_TOKEN_URL_KEY] || '',
+    aiLitellmBaseUrl: result[AI_LITELLM_BASE_URL_KEY] || '',
+    aiLitellmModel: result[AI_LITELLM_MODEL_KEY] || LITELLM_DEFAULT_MODEL,
     aiServerUrl: result[AI_SERVER_URL_KEY] || 'http://localhost:3456',
     aiMinScore: result[AI_MIN_SCORE_KEY] ?? 5,
     aiAboutMe: result[AI_ABOUT_ME_KEY] || '',
@@ -268,6 +290,11 @@ export async function saveAllSettings(s: PopupSettings): Promise<void> {
     [AI_PROVIDER_KEY]: s.aiProvider || 'gemini',
     [AI_API_KEY_GEMINI_KEY]: s.aiApiKeyGemini.trim(),
     [AI_API_KEY_OPENAI_KEY]: s.aiApiKeyOpenai.trim(),
+    [AI_LITELLM_CLIENT_ID_KEY]: s.aiLitellmClientId.trim(),
+    [AI_LITELLM_CLIENT_SECRET_KEY]: s.aiLitellmClientSecret.trim(),
+    [AI_LITELLM_TOKEN_URL_KEY]: s.aiLitellmTokenUrl.trim(),
+    [AI_LITELLM_BASE_URL_KEY]: s.aiLitellmBaseUrl.trim(),
+    [AI_LITELLM_MODEL_KEY]: s.aiLitellmModel || LITELLM_DEFAULT_MODEL,
     [AI_SERVER_URL_KEY]: s.aiServerUrl.trim() || 'http://localhost:3456',
     [AI_MIN_SCORE_KEY]: Math.max(1, Math.min(10, s.aiMinScore || 5)),
     [AI_ABOUT_ME_KEY]: s.aiAboutMe,

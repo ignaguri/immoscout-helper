@@ -3,6 +3,7 @@ import { onMount } from 'svelte';
 import { PROVIDERS } from '../shared/ai-router';
 import { ALARM_NAME } from '../shared/constants';
 import type { ActivityLogEntry, ConversationEntry, PendingApprovalItem, QueueItem } from '../shared/types';
+import UpdateBanner from './components/UpdateBanner.svelte';
 import { getPendingApprovalListings, getStatus, startMonitoring, stopMonitoring } from './lib/messages';
 import type { PopupSettings } from './lib/storage';
 import {
@@ -12,7 +13,6 @@ import {
   loadQueue,
   saveAllSettings,
 } from './lib/storage';
-import UpdateBanner from './components/UpdateBanner.svelte';
 import ActivityTab from './tabs/ActivityTab.svelte';
 import ConversationsTab from './tabs/ConversationsTab.svelte';
 import HelpTab from './tabs/HelpTab.svelte';
@@ -63,6 +63,11 @@ let settings: PopupSettings = $state({
   aiProvider: 'gemini',
   aiApiKeyGemini: '',
   aiApiKeyOpenai: '',
+  aiLitellmClientId: '',
+  aiLitellmClientSecret: '',
+  aiLitellmTokenUrl: '',
+  aiLitellmBaseUrl: '',
+  aiLitellmModel: '',
   aiServerUrl: 'http://localhost:3456',
   aiMinScore: 5,
   aiAboutMe: '',

@@ -17,6 +17,7 @@ import {
   CAPTCHA_SYSTEM_PROMPT,
   CAPTCHA_USER_PROMPT,
   formatListingForPrompt,
+  formatListingWithAnalysis,
   parseScoreJSON,
 } from './prompts.js';
 import { LITELLM_DEFAULT_MODEL } from '@repo/shared-types';
@@ -173,7 +174,7 @@ app.post('/analyze', async (req: Request<Record<string, never>, unknown, Analyze
   } catch (e) {
     return res.status(400).json({ error: (e as Error).message });
   }
-  const listingText = formatListingForPrompt(listingDetails);
+  const listingText = formatListingWithAnalysis(formatListingForPrompt(listingDetails), listingDetails, profile?.maxWarmmiete, userProfile?.income);
 
   // Step 1: Score the listing
   let score: number | undefined;

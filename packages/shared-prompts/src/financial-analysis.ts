@@ -2,7 +2,6 @@
 // Solves LLM numerical comparison errors by doing all math in code.
 
 import type { ListingDetails } from '@repo/shared-types';
-import { formatListingForPrompt } from './index';
 
 export function parseGermanNumber(raw: string | undefined): number | null {
   if (!raw) return null;
@@ -75,8 +74,7 @@ export interface FinancialAnalysis {
 function coerceNumber(value: string | number | undefined): number | undefined {
   if (value === undefined || value === null || value === '') return undefined;
   if (typeof value === 'number') return value;
-  const parsed = parseFloat(value.replace(/[^\d.,]/g, '').replace(',', '.'));
-  return isNaN(parsed) ? undefined : parsed;
+  return parseGermanNumber(value) ?? undefined;
 }
 
 export function computeFinancialAnalysis(
@@ -273,18 +271,18 @@ export function formatFinancialAnalysis(analysis: FinancialAnalysis): string | n
 }
 
 export function formatListingWithAnalysis(
+  listingText: string,
   details: ListingDetails,
   maxWarmmiete?: number,
   income?: string | number,
 ): string {
-  const rawText = formatListingForPrompt(details);
   const analysis = computeFinancialAnalysis(details, maxWarmmiete, income);
   const analysisText = formatFinancialAnalysis(analysis);
 
   if (analysisText) {
-    return `${analysisText}\n\n${rawText}`;
+    return `${analysisText}\n\n${listingText}`;
   }
-  return rawText;
+  return listingText;
 }
 
 function round2(n: number): number {

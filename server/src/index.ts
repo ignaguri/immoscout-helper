@@ -173,11 +173,7 @@ app.post('/analyze', async (req: Request<Record<string, never>, unknown, Analyze
   } catch (e) {
     return res.status(400).json({ error: (e as Error).message });
   }
-  const listingText = formatListingWithAnalysis(
-    listingDetails,
-    profile?.maxWarmmiete,
-    typeof userProfile?.income === 'string' ? parseFloat(userProfile.income) || undefined : userProfile?.income,
-  );
+  const listingText = formatListingWithAnalysis(listingDetails, profile?.maxWarmmiete, userProfile?.income);
 
   // Step 1: Score the listing
   let score: number | undefined;

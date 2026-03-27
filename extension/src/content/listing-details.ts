@@ -239,21 +239,17 @@ export function extractListingDetails(): ListingDetails {
   // ImmoScout Quickcheck price comparison (location-specific data)
   const quickcheckBar = document.querySelector('[data-testid="quickcheck-bar"]');
   if (quickcheckBar) {
-    // This listing's €/m² — inside the pin element
-    const pinPrice = quickcheckBar.querySelector('[data-testid="quickcheck-bar"] .font-semibold, .pin--line_XoqOF')
-      ?.parentElement?.querySelector('.font-semibold');
-    if (!pinPrice) {
-      // Fallback: find any .font-semibold inside a pin-like ancestor
-      const allSemibold = quickcheckBar.querySelectorAll('.font-semibold');
-      for (const el of allSemibold) {
+    // This listing's €/m² — find inside the pin element by matching €/m² pattern.
+    // Avoid CSS-module class selectors (e.g. .font-semibold, .pin_rA5Ax) as they are fragile.
+    const pinContainer = quickcheckBar.querySelector('[class*="pin_"]');
+    if (pinContainer) {
+      for (const el of pinContainer.querySelectorAll('div, span')) {
         const text = (el.textContent || '').trim();
-        if (/\d+[.,]\d+\s*€\/m²/.test(text)) {
+        if (/^\d+[.,]\d+\s*€\/m²$/.test(text)) {
           details.quickcheckPricePerSqm = text;
           break;
         }
       }
-    } else {
-      details.quickcheckPricePerSqm = (pinPrice.textContent || '').trim();
     }
 
     // Average offer price range (inside the scale element)
@@ -268,10 +264,9 @@ export function extractListingDetails(): ListingDetails {
       }
     }
 
-    // Full area price range (outer legend, direct child of quickcheck-bar, not inside scale)
+    // Full area price range (outer legend, not inside scale)
     const allLegends = quickcheckBar.querySelectorAll('[data-testid="legend-item"]');
     for (const legend of allLegends) {
-      // Skip the one inside the scale (already handled above)
       if (legend.closest('[class*="scale_"]')) continue;
       const left = legend.querySelector('[data-testid="left-value"]');
       const right = legend.querySelector('[data-testid="right-value"]');

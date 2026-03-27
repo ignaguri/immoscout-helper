@@ -7,6 +7,7 @@ import {
   buildScoringPrompt,
   CAPTCHA_SYSTEM_PROMPT,
   CAPTCHA_USER_PROMPT,
+  formatListingForPrompt,
   formatListingWithAnalysis,
   parseScoreJSON,
 } from '../../shared/prompts';
@@ -252,7 +253,7 @@ async function handleAnalyze() {
       if (isDirect) {
         // Direct provider mode — build prompts locally
         const userProfile = { ...formValues, aboutMe };
-        const listingText = formatListingWithAnalysis(listingDetails, profile.maxWarmmiete, formValues.income);
+        const listingText = formatListingWithAnalysis(formatListingForPrompt(listingDetails), listingDetails, profile.maxWarmmiete, formValues.income);
         let totalPromptTokens = 0,
           totalCompletionTokens = 0;
         const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;

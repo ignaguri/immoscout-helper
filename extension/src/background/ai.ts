@@ -14,6 +14,7 @@ import {
   buildScoringPrompt,
   CAPTCHA_SYSTEM_PROMPT,
   CAPTCHA_USER_PROMPT,
+  formatListingForPrompt,
   formatListingWithAnalysis,
   parseScoreJSON,
 } from '../shared/prompts';
@@ -123,7 +124,7 @@ async function tryAIAnalysisDirect(
     return null;
   }
 
-  const listingText = formatListingWithAnalysis(listingDetails, profile.maxWarmmiete, formValues.income);
+  const listingText = formatListingWithAnalysis(formatListingForPrompt(listingDetails), listingDetails, profile.maxWarmmiete, formValues.income);
   const userProfile = { ...formValues, aboutMe: config.aboutMe };
   let totalPromptTokens = 0;
   let totalCompletionTokens = 0;

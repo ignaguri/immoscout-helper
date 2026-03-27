@@ -245,7 +245,7 @@ export function extractListingDetails(): ListingDetails {
     if (pinContainer) {
       for (const el of pinContainer.querySelectorAll('div, span')) {
         const text = (el.textContent || '').trim();
-        if (/^\d+[.,]\d+\s*€\/m²$/.test(text)) {
+        if (/^\d[\d.,]*\s*€\/m²$/.test(text)) {
           details.quickcheckPricePerSqm = text;
           break;
         }

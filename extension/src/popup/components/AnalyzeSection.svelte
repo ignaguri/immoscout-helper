@@ -252,7 +252,7 @@ async function handleAnalyze() {
       if (isDirect) {
         // Direct provider mode — build prompts locally
         const userProfile = { ...formValues, aboutMe };
-        const listingText = formatListingWithAnalysis(listingDetails, profile.maxWarmmiete, typeof formValues.income === 'string' ? parseFloat(formValues.income) || undefined : formValues.income);
+        const listingText = formatListingWithAnalysis(listingDetails, profile.maxWarmmiete, formValues.income);
         let totalPromptTokens = 0,
           totalCompletionTokens = 0;
         const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;

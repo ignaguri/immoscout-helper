@@ -4,12 +4,9 @@
 import type { ListingDetails } from '@repo/shared-types';
 import { formatListingForPrompt } from './index';
 
-// ── German number parsing ──
-
 export function parseGermanNumber(raw: string | undefined): number | null {
   if (!raw) return null;
 
-  // Strip currency symbols, units, and whitespace
   let cleaned = raw
     .replace(/€\/?m²|€\/m2|€|EUR|Euro|m²|m2|\/m²/gi, '')
     .replace(/\s+/g, '')
@@ -17,33 +14,25 @@ export function parseGermanNumber(raw: string | undefined): number | null {
 
   if (!cleaned || !/\d/.test(cleaned)) return null;
 
-  // Handle "ca." prefix (common in German listings)
   cleaned = cleaned.replace(/^ca\.?/i, '');
 
   // German format: dots are thousands separators, commas are decimal separators
   // Examples: "1.200" → 1200, "1.200,50" → 1200.50, "29,07" → 29.07
-
   if (cleaned.includes(',') && cleaned.includes('.')) {
-    // "1.200,50" — dot is thousands, comma is decimal
     cleaned = cleaned.replace(/\./g, '').replace(',', '.');
   } else if (cleaned.includes(',')) {
-    // "29,07" or "1200,50" — comma is decimal
     cleaned = cleaned.replace(',', '.');
   } else if (cleaned.includes('.')) {
-    // "1.200" — ambiguous. In German financial context, dot + exactly 3 trailing digits = thousands
+    // Dot + exactly 3 trailing digits = thousands separator in German financial context
     const dotParts = cleaned.split('.');
     if (dotParts.length === 2 && dotParts[1].length === 3) {
-      // Thousands separator: "1.200" → "1200"
       cleaned = cleaned.replace('.', '');
     }
-    // Otherwise treat dot as decimal: "47.67" → 47.67
   }
 
   const num = parseFloat(cleaned);
   return isNaN(num) || num < 0 ? null : num;
 }
-
-// ── Types ──
 
 export interface QuickcheckData {
   listingPricePerSqm: number | null;
@@ -67,73 +56,63 @@ export interface IncomeRatio {
 }
 
 export interface FinancialAnalysis {
-  // Parsed values
   kaltmiete: number | null;
   warmmiete: number | null;
   nebenkosten: number | null;
   heizkosten: number | null;
   wohnflaeche: number | null;
-
-  // Computed values
   trueWarmmiete: number | null;
   kaltmietePerSqm: number | null;
   warmmietePerSqm: number | null;
   priceClassification: 'bargain' | 'fair' | 'overpriced' | null;
   priceClassificationSource: 'quickcheck' | 'munich-average';
-
-  // Location-specific data from ImmoScout
   quickcheck: QuickcheckData | null;
-
-  // Budget comparison
   budgetComparison: BudgetComparison | null;
-
-  // Income ratio
   incomeRatio: IncomeRatio | null;
-
-  // Warnings about parsing issues
   warnings: string[];
 }
 
-// ── Computation ──
+function coerceNumber(value: string | number | undefined): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'number') return value;
+  const parsed = parseFloat(value.replace(/[^\d.,]/g, '').replace(',', '.'));
+  return isNaN(parsed) ? undefined : parsed;
+}
 
 export function computeFinancialAnalysis(
   details: ListingDetails,
   maxWarmmiete?: number,
-  income?: number,
+  income?: string | number,
 ): FinancialAnalysis {
   const warnings: string[] = [];
+  const incomeNum = coerceNumber(income);
 
-  // Parse raw values
   const kaltmiete = parseGermanNumber(details.kaltmiete);
   const warmmiete = parseGermanNumber(details.warmmiete);
   const nebenkosten = parseGermanNumber(details.nebenkosten);
   const wohnflaeche = parseGermanNumber(details.wohnflaeche);
 
-  // Heizkosten: check if "in Warmmiete/Nebenkosten enthalten"
+  // Heizkosten: skip if "in Warmmiete/Nebenkosten enthalten"
   let heizkosten: number | null = null;
-  const heizkostenRaw = (details.heizkosten || '').toLowerCase();
+  const heizkostenRaw = details.heizkosten || '';
   if (heizkostenRaw && !/enthalten|inkl|included/i.test(heizkostenRaw)) {
     heizkosten = parseGermanNumber(details.heizkosten);
   }
 
-  // Compute true Warmmiete
   let trueWarmmiete: number | null = null;
   if (warmmiete !== null) {
-    // Listing provides Warmmiete directly — use it (it typically includes Nebenkosten)
-    // Add Heizkosten if separate
+    // Warmmiete typically includes Nebenkosten; add Heizkosten only if separate
     trueWarmmiete = warmmiete + (heizkosten || 0);
   } else if (kaltmiete !== null && nebenkosten !== null) {
     trueWarmmiete = kaltmiete + nebenkosten + (heizkosten || 0);
   } else if (kaltmiete !== null) {
-    trueWarmmiete = kaltmiete; // Best we can do
+    trueWarmmiete = kaltmiete;
     warnings.push('Nebenkosten missing — true Warmmiete may be higher');
   }
 
-  // €/m² calculations
   const kaltmietePerSqm = kaltmiete !== null && wohnflaeche ? round2(kaltmiete / wohnflaeche) : null;
   const warmmietePerSqm = trueWarmmiete !== null && wohnflaeche ? round2(trueWarmmiete / wohnflaeche) : null;
 
-  // Parse quickcheck data
   let quickcheck: QuickcheckData | null = null;
   if (details.quickcheckAvgLow || details.quickcheckAvgHigh || details.quickcheckPricePerSqm) {
     quickcheck = {
@@ -145,29 +124,23 @@ export function computeFinancialAnalysis(
     };
   }
 
-  // Price classification
   let priceClassification: 'bargain' | 'fair' | 'overpriced' | null = null;
   let priceClassificationSource: 'quickcheck' | 'munich-average' = 'munich-average';
 
-  // Use the kaltmiete €/m² for classification (consistent with prompt instructions)
-  const priceToClassify = kaltmietePerSqm;
-
-  if (priceToClassify !== null) {
-    if (quickcheck?.avgLow !== null && quickcheck?.avgHigh !== null && quickcheck) {
-      // Use location-specific range from ImmoScout
+  if (kaltmietePerSqm !== null) {
+    if (quickcheck && quickcheck.avgLow !== null && quickcheck.avgHigh !== null) {
       priceClassificationSource = 'quickcheck';
-      if (priceToClassify < quickcheck.avgLow!) {
+      if (kaltmietePerSqm < quickcheck.avgLow) {
         priceClassification = 'bargain';
-      } else if (priceToClassify <= quickcheck.avgHigh!) {
+      } else if (kaltmietePerSqm <= quickcheck.avgHigh) {
         priceClassification = 'fair';
       } else {
         priceClassification = 'overpriced';
       }
     } else {
-      // Fallback: Munich average ranges
-      if (priceToClassify < 15) {
+      if (kaltmietePerSqm < 15) {
         priceClassification = 'bargain';
-      } else if (priceToClassify <= 22) {
+      } else if (kaltmietePerSqm <= 22) {
         priceClassification = 'fair';
       } else {
         priceClassification = 'overpriced';
@@ -175,10 +148,9 @@ export function computeFinancialAnalysis(
     }
   }
 
-  // Budget comparison
   let budgetComparison: BudgetComparison | null = null;
   if (maxWarmmiete && trueWarmmiete !== null) {
-    const difference = maxWarmmiete - trueWarmmiete; // positive = under budget
+    const difference = maxWarmmiete - trueWarmmiete;
     const percentOver = difference >= 0 ? 0 : round2((-difference / maxWarmmiete) * 100);
     let classification: BudgetComparison['classification'];
     if (difference >= 0) {
@@ -190,19 +162,12 @@ export function computeFinancialAnalysis(
     } else {
       classification = 'well-over';
     }
-    budgetComparison = {
-      maxWarmmiete,
-      actualWarmmiete: trueWarmmiete,
-      difference,
-      percentOver,
-      classification,
-    };
+    budgetComparison = { maxWarmmiete, actualWarmmiete: trueWarmmiete, difference, percentOver, classification };
   }
 
-  // Income ratio
   let incomeRatio: IncomeRatio | null = null;
-  if (income && trueWarmmiete !== null) {
-    const ratio = round2((trueWarmmiete / income) * 100);
+  if (incomeNum && trueWarmmiete !== null) {
+    const ratio = round2((trueWarmmiete / incomeNum) * 100);
     let classification: IncomeRatio['classification'];
     if (ratio < 33) {
       classification = 'affordable';
@@ -232,10 +197,7 @@ export function computeFinancialAnalysis(
   };
 }
 
-// ── Formatting ──
-
 export function formatFinancialAnalysis(analysis: FinancialAnalysis): string | null {
-  // If we couldn't parse any financial data, return null (fall back to raw text only)
   if (
     analysis.kaltmiete === null &&
     analysis.warmmiete === null &&
@@ -247,14 +209,12 @@ export function formatFinancialAnalysis(analysis: FinancialAnalysis): string | n
 
   const lines: string[] = ['=== PRE-COMPUTED FINANCIAL ANALYSIS (use these exact numbers, do NOT recalculate) ==='];
 
-  // Parsed values
   const values: string[] = [];
   if (analysis.kaltmiete !== null) values.push(`Kaltmiete: ${analysis.kaltmiete}€`);
   if (analysis.trueWarmmiete !== null) values.push(`Warmmiete: ${analysis.trueWarmmiete}€`);
   if (analysis.wohnflaeche !== null) values.push(`Wohnfläche: ${analysis.wohnflaeche}m²`);
   if (values.length) lines.push(values.join(' | '));
 
-  // €/m²
   if (analysis.kaltmietePerSqm !== null) {
     let line = `Kaltmiete per m²: ${analysis.kaltmietePerSqm} €/m²`;
     if (analysis.priceClassification) {
@@ -271,7 +231,6 @@ export function formatFinancialAnalysis(analysis: FinancialAnalysis): string | n
     lines.push(`Warmmiete per m²: ${analysis.warmmietePerSqm} €/m²`);
   }
 
-  // Quickcheck location data
   if (analysis.quickcheck) {
     const qc = analysis.quickcheck;
     const parts: string[] = [];
@@ -286,7 +245,6 @@ export function formatFinancialAnalysis(analysis: FinancialAnalysis): string | n
     }
   }
 
-  // Budget comparison
   if (analysis.budgetComparison) {
     const bc = analysis.budgetComparison;
     const label =
@@ -300,14 +258,12 @@ export function formatFinancialAnalysis(analysis: FinancialAnalysis): string | n
     lines.push(`Budget: ${bc.actualWarmmiete}€ vs max ${bc.maxWarmmiete}€ → ${label}`);
   }
 
-  // Income ratio
   if (analysis.incomeRatio) {
     const ir = analysis.incomeRatio;
     const label = ir.classification.toUpperCase();
     lines.push(`Income ratio: ${ir.warmmieteToIncome}% of net income → ${label}`);
   }
 
-  // Warnings
   if (analysis.warnings.length) {
     lines.push(`Note: ${analysis.warnings.join('; ')}`);
   }
@@ -316,12 +272,10 @@ export function formatFinancialAnalysis(analysis: FinancialAnalysis): string | n
   return lines.join('\n');
 }
 
-// ── Public wrapper ──
-
 export function formatListingWithAnalysis(
   details: ListingDetails,
   maxWarmmiete?: number,
-  income?: number,
+  income?: string | number,
 ): string {
   const rawText = formatListingForPrompt(details);
   const analysis = computeFinancialAnalysis(details, maxWarmmiete, income);
@@ -332,8 +286,6 @@ export function formatListingWithAnalysis(
   }
   return rawText;
 }
-
-// ── Helpers ──
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;

@@ -236,6 +236,46 @@ export function extractListingDetails(): ListingDetails {
   const wbsMatch = bodyText.match(/wohnberechtigungsschein|wbs[- ]?(erforderlich|nötig|notwendig|schein)/i);
   if (wbsMatch) details.wbs = 'Erforderlich';
 
+  // ImmoScout Quickcheck price comparison (location-specific data)
+  const quickcheckBar = document.querySelector('[data-testid="quickcheck-bar"]');
+  if (quickcheckBar) {
+    // This listing's €/m² — find inside the pin element by matching €/m² pattern.
+    // Avoid CSS-module class selectors (e.g. .font-semibold, .pin_rA5Ax) as they are fragile.
+    const pinContainer = quickcheckBar.querySelector('[class*="pin_"]');
+    if (pinContainer) {
+      for (const el of pinContainer.querySelectorAll('div, span')) {
+        const text = (el.textContent || '').trim();
+        if (/^\d[\d.,]*\s*€\/m²$/.test(text)) {
+          details.quickcheckPricePerSqm = text;
+          break;
+        }
+      }
+    }
+
+    // Average offer price range (inside the scale element)
+    const scale = quickcheckBar.querySelector('[class*="scale_"]');
+    if (scale) {
+      const scaleLegend = scale.querySelector('[data-testid="legend-item"]');
+      if (scaleLegend) {
+        const left = scaleLegend.querySelector('[data-testid="left-value"]');
+        const right = scaleLegend.querySelector('[data-testid="right-value"]');
+        if (left) details.quickcheckAvgLow = (left.textContent || '').trim();
+        if (right) details.quickcheckAvgHigh = (right.textContent || '').trim();
+      }
+    }
+
+    // Full area price range (outer legend, not inside scale)
+    const allLegends = quickcheckBar.querySelectorAll('[data-testid="legend-item"]');
+    for (const legend of allLegends) {
+      if (legend.closest('[class*="scale_"]')) continue;
+      const left = legend.querySelector('[data-testid="left-value"]');
+      const right = legend.querySelector('[data-testid="right-value"]');
+      if (left) details.quickcheckAreaLow = (left.textContent || '').trim();
+      if (right) details.quickcheckAreaHigh = (right.textContent || '').trim();
+      break;
+    }
+  }
+
   // Raw text fallback (capped at 8000 chars)
   details.rawText = bodyText.substring(0, C.RAW_TEXT_CAP);
 

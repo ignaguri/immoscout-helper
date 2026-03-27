@@ -23,6 +23,9 @@ export type {
   ScoreResult,
 };
 
+export { computeFinancialAnalysis, formatFinancialAnalysis, formatListingWithAnalysis, parseGermanNumber } from './financial-analysis';
+export type { BudgetComparison, FinancialAnalysis, IncomeRatio, QuickcheckData } from './financial-analysis';
+
 // ── Format listing details into readable text ──
 
 export function formatListingForPrompt(details: ListingDetails): string {
@@ -117,12 +120,9 @@ ${profileSection}
 ANALYSIS FRAMEWORK:
 
 1. FINANCIAL REALITY:
-   - Calculate the true "Warmmiete" (Kaltmiete + Nebenkosten + Heizkosten if separate). This is the real monthly cost.
-   - Calculate Kaltmiete €/m² (Kaltmiete ÷ Wohnfläche) and classify:
-     • Bargain: under 15 €/m² (rare in Munich — verify it's not a scam or WBS)
-     • Fair: 15-22 €/m² (Munich average)
-     • Overpriced: over 22 €/m²
-   - Calculate Warmmiete €/m² (true Warmmiete ÷ Wohnfläche) — this is the real cost per m². Report both values in the summary.
+   - IMPORTANT: A PRE-COMPUTED FINANCIAL ANALYSIS section is provided with the listing data. USE those exact numbers for all price comparisons, €/m² values, and budget assessments. Do NOT recalculate or re-parse prices yourself. The pre-computed values are authoritative.
+   - If location-specific price data is provided (from ImmoScout24), use THAT range to classify bargain/fair/overpriced. Otherwise fall back to Munich averages (under 15 = bargain, 15-22 = fair, over 22 = overpriced).
+   - Report both Kaltmiete €/m² and Warmmiete €/m² in the summary, using the pre-computed values.
 ${budgetRule}
    - Energy classes F-H mean significant hidden heating costs — factor into true affordability.
 

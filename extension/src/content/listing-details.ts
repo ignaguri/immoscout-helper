@@ -236,6 +236,51 @@ export function extractListingDetails(): ListingDetails {
   const wbsMatch = bodyText.match(/wohnberechtigungsschein|wbs[- ]?(erforderlich|nötig|notwendig|schein)/i);
   if (wbsMatch) details.wbs = 'Erforderlich';
 
+  // ImmoScout Quickcheck price comparison (location-specific data)
+  const quickcheckBar = document.querySelector('[data-testid="quickcheck-bar"]');
+  if (quickcheckBar) {
+    // This listing's €/m² — inside the pin element
+    const pinPrice = quickcheckBar.querySelector('[data-testid="quickcheck-bar"] .font-semibold, .pin--line_XoqOF')
+      ?.parentElement?.querySelector('.font-semibold');
+    if (!pinPrice) {
+      // Fallback: find any .font-semibold inside a pin-like ancestor
+      const allSemibold = quickcheckBar.querySelectorAll('.font-semibold');
+      for (const el of allSemibold) {
+        const text = (el.textContent || '').trim();
+        if (/\d+[.,]\d+\s*€\/m²/.test(text)) {
+          details.quickcheckPricePerSqm = text;
+          break;
+        }
+      }
+    } else {
+      details.quickcheckPricePerSqm = (pinPrice.textContent || '').trim();
+    }
+
+    // Average offer price range (inside the scale element)
+    const scale = quickcheckBar.querySelector('[class*="scale_"]');
+    if (scale) {
+      const scaleLegend = scale.querySelector('[data-testid="legend-item"]');
+      if (scaleLegend) {
+        const left = scaleLegend.querySelector('[data-testid="left-value"]');
+        const right = scaleLegend.querySelector('[data-testid="right-value"]');
+        if (left) details.quickcheckAvgLow = (left.textContent || '').trim();
+        if (right) details.quickcheckAvgHigh = (right.textContent || '').trim();
+      }
+    }
+
+    // Full area price range (outer legend, direct child of quickcheck-bar, not inside scale)
+    const allLegends = quickcheckBar.querySelectorAll('[data-testid="legend-item"]');
+    for (const legend of allLegends) {
+      // Skip the one inside the scale (already handled above)
+      if (legend.closest('[class*="scale_"]')) continue;
+      const left = legend.querySelector('[data-testid="left-value"]');
+      const right = legend.querySelector('[data-testid="right-value"]');
+      if (left) details.quickcheckAreaLow = (left.textContent || '').trim();
+      if (right) details.quickcheckAreaHigh = (right.textContent || '').trim();
+      break;
+    }
+  }
+
   // Raw text fallback (capped at 8000 chars)
   details.rawText = bodyText.substring(0, C.RAW_TEXT_CAP);
 

@@ -29,6 +29,12 @@ export interface ListingDetails {
   heizkosten?: string;
   energietraeger?: string;
   objektzustand?: string;
+  // ImmoScout Quickcheck price comparison (location-specific)
+  quickcheckPricePerSqm?: string;
+  quickcheckAvgLow?: string;
+  quickcheckAvgHigh?: string;
+  quickcheckAreaLow?: string;
+  quickcheckAreaHigh?: string;
 }
 
 export interface LandlordInfo {

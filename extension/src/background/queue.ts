@@ -205,7 +205,7 @@ export async function processQueue(): Promise<void> {
         }
       }
 
-      // Mark a listing as seen and remove it from the queue atomically
+      // Mark a listing as seen and remove it from the queue
       const markSeenAndDequeue = async (id: string): Promise<void> => {
         if (!seenSet.has(id)) {
           const freshSeen: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);

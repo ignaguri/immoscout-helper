@@ -17,7 +17,7 @@ import { generatePersonalizedMessage } from '../shared/utils';
 import { logActivity } from './activity';
 import { type AIAnalysisResult, type FormValues, lastAIError, tryAIAnalysis, trySolveCaptcha } from './ai';
 import { recordContactedLandlord } from './duplicates';
-import { humanDelay, safeCloseTab, waitForTabLoad } from './helpers';
+import { humanDelay, safeCloseTab, waitForContentScript, waitForTabLoad } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
 import { type NotificationPrefs, shouldNotifyWith } from './notifications';
 import { addToPendingApproval } from './pending-approval';
@@ -81,18 +81,7 @@ export async function openListingTab(listing: Listing | QueueItem): Promise<numb
   }
 
   // Wait for content script to be ready
-  let contentScriptReady = false;
-  for (let attempt = 0; attempt < 10; attempt++) {
-    try {
-      await chrome.tabs.sendMessage(tabId, { action: 'ping' });
-      contentScriptReady = true;
-      break;
-    } catch (_error) {
-      debug('[Messaging] Content script ping attempt failed, retrying...');
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-  }
-
+  const contentScriptReady = await waitForContentScript(tabId);
   if (!contentScriptReady) {
     error('Content script not ready after waiting');
     await safeCloseTab(tabId);
@@ -332,8 +321,32 @@ export async function sendAndRetry(
       autoSend: isAutoSend,
     });
   } catch (err: any) {
-    error('Error sending message to content script:', err);
-    throw err;
+    // Channel may have closed because page navigated after successful submit.
+    // Attempt to verify by waiting for the tab to reload and checking message status.
+    let recovered = false;
+    try {
+      await waitForTabLoad(tabId, 8000);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const csReady = await waitForContentScript(tabId, { maxAttempts: 5 });
+      if (csReady) {
+        const pageCheck: any = await chrome.tabs.sendMessage(tabId, { action: 'checkMessageSent' });
+        if (pageCheck?.messageSent) {
+          log('[SendRetry] Message confirmed sent after channel close recovery');
+          sendResult = { success: true, messageSent: message };
+          recovered = true;
+        } else if (!pageCheck?.hasContactForm && !pageCheck?.hasCaptcha) {
+          log('[SendRetry] No contact form or captcha after channel close — assuming sent');
+          sendResult = { success: true, messageSent: message };
+          recovered = true;
+        }
+      }
+    } catch {
+      // Verification failed — fall through to rethrow
+    }
+    if (!recovered) {
+      error('Error sending message to content script:', err);
+      throw err;
+    }
   }
 
   // Handle "message too long" error — ask AI to shorten, retry once
@@ -407,8 +420,8 @@ export async function sendAndRetry(
     }
   }
 
-  // Check for captcha after form submission
-  if (sendResult && !sendResult.success && sendResult.error) {
+  // Check for captcha after form submission — only when explicitly flagged as captcha-blocked
+  if (sendResult && !sendResult.success && sendResult.captchaBlocked) {
     await sendActivityLog({ message: 'Captcha detected, solving...', type: 'wait' });
     if (aiConfig.enabled) {
       const captchaResult = await trySolveCaptcha(tabId, aiConfig.serverUrl, aiConfig.apiKey);

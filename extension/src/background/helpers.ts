@@ -1,5 +1,5 @@
 import * as C from '../shared/constants';
-import { log } from '../shared/logger';
+import { debug, log } from '../shared/logger';
 import { currentCheckInterval } from './state';
 
 export function getRandomDelay(minMs: number, maxMs: number): number {
@@ -28,6 +28,23 @@ export async function safeCloseTab(tabId: number): Promise<void> {
   } catch (_e) {
     /* tab may already be closed */
   }
+}
+
+// Wait for a content script to become responsive in a tab (ping retry loop)
+export async function waitForContentScript(
+  tabId: number,
+  { maxAttempts = 10, delayMs = 500 }: { maxAttempts?: number; delayMs?: number } = {},
+): Promise<boolean> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+      return true;
+    } catch {
+      debug('[Helpers] Content script ping attempt failed, retrying...');
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return false;
 }
 
 // Wait for a tab to finish loading using chrome.tabs.onUpdated

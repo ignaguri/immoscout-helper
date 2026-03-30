@@ -88,6 +88,9 @@ export const MESSAGE_SENT_SELECTORS = '[class*="status-confirm"], [class*="Statu
 export const MESSAGE_SENT_TEXT = 'Nachricht gesendet';
 export const MESSAGE_SENT_TEXT_ALT = 'Nachricht wurde gesendet';
 
+// --- Error selectors ---
+export const STATUS_ERROR_SELECTORS = '[class*="status-error"], [class*="StatusMessage_status-error"]';
+
 // --- Pagination selectors ---
 export const PAGINATION_NAV_BUTTONS = 'nav[aria-label="pagination"] button[page]';
 export const PAGINATION_LINKS = 'a[href*="pagenumber="]';

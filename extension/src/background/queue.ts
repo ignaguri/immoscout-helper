@@ -7,6 +7,7 @@ import { handleNewListing } from './messaging';
 import { shouldNotify } from './notifications';
 import { getPendingApprovalListings } from './pending-approval';
 import { checkRateLimit } from './rate-limit';
+import { checkListingAlreadyContacted } from './sync';
 import {
   isMonitoring,
   isProcessingQueue,
@@ -204,6 +205,35 @@ export async function processQueue(): Promise<void> {
         }
       }
 
+      // Mark a listing as seen and remove it from the queue atomically
+      const markSeenAndDequeue = async (id: string): Promise<void> => {
+        if (!seenSet.has(id)) {
+          const freshSeen: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
+          const freshList: string[] = freshSeen[C.STORAGE_KEY] || [];
+          const updatedSeen = capSeenListings([...freshList, id]);
+          const updatedQueue = await removeFromQueue(id);
+          await chrome.storage.local.set({ [C.STORAGE_KEY]: updatedSeen, [C.QUEUE_KEY]: updatedQueue });
+          seenSet.add(id);
+        } else {
+          const updatedQueue = await removeFromQueue(id);
+          await chrome.storage.local.set({ [C.QUEUE_KEY]: updatedQueue });
+        }
+      };
+
+      // Safety net: before retrying, check ImmoScout API to see if message was already sent
+      if (item.retries > 0) {
+        const alreadySent = await checkListingAlreadyContacted(normalizedId);
+        if (alreadySent) {
+          log(`[Queue] API confirms ${normalizedId} already contacted — skipping retry`);
+          await markSeenAndDequeue(normalizedId);
+          await sendActivityLog({
+            message: `Skipped retry for ${item.title || normalizedId} (already contacted — verified via API)`,
+          });
+          queueSkippedCount++;
+          continue;
+        }
+      }
+
       // Process the listing
       try {
         const result = await handleNewListing(item);
@@ -215,20 +245,7 @@ export async function processQueue(): Promise<void> {
           await chrome.storage.local.set({ [C.QUEUE_KEY]: updated });
           log(`[Queue] ${normalizedId} moved to pending approval — ${updated.length} remaining`);
         } else if (result?.success) {
-          // Success: remove from queue, mark as seen
-          if (!seenSet.has(normalizedId)) {
-            // Re-read seen list from storage for the write (other code may have added entries)
-            const freshSeen: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
-            const freshList: string[] = freshSeen[C.STORAGE_KEY] || [];
-            const updatedSeen = capSeenListings([...freshList, normalizedId]);
-            const updatedQueue = await removeFromQueue(normalizedId);
-            await chrome.storage.local.set({ [C.STORAGE_KEY]: updatedSeen, [C.QUEUE_KEY]: updatedQueue });
-            // Update in-memory seen set
-            seenSet.add(normalizedId);
-          } else {
-            const updatedQueue = await removeFromQueue(normalizedId);
-            await chrome.storage.local.set({ [C.QUEUE_KEY]: updatedQueue });
-          }
+          await markSeenAndDequeue(normalizedId);
 
           if (result.skipped) {
             queueSkippedCount++;

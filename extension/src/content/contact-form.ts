@@ -279,7 +279,7 @@ export async function sendMessageToLandlord(
       }
 
       // Check for other validation errors (generic "fix errors above" banner)
-      const statusError = document.querySelector('[class*="StatusMessage_status-error"], [class*="status-error"]');
+      const statusError = document.querySelector(S.STATUS_ERROR_SELECTORS);
       if (statusError) {
         const errorText = (statusError.textContent || '').trim().substring(0, 100);
         addLog(`❌ Validation error: "${errorText}"`);
@@ -301,25 +301,33 @@ export async function sendMessageToLandlord(
 
       const formGone = !document.querySelector('textarea[name="message"]');
       if (formGone) {
-        // Form disappeared but no explicit success — wait a bit more to rule out captcha
+        // Form disappeared after submit — wait a bit more to rule out captcha/error
         await sleep(500);
         const { image: captchaAfterImg, heading: captchaAfterHeading } = detectCaptchaElement();
         if (captchaAfterImg || captchaAfterHeading) {
           addLog('🔒 CAPTCHA detected after form disappeared — message not sent');
           return { success: false, error: 'Captcha appeared after submit', captchaBlocked: true, log };
         }
-        // Check for positive confirmation indicators before assuming success
+        // Check for error indicators
+        const statusError = document.querySelector(S.STATUS_ERROR_SELECTORS);
+        if (statusError) {
+          const errorText = (statusError.textContent || '').trim().substring(0, 100);
+          addLog(`❌ Error after form disappeared: "${errorText}"`);
+          return { success: false, error: `Error after submit: ${errorText}`, log };
+        }
+        // No captcha, no error, form gone after clicking submit → success
+        // (Confirmation indicator is a bonus, not required — ImmoScout may change their UI)
         const confirmIndicator =
           document.querySelector('[class*="status-confirm"]') ||
           Array.from(document.querySelectorAll('div, span, h4, p')).find((el) => {
             const t = (el.textContent || '').trim();
             return t.includes('Nachricht gesendet') || t.includes('erfolgreich gesendet') || t.includes('Vielen Dank');
           });
-        if (!confirmIndicator) {
-          addLog('⚠️ Form disappeared without confirmation indicator');
-          return { success: false, error: 'Form disappeared without confirmation', log };
+        if (confirmIndicator) {
+          addLog('🎉 SUCCESS: Message sent (confirmed)!');
+        } else {
+          addLog('🎉 SUCCESS: Message sent (form gone, no error/captcha)');
         }
-        addLog('🎉 SUCCESS: Message sent!');
         return { success: true, messageSent: message, log };
       }
     }

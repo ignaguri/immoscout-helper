@@ -77,6 +77,31 @@ export async function syncContactedListings(): Promise<number> {
   }
 }
 
+/**
+ * Check if a specific listing was already contacted by querying the ImmoScout conversations API.
+ * Used as a safety net before retrying a failed send — prevents duplicate messages.
+ * Only fetches the first page of conversations (most recent) for efficiency.
+ */
+export async function checkListingAlreadyContacted(listingId: string): Promise<boolean> {
+  const normalizedId = String(listingId).toLowerCase().trim();
+  try {
+    const url = 'https://www.immobilienscout24.de/nachrichten-manager/api/seeker/conversations';
+    const response = await fetch(url, { credentials: 'include' });
+    if (!response.ok) {
+      debug(`[Sync] checkListingAlreadyContacted: API returned ${response.status}`);
+      return false;
+    }
+    const data: IS24ConversationsResponse = await response.json();
+    const conversations = data.conversations || [];
+    return conversations.some(
+      (c) => c.referenceId != null && c.referenceId.toLowerCase().trim() === normalizedId,
+    );
+  } catch (err) {
+    debug('[Sync] checkListingAlreadyContacted failed:', err);
+    return false;
+  }
+}
+
 interface Listing {
   id: string;
   url: string;

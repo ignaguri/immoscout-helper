@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w extension\"",
     "build": "npm run build -w extension",
+    "test": "npm run test -w packages/shared-prompts",
     "typecheck": "npm run check -w extension && npm run typecheck -w server",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

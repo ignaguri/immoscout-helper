@@ -405,29 +405,86 @@ export function buildConversationText(
   return `${listingTitle ? `WOHNUNG: ${listingTitle}\n\n` : ''}GESPRÄCHSVERLAUF:\n\n${conversationText}\n\n${appointmentContext ? appointmentContext : `${userInstruction}\nSchreibe die nächste Antwort des Bewerbers.`}`;
 }
 
+// ── Helper: strip trailing commas outside JSON strings ──
+
+function stripTrailingCommas(input: string): string {
+  let result = '';
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    if (inString) {
+      result += ch;
+      if (escape) {
+        escape = false;
+      } else if (ch === '\\') {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      result += ch;
+      continue;
+    }
+
+    if (ch === ',') {
+      // Look ahead past whitespace for closing brace/bracket
+      let j = i + 1;
+      while (j < input.length && /\s/.test(input[j])) j++;
+      if (input[j] === '}' || input[j] === ']') {
+        continue; // skip trailing comma
+      }
+    }
+
+    result += ch;
+  }
+
+  return result;
+}
+
 // ── Helper: parse score JSON from AI response ──
 
 export function parseScoreJSON(text: string): ScoreResult | null {
-  // Try direct JSON.parse first
+  // Strip markdown code fences if present
+  let sanitized = text.trim();
+  const fenceMatch = sanitized.match(/^\s*```(?:json)?\s*\n?([\s\S]*?)\n?\s*```\s*$/);
+  if (fenceMatch) sanitized = fenceMatch[1].trim();
+
+  // Try direct JSON.parse first (fast path)
   try {
-    const direct = JSON.parse(text.trim()) as ScoreResult;
+    const direct = JSON.parse(sanitized) as ScoreResult;
+    if (typeof direct.score === 'number') return direct;
+  } catch {
+    // Fall through — may have trailing commas or surrounding text
+  }
+
+  // Strip trailing commas (string-aware) and retry direct parse
+  const cleaned = stripTrailingCommas(sanitized);
+  try {
+    const direct = JSON.parse(cleaned) as ScoreResult;
     if (typeof direct.score === 'number') return direct;
   } catch {
     // Fall through
   }
 
-  // Extract JSON object from text
-  const scoreIdx = text.indexOf('"score"');
+  // Extract JSON object from text via brace matching
+  const scoreIdx = cleaned.indexOf('"score"');
   if (scoreIdx === -1) return null;
 
-  const start = text.lastIndexOf('{', scoreIdx);
+  const start = cleaned.lastIndexOf('{', scoreIdx);
   if (start === -1) return null;
 
   let depth = 0;
   let end = -1;
-  for (let i = start; i < text.length; i++) {
-    if (text[i] === '{') depth++;
-    else if (text[i] === '}') {
+  for (let i = start; i < cleaned.length; i++) {
+    if (cleaned[i] === '{') depth++;
+    else if (cleaned[i] === '}') {
       depth--;
       if (depth === 0) {
         end = i;
@@ -439,7 +496,7 @@ export function parseScoreJSON(text: string): ScoreResult | null {
   if (end === -1) return null;
 
   try {
-    const parsed = JSON.parse(text.substring(start, end + 1)) as ScoreResult;
+    const parsed = JSON.parse(cleaned.substring(start, end + 1)) as ScoreResult;
     if (typeof parsed.score === 'number') return parsed;
   } catch {
     // Fall through

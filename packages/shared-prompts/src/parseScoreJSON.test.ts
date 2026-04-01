@@ -86,6 +86,21 @@ describe('parseScoreJSON', () => {
     expect(result?.score).toBe(10);
   });
 
+  it('preserves commas inside string values (does not corrupt content)', () => {
+    const input = '{"score": 5, "reason": "too expensive, }bad area", "summary": "Price is high, ]not ideal"}';
+    const result = parseScoreJSON(input);
+    expect(result?.score).toBe(5);
+    expect(result?.reason).toBe('too expensive, }bad area');
+    expect(result?.summary).toBe('Price is high, ]not ideal');
+  });
+
+  it('handles trailing commas with commas inside strings', () => {
+    const input = '{"score": 6, "reason": "ok, decent",}';
+    const result = parseScoreJSON(input);
+    expect(result?.score).toBe(6);
+    expect(result?.reason).toBe('ok, decent');
+  });
+
   it('handles real-world LiteLLM markdown response', () => {
     const input = `\`\`\`json
 {

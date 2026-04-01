@@ -6,10 +6,17 @@
   "dependencies": {
     "@repo/shared-types": "*"
   },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     }
+  },
+  "devDependencies": {
+    "vitest": "^4.1.2"
   }
 }

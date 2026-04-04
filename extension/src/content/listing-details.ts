@@ -6,6 +6,13 @@ import type { LandlordInfo, ListingDetails, ListingType } from '../shared/types'
 import { findButtonByKeywords, findElement } from './dom-helpers';
 import * as S from './selectors';
 
+/** Returns true if the extracted text is a generic placeholder, not a real landlord name. */
+function isGenericLandlordName(name: string): boolean {
+  const normalized = name.toLowerCase().trim();
+  if (C.GENERIC_LANDLORD_NAMES.has(normalized)) return true;
+  return C.GENERIC_LANDLORD_PATTERNS.some((p) => p.test(normalized));
+}
+
 export function detectListingType(): ListingType {
   // Tenant-recommendation listings (Nachvermietung with CTA): posted by the current
   // tenant who wants to recommend a new tenant to the landlord. Detected via a specific
@@ -57,11 +64,20 @@ export function extractLandlordName(precomputedBodyText?: string): LandlordInfo 
   const text = (nameEl.textContent || '').trim().split('\n')[0].split(',')[0].trim();
 
   const frauMatch = text.match(/^Frau\s+(.+)/i);
-  if (frauMatch) return { title: 'Frau', name: frauMatch[1].trim(), isPrivate };
+  if (frauMatch) {
+    const name = frauMatch[1].trim();
+    if (isGenericLandlordName(name)) return { title: null, name: null, isPrivate };
+    return { title: 'Frau', name, isPrivate };
+  }
 
   const herrMatch = text.match(/^Herr\s+(.+)/i);
-  if (herrMatch) return { title: 'Herr', name: herrMatch[1].trim(), isPrivate };
+  if (herrMatch) {
+    const name = herrMatch[1].trim();
+    if (isGenericLandlordName(name)) return { title: null, name: null, isPrivate };
+    return { title: 'Herr', name, isPrivate };
+  }
 
+  if (isGenericLandlordName(text)) return { title: null, name: null, isPrivate };
   return { title: null, name: text || null, isPrivate };
 }
 

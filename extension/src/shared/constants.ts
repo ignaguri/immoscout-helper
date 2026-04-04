@@ -84,6 +84,20 @@ export const CONTACTED_LANDLORDS_KEY = 'contactedLandlords' as const;
 export const DUPLICATE_LANDLORD_TIMEOUT_MS = 300000; // 5 minutes (popup buttons provide reliable interaction)
 export const PENDING_DUPLICATE_DECISION_KEY = 'pendingDuplicateDecision' as const;
 
+/** Generic placeholder names that ImmoScout24 shows instead of real landlord names (lowercased). */
+export const GENERIC_LANDLORD_NAMES: ReadonlySet<string> = new Set([
+  'privatangebot',
+  'anbieter',
+  'anbieter:in',
+  'kein name angegeben',
+]);
+
+/** Patterns matching generic landlord name formats (case-insensitive). */
+export const GENERIC_LANDLORD_PATTERNS: readonly RegExp[] = [
+  /^anbieter(?::in)?\s*\[.*\]$/i, // "Anbieter [Informationen]", "Anbieter:in [Details]"
+  /\[informationen\]/i, // anything containing "[Informationen]"
+];
+
 // Queue keys
 export const QUEUE_KEY = 'manualQueue' as const;
 export const QUEUE_PROCESSING_KEY = 'isQueueProcessing' as const;

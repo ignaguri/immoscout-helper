@@ -14,6 +14,18 @@ function isGenericLandlordName(name: string): boolean {
 }
 
 export function detectListingType(): ListingType {
+  // Coming-soon / premium-restricted listings: not yet published, no real landlord info.
+  // Check this FIRST — these listings may also match other selectors.
+  const badgeEl = document.querySelector(S.COMING_SOON_BADGE_SELECTOR);
+  const notifEl = document.querySelector(S.COMING_SOON_NOTIFICATION_SELECTOR);
+  const isComingSoon =
+    badgeEl?.textContent?.trim() === 'Bald verfügbar' ||
+    !!notifEl?.textContent?.includes('in Kürze veröffentlicht');
+
+  if (isComingSoon) {
+    return { isTenantNetwork: false, hasContactForm: false, hasTenantCTA: false, type: 'coming-soon' };
+  }
+
   // Tenant-recommendation listings (Nachvermietung with CTA): posted by the current
   // tenant who wants to recommend a new tenant to the landlord. Detected via a specific
   // CTA button that has type="submit" (skipped by standard contact button detection).

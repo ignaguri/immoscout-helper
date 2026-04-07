@@ -15,7 +15,7 @@ export interface ListingType {
   isTenantNetwork: boolean;
   hasContactForm: boolean;
   hasTenantCTA: boolean;
-  type: 'tenant-recommendation' | 'tenant-network' | 'standard';
+  type: 'tenant-recommendation' | 'tenant-network' | 'coming-soon' | 'standard';
 }
 
 export interface PendingApprovalItem {

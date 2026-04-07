@@ -89,6 +89,7 @@ export const GENERIC_LANDLORD_NAMES: ReadonlySet<string> = new Set([
   'privatangebot',
   'anbieter',
   'anbieter:in',
+  'anbieter informationen',
   'kein name angegeben',
 ]);
 
@@ -108,6 +109,10 @@ export const PENDING_APPROVAL_KEY = 'pendingApprovalListings' as const;
 
 // Pending manual review (message filled in form, waiting for user to review/refine/send)
 export const PENDING_MANUAL_REVIEW_KEY = 'pendingManualReview' as const;
+
+// Coming-soon cooldown (premium-restricted listings retried after cooldown expires)
+export const COMING_SOON_COOLDOWN_KEY = 'comingSoonCooldown' as const;
+export const COMING_SOON_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 // Blacklist
 export const BLACKLIST_KEY = 'blacklistedListings' as const;

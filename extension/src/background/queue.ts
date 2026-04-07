@@ -18,6 +18,21 @@ import {
   userTriggeredProcessing,
 } from './state';
 
+// --- Coming-soon cooldown helpers ---
+
+async function addToComingSoonCooldown(id: string): Promise<void> {
+  const stored = await chrome.storage.local.get([C.COMING_SOON_COOLDOWN_KEY]);
+  const map: Record<string, number> = stored[C.COMING_SOON_COOLDOWN_KEY] || {};
+  const now = Date.now();
+  map[id] = now;
+  for (const key of Object.keys(map)) {
+    if (now - map[key] > C.COMING_SOON_COOLDOWN_MS) delete map[key];
+  }
+  await chrome.storage.local.set({ [C.COMING_SOON_COOLDOWN_KEY]: map });
+}
+
+// ---
+
 export interface QueueItem {
   id: string;
   url: string;
@@ -42,25 +57,41 @@ export async function enqueueListings(listings: Listing[], source: string): Prom
     }
   }
 
-  const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY, C.QUEUE_KEY, C.BLACKLIST_KEY]);
+  const stored: Record<string, any> = await chrome.storage.local.get([
+    C.STORAGE_KEY, C.QUEUE_KEY, C.BLACKLIST_KEY, C.COMING_SOON_COOLDOWN_KEY,
+  ]);
 
   const seenSet = new Set((stored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
   const queueSet = new Set((stored[C.QUEUE_KEY] || []).map((item: QueueItem) => String(item.id).toLowerCase().trim()));
   const blacklistSet = new Set((stored[C.BLACKLIST_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));
   const pendingApproval = await getPendingApprovalListings();
   const pendingSet = new Set(pendingApproval.map((p) => String(p.id).toLowerCase().trim()));
+  const cooldownMap: Record<string, number> = stored[C.COMING_SOON_COOLDOWN_KEY] || {};
+  const now = Date.now();
 
-  const addedAt = Date.now();
+  // Prune expired cooldown entries and persist if any were removed
+  let cooldownPruned = false;
+  for (const key of Object.keys(cooldownMap)) {
+    if (now - cooldownMap[key] > C.COMING_SOON_COOLDOWN_MS) {
+      delete cooldownMap[key];
+      cooldownPruned = true;
+    }
+  }
+  if (cooldownPruned) {
+    await chrome.storage.local.set({ [C.COMING_SOON_COOLDOWN_KEY]: cooldownMap });
+  }
+
   const newItems: QueueItem[] = [];
 
   for (const [id, listing] of dedupMap) {
+    if (cooldownMap[id]) continue;
     if (!seenSet.has(id) && !queueSet.has(id) && !blacklistSet.has(id) && !pendingSet.has(id)) {
       newItems.push({
         id,
         url: listing.url,
         title: listing.title || '',
         source,
-        addedAt,
+        addedAt: now,
         retries: 0,
       });
     }
@@ -258,6 +289,13 @@ export async function processQueue(): Promise<void> {
             lastId: item.id,
             lastTitle: item.title || '',
           });
+        } else if (result?.error === 'coming-soon') {
+          // Coming-soon: remove from queue, add to cooldown (NOT to seen list)
+          const updated = await removeFromQueue(normalizedId);
+          await chrome.storage.local.set({ [C.QUEUE_KEY]: updated });
+          await addToComingSoonCooldown(normalizedId);
+          queueSkippedCount++;
+          log(`[Queue] ${normalizedId} deferred as coming-soon — will retry after cooldown`);
         } else if (result?.error === 'duplicate-landlord-deferred') {
           // Deferred due to duplicate landlord — move to end without incrementing retries
           await replaceInQueue(normalizedId, item);

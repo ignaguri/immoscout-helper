@@ -102,7 +102,7 @@ export async function openListingTab(listing: Listing | QueueItem): Promise<numb
 // ─── Phase 2: Detect listing type and route ───
 
 export interface DetectResult {
-  type: 'continue' | 'pendingApproval' | 'skipped';
+  type: 'continue' | 'pendingApproval' | 'skipped' | 'coming-soon';
   isTenantNetwork: boolean;
 }
 
@@ -110,6 +110,16 @@ export async function detectListingTypeAndRoute(tabId: number, listing: Listing 
   try {
     const listingType: any = await chrome.tabs.sendMessage(tabId, { action: 'detectListingType' });
     const isTenantNetwork = listingType?.isTenantNetwork || false;
+
+    // Coming-soon / premium-restricted: not yet published, no real landlord info or contact form.
+    if (listingType?.type === 'coming-soon') {
+      log(`[ComingSoon] ${listing.id} is not yet published — deferring for later`);
+      await sendActivityLog({
+        message: `Deferred ${listing.id} (coming soon — not yet available)`,
+        type: 'wait',
+      });
+      return { type: 'coming-soon', isTenantNetwork: false };
+    }
 
     // Tenant-recommendation: current tenant posted the listing with an "Interesse bekunden" CTA.
     if (listingType?.hasTenantCTA && !userTriggeredProcessing) {

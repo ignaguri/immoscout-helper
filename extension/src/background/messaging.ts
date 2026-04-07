@@ -46,6 +46,10 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
       await safeCloseTab(tabId);
       return { success: true, listing, skipped: true };
     }
+    if (detectResult.type === 'coming-soon') {
+      await safeCloseTab(tabId);
+      return { success: false, listing, error: 'coming-soon' };
+    }
 
     // Phase 3: Extract landlord info
     const landlord = await extractLandlordInfo(tabId);

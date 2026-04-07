@@ -95,6 +95,10 @@ export const STATUS_ERROR_SELECTORS = '[class*="status-error"], [class*="StatusM
 export const PAGINATION_NAV_BUTTONS = 'nav[aria-label="pagination"] button[page]';
 export const PAGINATION_LINKS = 'a[href*="pagenumber="]';
 
+// --- Coming soon (premium-restricted) selectors ---
+export const COMING_SOON_BADGE_SELECTOR = 'span.indicator--label-content';
+export const COMING_SOON_NOTIFICATION_SELECTOR = 'div.notification__title';
+
 // --- Messenger selectors ---
 export const REPLY_TEXTAREA_SELECTORS = [
   'textarea[data-testid="message-input"]',

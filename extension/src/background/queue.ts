@@ -69,10 +69,22 @@ export async function enqueueListings(listings: Listing[], source: string): Prom
   const cooldownMap: Record<string, number> = stored[C.COMING_SOON_COOLDOWN_KEY] || {};
   const now = Date.now();
 
+  // Prune expired cooldown entries and persist if any were removed
+  let cooldownPruned = false;
+  for (const key of Object.keys(cooldownMap)) {
+    if (now - cooldownMap[key] > C.COMING_SOON_COOLDOWN_MS) {
+      delete cooldownMap[key];
+      cooldownPruned = true;
+    }
+  }
+  if (cooldownPruned) {
+    await chrome.storage.local.set({ [C.COMING_SOON_COOLDOWN_KEY]: cooldownMap });
+  }
+
   const newItems: QueueItem[] = [];
 
   for (const [id, listing] of dedupMap) {
-    if (cooldownMap[id] && now - cooldownMap[id] < C.COMING_SOON_COOLDOWN_MS) continue;
+    if (cooldownMap[id]) continue;
     if (!seenSet.has(id) && !queueSet.has(id) && !blacklistSet.has(id) && !pendingSet.has(id)) {
       newItems.push({
         id,

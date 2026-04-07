@@ -102,7 +102,7 @@ export async function openListingTab(listing: Listing | QueueItem): Promise<numb
 // ─── Phase 2: Detect listing type and route ───
 
 export interface DetectResult {
-  type: 'continue' | 'pendingApproval' | 'skipped' | 'comingSoon';
+  type: 'continue' | 'pendingApproval' | 'skipped' | 'coming-soon';
   isTenantNetwork: boolean;
 }
 
@@ -118,7 +118,7 @@ export async function detectListingTypeAndRoute(tabId: number, listing: Listing 
         message: `Deferred ${listing.id} (coming soon — not yet available)`,
         type: 'wait',
       });
-      return { type: 'comingSoon', isTenantNetwork: false };
+      return { type: 'coming-soon', isTenantNetwork: false };
     }
 
     // Tenant-recommendation: current tenant posted the listing with an "Interesse bekunden" CTA.

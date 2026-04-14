@@ -403,6 +403,12 @@ async function handleImport(e: Event) {
   <input type="number" id="minDelay" bind:value={settings.minDelay} oninput={autoSave} onblur={autoSaveImmediate} min="10" max="300" />
 </div>
 
+<label class="toggle-label" style="margin-top: 8px;">
+  <input type="checkbox" bind:checked={settings.premiumAccount} onchange={autoSaveImmediate} />
+  ImmoScout24 Premium account
+</label>
+<div class="hint">Premium users can message "coming soon" listings — enable to skip the automatic deferral</div>
+
 <div class="section-title">AI Scoring</div>
 
 <div class="ai-settings-group">
@@ -580,7 +586,7 @@ async function handleImport(e: Event) {
 <CollapsibleSection title="Notifications" open={false}>
   <div class="notif-prefs">
     {#each Object.entries(NOTIFICATION_LABELS) as [event, label]}
-      <label class="notif-toggle">
+      <label class="toggle-label">
         <input
           type="checkbox"
           checked={notifPrefs[event as NotificationEvent]}
@@ -659,7 +665,7 @@ async function handleImport(e: Event) {
     gap: 6px;
   }
 
-  .notif-toggle {
+  .toggle-label {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -668,7 +674,7 @@ async function handleImport(e: Event) {
     cursor: pointer;
   }
 
-  .notif-toggle input[type='checkbox'] {
+  .toggle-label input[type='checkbox'] {
     margin: 0;
     cursor: pointer;
   }

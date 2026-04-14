@@ -113,12 +113,17 @@ export async function detectListingTypeAndRoute(tabId: number, listing: Listing 
 
     // Coming-soon / premium-restricted: not yet published, no real landlord info or contact form.
     if (listingType?.type === 'coming-soon') {
-      log(`[ComingSoon] ${listing.id} is not yet published — deferring for later`);
-      await sendActivityLog({
-        message: `Deferred ${listing.id} (coming soon — not yet available)`,
-        type: 'wait',
-      });
-      return { type: 'coming-soon', isTenantNetwork: false };
+      const stored = await chrome.storage.local.get([C.PREMIUM_ACCOUNT_KEY]);
+      if (stored[C.PREMIUM_ACCOUNT_KEY]) {
+        log(`[ComingSoon] ${listing.id} is coming-soon but premium account enabled — proceeding`);
+      } else {
+        log(`[ComingSoon] ${listing.id} is not yet published — deferring for later`);
+        await sendActivityLog({
+          message: `Deferred ${listing.id} (coming soon — not yet available)`,
+          type: 'wait',
+        });
+        return { type: 'coming-soon', isTenantNetwork: false };
+      }
     }
 
     // Tenant-recommendation: current tenant posted the listing with an "Interesse bekunden" CTA.

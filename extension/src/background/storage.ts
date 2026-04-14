@@ -31,6 +31,7 @@ export async function initializeStorage(): Promise<void> {
     [C.AI_LISTINGS_SCORED_KEY]: 0,
     [C.AI_LISTINGS_SKIPPED_KEY]: 0,
     [C.SYNCED_CONTACTED_KEY]: 0,
+    [C.PREMIUM_ACCOUNT_KEY]: false,
   };
 
   const keys = Object.keys(defaults);

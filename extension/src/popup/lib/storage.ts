@@ -32,6 +32,7 @@ import {
   FORM_SALUTATION_KEY,
   FORM_SMOKER_KEY,
   LITELLM_DEFAULT_MODEL,
+  PREMIUM_ACCOUNT_KEY,
   MESSAGE_TEMPLATE_KEY,
   MIN_DELAY_KEY,
   PROFILE_AGE_KEY,
@@ -101,6 +102,8 @@ export interface PopupSettings {
   profileCurrentLandlord: string;
   profileLandlordPhone: string;
   profileLandlordEmail: string;
+  // Account
+  premiumAccount: boolean;
   // Form fields
   formSalutation: string;
   formPhone: string;
@@ -179,6 +182,7 @@ const ALL_SETTINGS_KEYS = [
   PROFILE_CURRENT_LANDLORD_KEY,
   PROFILE_LANDLORD_PHONE_KEY,
   PROFILE_LANDLORD_EMAIL_KEY,
+  PREMIUM_ACCOUNT_KEY,
 ];
 
 export async function loadAllSettings(): Promise<PopupSettings> {
@@ -218,6 +222,7 @@ export async function loadAllSettings(): Promise<PopupSettings> {
     profileCurrentLandlord: result[PROFILE_CURRENT_LANDLORD_KEY] || '',
     profileLandlordPhone: result[PROFILE_LANDLORD_PHONE_KEY] || '',
     profileLandlordEmail: result[PROFILE_LANDLORD_EMAIL_KEY] || '',
+    premiumAccount: result[PREMIUM_ACCOUNT_KEY] ?? false,
     formSalutation: result[FORM_SALUTATION_KEY] || 'Frau',
     formPhone: result[FORM_PHONE_KEY] || '',
     formAdults: result[FORM_ADULTS_KEY] ?? 1,
@@ -275,6 +280,7 @@ export async function saveAllSettings(s: PopupSettings): Promise<void> {
     [PROFILE_CURRENT_LANDLORD_KEY]: String(s.profileCurrentLandlord || '').trim(),
     [PROFILE_LANDLORD_PHONE_KEY]: String(s.profileLandlordPhone || '').trim(),
     [PROFILE_LANDLORD_EMAIL_KEY]: String(s.profileLandlordEmail || '').trim(),
+    [PREMIUM_ACCOUNT_KEY]: !!s.premiumAccount,
     [FORM_SALUTATION_KEY]: s.formSalutation || 'Frau',
     [FORM_PHONE_KEY]: s.formPhone,
     [FORM_ADULTS_KEY]: Math.max(1, Math.min(10, s.formAdults || 1)),

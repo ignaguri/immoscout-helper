@@ -22,6 +22,7 @@ export const FORM_DOCUMENTS_KEY = 'formDocuments' as const;
 export const FORM_SALUTATION_KEY = 'formSalutation' as const;
 export const FORM_PHONE_KEY = 'formPhone' as const;
 export const AUTO_SEND_MODE_KEY = 'autoSendMode' as const;
+export const PREMIUM_ACCOUNT_KEY = 'premiumAccount' as const;
 
 // Stats keys
 export const TOTAL_MESSAGES_SENT_KEY = 'totalMessagesSent' as const;

@@ -146,7 +146,7 @@ async function tryAIAnalysisDirect(
 
   for (const fb of fallbacks) {
     const provider = PROVIDERS[fb.provider];
-    const apiKey = config.allApiKeys[fb.provider];
+    const apiKey = config.allApiKeys[fb.provider]!; // guaranteed by getAvailableFallbacks filter
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
 
@@ -177,20 +177,16 @@ async function tryAIAnalysisDirect(
         reason = 'Score konnte nicht ermittelt werden';
       }
 
-      // Update stats
-      const statsUpdates: Record<string, number> = {
-        [C.AI_LISTINGS_SCORED_KEY]:
-          ((await chrome.storage.local.get([C.AI_LISTINGS_SCORED_KEY]))[C.AI_LISTINGS_SCORED_KEY] || 0) + 1,
-      };
-
       // If score below threshold, skip message generation
       if (score < config.minScore) {
         log(
           `[AI/Direct] Score ${score}/${config.minScore} — skipping${flags.length ? ` [flags: ${flags.join(', ')}]` : ''} (model: ${fb.model})`,
         );
-        statsUpdates[C.AI_LISTINGS_SKIPPED_KEY] =
-          ((await chrome.storage.local.get([C.AI_LISTINGS_SKIPPED_KEY]))[C.AI_LISTINGS_SKIPPED_KEY] || 0) + 1;
-        await chrome.storage.local.set(statsUpdates);
+        const stats = await chrome.storage.local.get([C.AI_LISTINGS_SCORED_KEY, C.AI_LISTINGS_SKIPPED_KEY]);
+        await chrome.storage.local.set({
+          [C.AI_LISTINGS_SCORED_KEY]: (stats[C.AI_LISTINGS_SCORED_KEY] || 0) + 1,
+          [C.AI_LISTINGS_SKIPPED_KEY]: (stats[C.AI_LISTINGS_SKIPPED_KEY] || 0) + 1,
+        });
         await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
         return {
           score,
@@ -201,8 +197,6 @@ async function tryAIAnalysisDirect(
           usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
         };
       }
-
-      await chrome.storage.local.set(statsUpdates);
 
       // Step 2: Generate message
       const msgResult = await provider.generateText(
@@ -215,13 +209,18 @@ async function tryAIAnalysisDirect(
       totalPromptTokens += msgResult.usage.promptTokens;
       totalCompletionTokens += msgResult.usage.completionTokens;
 
-      await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
-
       if (!message) {
         error('[AI/Direct] Message generation failed — aborting to prevent template fallback');
         lastAIError = 'AI message generation failed (no output)';
         return null;
       }
+
+      // Update stats only after full success (both scoring + message gen)
+      const stats = await chrome.storage.local.get([C.AI_LISTINGS_SCORED_KEY]);
+      await chrome.storage.local.set({
+        [C.AI_LISTINGS_SCORED_KEY]: (stats[C.AI_LISTINGS_SCORED_KEY] || 0) + 1,
+      });
+      await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
 
       log(`[AI/Direct] Score ${score}/10 — message generated${flags.length ? ` [flags: ${flags.join(', ')}]` : ''} (model: ${fb.model})`);
       return {
@@ -521,7 +520,7 @@ export async function trySolveCaptcha(
         const fallbacks = getAvailableFallbacks(config.allApiKeys);
         for (const fb of fallbacks) {
           const provider = PROVIDERS[fb.provider];
-          const fbApiKey = config.allApiKeys[fb.provider];
+          const fbApiKey = config.allApiKeys[fb.provider]!;
           try {
             log(`[Captcha/Direct] Solving with ${fb.model}...`);
             const result = await provider.generateWithImage(

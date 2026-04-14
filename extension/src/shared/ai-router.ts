@@ -18,7 +18,7 @@ export interface AIConfig {
   minScore: number;
   aboutMe: string;
   litellm: Required<LiteLLMConfig>;
-  allApiKeys: Record<string, string>; // all configured provider API keys
+  allApiKeys: Partial<Record<ProviderId, string>>;
 }
 
 /** LiteLLM is a server-only provider — direct-mode methods throw. */
@@ -73,10 +73,9 @@ export async function getAIConfig(): Promise<AIConfig> {
   };
   const apiKey = providerKeyMap[provider] || undefined;
   const serverUrl = stored[C.AI_SERVER_URL_KEY] || 'http://localhost:3456';
-  // Filter out empty keys for allApiKeys
-  const allApiKeys: Record<string, string> = {};
+  const allApiKeys: Partial<Record<ProviderId, string>> = {};
   for (const [id, key] of Object.entries(providerKeyMap)) {
-    if (key) allApiKeys[id] = key;
+    if (key) allApiKeys[id as ProviderId] = key;
   }
   const config: AIConfig = {
     mode,

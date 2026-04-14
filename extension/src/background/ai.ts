@@ -4,7 +4,6 @@ import {
   canUseDirect,
   canUseServer,
   getAIConfig,
-  getProvider,
   litellmPayload,
   trackTokenUsage,
 } from '../shared/ai-router';
@@ -98,7 +97,7 @@ export interface FormValues {
 // Last AI error detail — read by messaging.ts to include in activity log
 export let lastAIError: string | null = null;
 
-// ── Direct Gemini mode ──
+// ── Direct mode (with model rotation) ──
 
 async function tryAIAnalysisDirect(
   config: AIConfig,
@@ -110,11 +109,13 @@ async function tryAIAnalysisDirect(
   messageTemplate: string,
   isTenantNetwork: boolean,
 ): Promise<AIAnalysisResult | null> {
-  const profile = await getProfile();
-
+  let profile: Awaited<ReturnType<typeof getProfile>>;
   let listingDetails: any;
   try {
-    listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
+    [profile, listingDetails] = await Promise.all([
+      getProfile(),
+      chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' }),
+    ]);
   } catch (e: any) {
     error('[AI/Direct] Failed to extract listing details:', e.message);
     lastAIError = `Failed to extract listing details: ${e.message}`;
@@ -136,15 +137,13 @@ async function tryAIAnalysisDirect(
   };
   const messagePrompt = buildMessagePrompt(userProfile, landlordInfo, messageTemplate, profile);
 
-  // Get available models (preferred provider first, skip cooldowns)
-  const fallbacks = getAvailableFallbacks(config.provider, config.allApiKeys);
+  const fallbacks = getAvailableFallbacks(config.allApiKeys);
   if (fallbacks.length === 0) {
     lastAIError = 'All AI models are on cooldown — try again later';
     warn('[AI/Direct] All models on cooldown');
     return null;
   }
 
-  // Try each model in the fallback chain
   for (const fb of fallbacks) {
     const provider = PROVIDERS[fb.provider];
     const apiKey = config.allApiKeys[fb.provider];
@@ -519,7 +518,7 @@ export async function trySolveCaptcha(
         const mimeType = match[1];
         const rawBase64 = match[2];
 
-        const fallbacks = getAvailableFallbacks(config.provider, config.allApiKeys);
+        const fallbacks = getAvailableFallbacks(config.allApiKeys);
         for (const fb of fallbacks) {
           const provider = PROVIDERS[fb.provider];
           const fbApiKey = config.allApiKeys[fb.provider];

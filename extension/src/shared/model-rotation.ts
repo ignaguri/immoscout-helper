@@ -50,12 +50,10 @@ function isOnCooldown(model: string): boolean {
 }
 
 /**
- * Returns the available fallback models, filtering out those on cooldown
- * or whose provider lacks an API key. The preferred provider's models
- * appear first (matching FALLBACK_CHAIN order).
+ * Returns available fallback models in chain order, filtering out those
+ * on cooldown or whose provider lacks an API key.
  */
 export function getAvailableFallbacks(
-  preferredProvider: ProviderId,
   allApiKeys: Record<string, string>,
 ): FallbackModel[] {
   return FALLBACK_CHAIN.filter(

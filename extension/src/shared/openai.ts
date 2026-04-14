@@ -20,7 +20,7 @@ async function generateText(
   opts?: AIOptions,
 ): Promise<AIResult> {
   const body: Record<string, any> = {
-    model: DEFAULT_MODEL,
+    model: opts?.model ?? DEFAULT_MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -55,7 +55,7 @@ async function generateWithImage(
   opts?: AIOptions,
 ): Promise<AIResult> {
   const body: Record<string, any> = {
-    model: DEFAULT_MODEL,
+    model: opts?.model ?? DEFAULT_MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       {

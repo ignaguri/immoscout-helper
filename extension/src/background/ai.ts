@@ -1,14 +1,15 @@
 import {
   type AIConfig,
+  PROVIDERS,
   canUseDirect,
   canUseServer,
   getAIConfig,
-  getProvider,
   litellmPayload,
   trackTokenUsage,
 } from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { error, log, warn } from '../shared/logger';
+import { getAvailableFallbacks, isRateLimitError, markModelCooldown } from '../shared/model-rotation';
 import {
   buildMessagePrompt,
   buildScoringPrompt,
@@ -96,7 +97,7 @@ export interface FormValues {
 // Last AI error detail — read by messaging.ts to include in activity log
 export let lastAIError: string | null = null;
 
-// ── Direct Gemini mode ──
+// ── Direct mode (with model rotation) ──
 
 async function tryAIAnalysisDirect(
   config: AIConfig,
@@ -108,12 +109,13 @@ async function tryAIAnalysisDirect(
   messageTemplate: string,
   isTenantNetwork: boolean,
 ): Promise<AIAnalysisResult | null> {
-  const profile = await getProfile();
-  const apiKey = config.apiKey!;
-
+  let profile: Awaited<ReturnType<typeof getProfile>>;
   let listingDetails: any;
   try {
-    listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
+    [profile, listingDetails] = await Promise.all([
+      getProfile(),
+      chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' }),
+    ]);
   } catch (e: any) {
     error('[AI/Direct] Failed to extract listing details:', e.message);
     lastAIError = `Failed to extract listing details: ${e.message}`;
@@ -126,112 +128,131 @@ async function tryAIAnalysisDirect(
 
   const listingText = formatListingWithAnalysis(formatListingForPrompt(listingDetails), listingDetails, profile.maxWarmmiete, formValues.income);
   const userProfile = { ...formValues, aboutMe: config.aboutMe };
-  let totalPromptTokens = 0;
-  let totalCompletionTokens = 0;
+  const scoringPrompt = buildScoringPrompt(userProfile, profile);
+  const landlordInfo = {
+    title: landlordTitle || undefined,
+    name: landlordName || undefined,
+    isPrivate: isPrivateLandlord,
+    isTenantNetwork,
+  };
+  const messagePrompt = buildMessagePrompt(userProfile, landlordInfo, messageTemplate, profile);
 
-  // Step 1: Score
-  let score: number | undefined;
-  let reason: string | undefined;
-  let summary: string | undefined;
-  let flags: string[] = [];
+  const fallbacks = getAvailableFallbacks(config.allApiKeys);
+  if (fallbacks.length === 0) {
+    lastAIError = 'All AI models are on cooldown — try again later';
+    warn('[AI/Direct] All models on cooldown');
+    return null;
+  }
 
-  try {
-    const scoringPrompt = buildScoringPrompt(userProfile, profile);
-    const provider = getProvider(config);
-    const result = await provider.generateText(apiKey, scoringPrompt, `Bewerte dieses Inserat:\n\n${listingText}`, {
-      maxTokens: 1024,
-    });
-    totalPromptTokens += result.usage.promptTokens;
-    totalCompletionTokens += result.usage.completionTokens;
+  for (const fb of fallbacks) {
+    const provider = PROVIDERS[fb.provider];
+    const apiKey = config.allApiKeys[fb.provider]!; // guaranteed by getAvailableFallbacks filter
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
 
-    const parsed = parseScoreJSON(result.text);
-    if (parsed) {
-      score = parsed.score;
-      reason = parsed.reason;
-      summary = parsed.summary;
-      flags = parsed.flags || [];
-    } else {
-      warn('[AI/Direct] Could not parse score JSON, defaulting to 5');
-      score = 5;
-      reason = 'Score konnte nicht ermittelt werden';
+    try {
+      // Step 1: Score
+      log(`[AI/Direct] Scoring with ${fb.model}...`);
+      const result = await provider.generateText(apiKey, scoringPrompt, `Bewerte dieses Inserat:\n\n${listingText}`, {
+        maxTokens: 1024,
+        model: fb.model,
+      });
+      totalPromptTokens += result.usage.promptTokens;
+      totalCompletionTokens += result.usage.completionTokens;
+
+      let score: number;
+      let reason: string | undefined;
+      let summary: string | undefined;
+      let flags: string[] = [];
+
+      const parsed = parseScoreJSON(result.text);
+      if (parsed) {
+        score = parsed.score;
+        reason = parsed.reason;
+        summary = parsed.summary;
+        flags = parsed.flags || [];
+      } else {
+        warn('[AI/Direct] Could not parse score JSON, defaulting to 5');
+        score = 5;
+        reason = 'Score konnte nicht ermittelt werden';
+      }
+
+      // If score below threshold, skip message generation
+      if (score < config.minScore) {
+        log(
+          `[AI/Direct] Score ${score}/${config.minScore} — skipping${flags.length ? ` [flags: ${flags.join(', ')}]` : ''} (model: ${fb.model})`,
+        );
+        const stats = await chrome.storage.local.get([C.AI_LISTINGS_SCORED_KEY, C.AI_LISTINGS_SKIPPED_KEY]);
+        await chrome.storage.local.set({
+          [C.AI_LISTINGS_SCORED_KEY]: (stats[C.AI_LISTINGS_SCORED_KEY] || 0) + 1,
+          [C.AI_LISTINGS_SKIPPED_KEY]: (stats[C.AI_LISTINGS_SKIPPED_KEY] || 0) + 1,
+        });
+        await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
+        return {
+          score,
+          reason,
+          summary,
+          flags,
+          skip: true,
+          usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+        };
+      }
+
+      // Step 2: Generate message
+      const msgResult = await provider.generateText(
+        apiKey,
+        messagePrompt,
+        `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`,
+        { maxTokens: 4096, model: fb.model },
+      );
+      const message = msgResult.text.trim();
+      totalPromptTokens += msgResult.usage.promptTokens;
+      totalCompletionTokens += msgResult.usage.completionTokens;
+
+      if (!message) {
+        error('[AI/Direct] Message generation failed — aborting to prevent template fallback');
+        lastAIError = 'AI message generation failed (no output)';
+        return null;
+      }
+
+      // Update stats only after full success (both scoring + message gen)
+      const stats = await chrome.storage.local.get([C.AI_LISTINGS_SCORED_KEY]);
+      await chrome.storage.local.set({
+        [C.AI_LISTINGS_SCORED_KEY]: (stats[C.AI_LISTINGS_SCORED_KEY] || 0) + 1,
+      });
+      await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
+
+      log(`[AI/Direct] Score ${score}/10 — message generated${flags.length ? ` [flags: ${flags.join(', ')}]` : ''} (model: ${fb.model})`);
+      return {
+        score,
+        reason,
+        summary,
+        flags,
+        message,
+        skip: false,
+        usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+      };
+    } catch (err) {
+      if (isRateLimitError(err)) {
+        markModelCooldown(fb.model);
+        warn(`[AI/Direct] ${fb.model} rate-limited, trying next model...`);
+        // Track any partial token usage before moving on
+        if (totalPromptTokens || totalCompletionTokens) {
+          await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
+        }
+        continue;
+      }
+      // Permanent error — don't try other models
+      error('[AI/Direct] Error:', (err as Error).message);
+      lastAIError = `AI error (${fb.model}): ${(err as Error).message}`;
+      return null;
     }
-  } catch (err) {
-    error('[AI/Direct] Scoring error:', (err as Error).message);
-    lastAIError = `AI scoring error: ${(err as Error).message}`;
-    return null;
   }
 
-  // Update stats
-  const statsUpdates: Record<string, number> = {
-    [C.AI_LISTINGS_SCORED_KEY]:
-      ((await chrome.storage.local.get([C.AI_LISTINGS_SCORED_KEY]))[C.AI_LISTINGS_SCORED_KEY] || 0) + 1,
-  };
-
-  // If score below threshold, skip message generation
-  if (score < config.minScore) {
-    log(
-      `[AI/Direct] Score ${score}/${config.minScore} — skipping${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`,
-    );
-    statsUpdates[C.AI_LISTINGS_SKIPPED_KEY] =
-      ((await chrome.storage.local.get([C.AI_LISTINGS_SKIPPED_KEY]))[C.AI_LISTINGS_SKIPPED_KEY] || 0) + 1;
-    await chrome.storage.local.set(statsUpdates);
-    await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
-    return {
-      score,
-      reason,
-      summary,
-      flags,
-      skip: true,
-      usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
-    };
-  }
-
-  await chrome.storage.local.set(statsUpdates);
-
-  // Step 2: Generate message
-  let message: string | null = null;
-  try {
-    const landlordInfo = {
-      title: landlordTitle || undefined,
-      name: landlordName || undefined,
-      isPrivate: isPrivateLandlord,
-      isTenantNetwork,
-    };
-    const messagePrompt = buildMessagePrompt(userProfile, landlordInfo, messageTemplate, profile);
-    const provider = getProvider(config);
-    const msgResult = await provider.generateText(
-      apiKey,
-      messagePrompt,
-      `Schreibe eine Bewerbungsnachricht für dieses Inserat:\n\n${listingText}`,
-      { maxTokens: 4096 },
-    );
-    message = msgResult.text.trim();
-    totalPromptTokens += msgResult.usage.promptTokens;
-    totalCompletionTokens += msgResult.usage.completionTokens;
-  } catch (err) {
-    error('[AI/Direct] Message generation error:', (err as Error).message);
-    lastAIError = `AI message generation error: ${(err as Error).message}`;
-  }
-
-  await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
-
-  // If message generation failed, do NOT allow fallback to template — treat as failure
-  if (!message) {
-    error('[AI/Direct] Message generation failed — aborting to prevent template fallback');
-    if (!lastAIError) lastAIError = 'AI message generation failed (no output)';
-    return null;
-  }
-
-  log(`[AI/Direct] Score ${score}/10 — message generated${flags.length ? ` [flags: ${flags.join(', ')}]` : ''}`);
-  return {
-    score,
-    reason,
-    summary,
-    flags,
-    message,
-    skip: false,
-    usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
-  };
+  // All models exhausted
+  lastAIError = 'All AI models rate-limited — try again later';
+  warn('[AI/Direct] All models in fallback chain exhausted');
+  return null;
 }
 
 // ── Server mode (existing) ──
@@ -487,7 +508,7 @@ export async function trySolveCaptcha(
       let captchaUsage = { promptTokens: 0, completionTokens: 0 };
 
       if (canUseDirect(config) && config.apiKey) {
-        // Direct mode: call provider vision API
+        // Direct mode: call provider vision API with model rotation
         const match = detection.imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
         if (!match) {
           error('[Captcha] Invalid base64 image format');
@@ -496,21 +517,36 @@ export async function trySolveCaptcha(
         const mimeType = match[1];
         const rawBase64 = match[2];
 
-        const provider = getProvider(config);
-        const result = await provider.generateWithImage(
-          config.apiKey,
-          CAPTCHA_SYSTEM_PROMPT,
-          rawBase64,
-          mimeType,
-          CAPTCHA_USER_PROMPT,
-          { maxTokens: 32 },
-        );
-        const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
-        captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;
-        captchaUsage = result.usage;
+        const fallbacks = getAvailableFallbacks(config.allApiKeys);
+        for (const fb of fallbacks) {
+          const provider = PROVIDERS[fb.provider];
+          const fbApiKey = config.allApiKeys[fb.provider]!;
+          try {
+            log(`[Captcha/Direct] Solving with ${fb.model}...`);
+            const result = await provider.generateWithImage(
+              fbApiKey,
+              CAPTCHA_SYSTEM_PROMPT,
+              rawBase64,
+              mimeType,
+              CAPTCHA_USER_PROMPT,
+              { maxTokens: 32, model: fb.model },
+            );
+            const answer = result.text.trim().replace(/[^a-zA-Z0-9]/g, '');
+            captchaText = answer && answer.length >= 4 && answer.length <= 7 ? answer : null;
+            captchaUsage = result.usage;
 
-        if (!captchaText) {
-          warn(`[Captcha/Direct] Empty/invalid answer (raw: "${result.text.trim()}")`);
+            if (!captchaText) {
+              warn(`[Captcha/Direct] Empty/invalid answer from ${fb.model} (raw: "${result.text.trim()}")`);
+            }
+            break; // got a response (even if invalid), don't rotate for bad answers
+          } catch (err) {
+            if (isRateLimitError(err)) {
+              markModelCooldown(fb.model);
+              warn(`[Captcha/Direct] ${fb.model} rate-limited, trying next...`);
+              continue;
+            }
+            throw err; // permanent error
+          }
         }
       } else if (canUseServer(config)) {
         // Server mode

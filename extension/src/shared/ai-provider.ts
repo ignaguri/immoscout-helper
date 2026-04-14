@@ -2,6 +2,7 @@
 
 export interface AIOptions {
   maxTokens?: number;
+  model?: string; // override default model for fallback rotation
 }
 
 export interface AIUsage {

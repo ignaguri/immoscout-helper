@@ -99,6 +99,10 @@ export const GENERIC_LANDLORD_PATTERNS: readonly RegExp[] = [
   /\[informationen\]/i, // anything containing "[Informationen]"
 ];
 
+// Model rotation cooldown (exponential backoff: 1m → 2m → 4m → 8m → 15m cap)
+export const AI_MODEL_COOLDOWN_BASE_MS = 60_000; // 1 minute
+export const AI_MODEL_COOLDOWN_MAX_MS = 900_000; // 15 minutes cap
+
 // Queue keys
 export const QUEUE_KEY = 'manualQueue' as const;
 export const QUEUE_PROCESSING_KEY = 'isQueueProcessing' as const;

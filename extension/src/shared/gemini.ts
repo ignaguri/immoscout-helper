@@ -34,7 +34,8 @@ async function generateText(
   userPrompt: string,
   opts?: AIOptions,
 ): Promise<AIResult> {
-  const url = `${GEMINI_API_BASE}/${DEFAULT_MODEL}:generateContent?key=${apiKey}`;
+  const model = opts?.model ?? DEFAULT_MODEL;
+  const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
 
   const body: Record<string, any> = {
     system_instruction: { parts: [{ text: systemPrompt }] },
@@ -69,7 +70,8 @@ async function generateWithImage(
   textPrompt: string,
   opts?: AIOptions,
 ): Promise<AIResult> {
-  const url = `${GEMINI_API_BASE}/${DEFAULT_MODEL}:generateContent?key=${apiKey}`;
+  const model = opts?.model ?? DEFAULT_MODEL;
+  const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
 
   const body: Record<string, any> = {
     system_instruction: { parts: [{ text: systemPrompt }] },

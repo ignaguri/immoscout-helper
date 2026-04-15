@@ -48,6 +48,7 @@ let settings: PopupSettings = $state({
   profileCurrentLandlord: '',
   profileLandlordPhone: '',
   profileLandlordEmail: '',
+  premiumAccount: false,
   formSalutation: 'Frau',
   formPhone: '',
   formAdults: 1,

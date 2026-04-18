@@ -32,9 +32,9 @@ import {
   FORM_SALUTATION_KEY,
   FORM_SMOKER_KEY,
   LITELLM_DEFAULT_MODEL,
-  PREMIUM_ACCOUNT_KEY,
   MESSAGE_TEMPLATE_KEY,
   MIN_DELAY_KEY,
+  PREMIUM_ACCOUNT_KEY,
   PROFILE_AGE_KEY,
   PROFILE_BIRTH_DATE_KEY,
   PROFILE_CURRENT_ADDRESS_KEY,
@@ -57,10 +57,11 @@ import {
   PROFILE_STRENGTHS_KEY,
   QUEUE_KEY,
   RATE_LIMIT_KEY,
+  SAVED_SNAPSHOTS_KEY,
   SEARCH_URL_KEY,
   SEARCH_URLS_KEY,
 } from '../../shared/constants';
-import type { ActivityLogEntry, ConversationEntry, QueueItem } from '../../shared/types';
+import type { ActivityLogEntry, ConversationEntry, QueueItem, SavedSnapshotMeta } from '../../shared/types';
 
 export async function storageGet(keys: string | string[]): Promise<Record<string, any>> {
   return chrome.storage.local.get(keys);
@@ -340,6 +341,11 @@ export async function loadConversations(): Promise<{
     lastCheck: stored[CONVERSATIONS_LAST_CHECK_KEY] || null,
     unreadCount: stored[CONV_UNREAD_COUNT_KEY] || 0,
   };
+}
+
+export async function loadSavedSnapshots(): Promise<Record<string, SavedSnapshotMeta>> {
+  const stored = await chrome.storage.local.get([SAVED_SNAPSHOTS_KEY]);
+  return (stored[SAVED_SNAPSHOTS_KEY] as Record<string, SavedSnapshotMeta>) || {};
 }
 
 export async function resetAiUsage(): Promise<void> {

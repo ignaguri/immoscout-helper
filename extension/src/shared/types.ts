@@ -218,3 +218,44 @@ export interface UpdateInfo {
   url: string;
   checkedAt: number;
 }
+
+// --- Saved listing snapshots ---
+
+export type ExportFormat = 'html' | 'pdf' | 'zip';
+
+/** Small per-listing metadata stored in chrome.storage.local. */
+export interface SavedSnapshotMeta {
+  listingId: string;
+  url: string;
+  title: string;
+  address: string;
+  landlordName: string;
+  savedAt: number;
+  imageCount: number;
+  /** URLs that failed to fetch during the save (so the UI can surface it). */
+  failedImageUrls?: string[];
+}
+
+/** Individual image bytes stored in IndexedDB. */
+export interface SavedImage {
+  url: string;
+  blob: Blob;
+  mimeType: string;
+}
+
+/** Full snapshot, used for view/export. Images and details live in IndexedDB, meta in chrome.storage.local. */
+export interface SavedSnapshotFull {
+  meta: SavedSnapshotMeta;
+  details: import('@repo/shared-types').ListingDetails;
+  landlord: import('@repo/shared-types').LandlordInfo;
+  images: SavedImage[];
+}
+
+/** Payload sent from content script to background when archiving. */
+export interface ExtractForArchiveResult {
+  listingId: string;
+  url: string;
+  details: import('@repo/shared-types').ListingDetails;
+  landlord: import('@repo/shared-types').LandlordInfo;
+  imageUrls: string[];
+}

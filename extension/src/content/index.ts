@@ -8,6 +8,8 @@ import type { CheckMessageSentResult, ContentRequest } from '../shared/types';
 import { detectCaptcha, detectCaptchaElement, fillCaptchaAndSubmit } from './captcha';
 import { refillMessageOnly, sendMessageToLandlord } from './contact-form';
 import { simulateHumanEngagement } from './dom-helpers';
+import { injectExportButton } from './export-button';
+import { collectGalleryImageUrls, getListingIdFromUrl } from './gallery-images';
 import { detectListingType, extractLandlordName, extractListingDetails } from './listing-details';
 import { extractListings, extractPaginationInfo } from './listings';
 import { fillConversationReply, handleAppointment } from './messenger';
@@ -38,6 +40,18 @@ chrome.runtime.onMessage.addListener(
       case 'extractListingDetails':
         sendResponse(extractListingDetails());
         break;
+
+      case 'extractForArchive': {
+        const listingId = getListingIdFromUrl();
+        sendResponse({
+          listingId,
+          url: location.href,
+          details: extractListingDetails(),
+          landlord: extractLandlordName(),
+          imageUrls: collectGalleryImageUrls(),
+        });
+        break;
+      }
 
       case 'detectListingType':
         sendResponse(detectListingType());
@@ -118,6 +132,12 @@ chrome.runtime.onMessage.addListener(
 );
 
 log('[IS24] Content script loaded');
+
+// Inject the Export-listing floating button on /expose/ pages
+if (location.pathname.startsWith('/expose/')) {
+  // Delay slightly so the export button doesn't fight with page-load layout
+  setTimeout(() => injectExportButton(), 500);
+}
 
 // Auto-apply overlay on search results pages
 if (location.pathname.startsWith('/Suche/') || location.href.includes('searchType=')) {

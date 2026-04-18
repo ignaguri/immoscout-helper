@@ -1,9 +1,11 @@
 <script lang="ts">
+import { onMount } from 'svelte';
+import { SAVED_SNAPSHOTS_KEY } from '../../shared/constants';
 import { error } from '../../shared/logger';
-import type { ConversationEntry } from '../../shared/types';
+import type { ConversationEntry, SavedSnapshotMeta } from '../../shared/types';
 import ConversationCard from '../components/ConversationCard.svelte';
 import { checkRepliesNow } from '../lib/messages';
-import { loadConversations as loadConvStorage } from '../lib/storage';
+import { loadConversations as loadConvStorage, loadSavedSnapshots } from '../lib/storage';
 
 let {
   conversations = $bindable(),
@@ -16,6 +18,24 @@ let {
   unreadCount: number;
   aiMode?: string;
 } = $props();
+
+let snapshots = $state<Record<string, SavedSnapshotMeta>>({});
+
+onMount(() => {
+  loadSavedSnapshots()
+    .then((s) => {
+      snapshots = s;
+    })
+    .catch(() => {});
+  const listener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+    if (area !== 'local') return;
+    if (changes[SAVED_SNAPSHOTS_KEY]) {
+      snapshots = (changes[SAVED_SNAPSHOTS_KEY].newValue as Record<string, SavedSnapshotMeta>) || {};
+    }
+  };
+  chrome.storage.onChanged.addListener(listener);
+  return () => chrome.storage.onChanged.removeListener(listener);
+});
 
 let checkBtnText = $state('Check Now');
 let checkBtnDisabled = $state(false);
@@ -151,6 +171,7 @@ function handleBadgeDecrement() {
         isExpanded={expandedConvId === conv.conversationId}
         onToggle={handleToggle}
         onBadgeDecrement={handleBadgeDecrement}
+        snapshot={conv.referenceId ? snapshots[conv.referenceId] ?? null : null}
         {aiMode}
       />
     {/each}

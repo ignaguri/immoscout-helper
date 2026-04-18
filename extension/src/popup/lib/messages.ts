@@ -2,10 +2,12 @@
 import type {
   AppointmentInfo,
   CaptureQueueResponse,
+  ExportFormat,
   ManualReviewData,
   PendingApprovalItem,
   QueueItem,
   QueueStatusResponse,
+  SavedSnapshotMeta,
 } from '../../shared/types';
 
 export async function sendAction(action: string, data?: Record<string, unknown>): Promise<unknown> {
@@ -147,4 +149,35 @@ export async function refineManualMessage(
 
 export async function dismissManualReview(): Promise<void> {
   await chrome.runtime.sendMessage({ action: 'dismissManualReview' });
+}
+
+// --- Saved snapshots ---
+
+export async function getSnapshotsIndex(): Promise<Record<string, SavedSnapshotMeta>> {
+  const result: any = await chrome.runtime.sendMessage({ action: 'getSnapshotsIndex' });
+  return result?.index || {};
+}
+
+export async function saveSnapshot(
+  listingId: string,
+  url: string,
+): Promise<{
+  success: boolean;
+  imageCount?: number;
+  failedImageCount?: number;
+  evictedIds?: string[];
+  error?: string;
+}> {
+  return chrome.runtime.sendMessage({ action: 'saveSnapshot', listingId, url });
+}
+
+export async function exportSnapshot(
+  listingId: string,
+  format: ExportFormat,
+): Promise<{ success: boolean; error?: string; filename?: string }> {
+  return chrome.runtime.sendMessage({ action: 'exportSnapshot', listingId, format });
+}
+
+export async function deleteSnapshot(listingId: string): Promise<{ success: boolean; error?: string }> {
+  return chrome.runtime.sendMessage({ action: 'deleteSnapshot', listingId });
 }

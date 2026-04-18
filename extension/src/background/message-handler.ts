@@ -18,12 +18,19 @@ import {
   updateAppointmentStatus,
   updateConversationDraft,
 } from './conversations';
+import { exportSnapshot as runExportSnapshot } from './exporter';
 import { scheduleNextAlarm, waitForTabLoad } from './helpers';
 import type { Listing } from './listings';
 import { handleNewListing } from './messaging';
 import { startMonitoring, stopMonitoring, updateCheckInterval } from './monitoring';
 import { approvePendingListing, getPendingApprovalListings, skipPendingListing } from './pending-approval';
 import { enqueueListings, processQueue } from './queue';
+import {
+  deleteSnapshot as deleteSavedSnapshot,
+  exportSavedSnapshot,
+  getSnapshotsIndex,
+  saveSnapshotById,
+} from './saved-snapshots';
 import {
   currentCheckInterval,
   isMonitoring,
@@ -836,6 +843,102 @@ export function registerMessageHandler(): void {
             sendResponse({ success: true });
           } catch (e: any) {
             sendResponse({ success: false, error: e?.message ?? 'Failed to dismiss' });
+          }
+        })();
+        return true;
+
+        // --- Saved snapshots handlers ---
+      } else if (request.action === 'exportListingNow') {
+        (async () => {
+          try {
+            const { listingId, url, details, landlord, imageUrls, format } = request;
+            if (!listingId || !format) {
+              sendResponse({ success: false, error: 'listingId and format required' });
+              return;
+            }
+            // PDF skips the SW image fetch — the print page re-fetches them itself,
+            // so a one-shot PDF export avoids buffering potentially huge blobs in
+            // the service worker just to hand them to a tab.
+            if (format === 'pdf') {
+              const result = await runExportSnapshot({
+                listingId,
+                sourceUrl: url,
+                details,
+                landlord,
+                images: [],
+                savedAt: Date.now(),
+                format,
+                pdfSource: 'ephemeral',
+                ephemeralImageUrls: imageUrls || [],
+              });
+              sendResponse(result);
+              return;
+            }
+            const { fetchListingImages, splitFetchResults } = await import('./exporter');
+            const fetched = await fetchListingImages(imageUrls || []);
+            const { images } = splitFetchResults(imageUrls || [], fetched);
+            const result = await runExportSnapshot({
+              listingId,
+              sourceUrl: url,
+              details,
+              landlord,
+              images,
+              savedAt: Date.now(),
+              format,
+            });
+            sendResponse(result);
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      } else if (request.action === 'saveSnapshot') {
+        (async () => {
+          try {
+            const { listingId, url } = request;
+            if (!listingId || !url) {
+              sendResponse({ success: false, error: 'listingId and url required' });
+              return;
+            }
+            const result = await saveSnapshotById(listingId, url);
+            sendResponse(result);
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      } else if (request.action === 'exportSnapshot') {
+        (async () => {
+          try {
+            const { listingId, format } = request;
+            if (!listingId || !format) {
+              sendResponse({ success: false, error: 'listingId and format required' });
+              return;
+            }
+            const result = await exportSavedSnapshot(listingId, format);
+            sendResponse(result);
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      } else if (request.action === 'deleteSnapshot') {
+        (async () => {
+          try {
+            const result = await deleteSavedSnapshot(request.listingId);
+            sendResponse(result);
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      } else if (request.action === 'getSnapshotsIndex') {
+        (async () => {
+          try {
+            const index = await getSnapshotsIndex();
+            sendResponse({ success: true, index });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
           }
         })();
         return true;

@@ -137,6 +137,16 @@ export const CONVERSATIONS_CAP = 200;
 // Caps
 export const SEEN_LISTINGS_CAP = 5000;
 
+// Saved listing snapshots (conversation-bound local archive)
+export const SAVED_SNAPSHOTS_KEY = 'savedSnapshots' as const;
+export const SAVED_SNAPSHOTS_CAP = 100;
+export const SAVED_IMAGE_MAX_BYTES = 8 * 1024 * 1024; // 8 MiB safety cap per image
+export const SAVED_IMAGE_CONCURRENCY = 4;
+export const SAVED_SNAPSHOTS_IDB_NAME = 'savedSnapshots' as const;
+export const SAVED_SNAPSHOTS_IDB_VERSION = 1;
+export const SAVED_SNAPSHOTS_IDB_IMAGES_STORE = 'images' as const;
+export const SAVED_SNAPSHOTS_IDB_FULLTEXT_STORE = 'fullText' as const;
+
 // Timing constants (milliseconds)
 export const HUMAN_DELAY_MIN = 1500;
 export const HUMAN_DELAY_MAX = 4000;

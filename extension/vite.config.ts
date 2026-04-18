@@ -75,6 +75,8 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'popup.html'),
+        viewer: resolve(__dirname, 'viewer.html'),
+        print: resolve(__dirname, 'print.html'),
       },
       output: {
         entryFileNames: '[name].js',

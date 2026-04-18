@@ -130,8 +130,8 @@ function styles(printMode: boolean): string {
 
 export function buildSelfContainedHtml(opts: BuildHtmlOptions): string {
   const { details, landlord, images, sourceUrl, savedAt, printMode = false } = opts;
-  const title = (details as any).title || 'ImmoScout24 Snapshot';
-  const address = (details as any).address || '';
+  const title = details.title || 'ImmoScout24 Snapshot';
+  const address = details.address || '';
   const savedDate = new Date(savedAt).toLocaleString();
   const bodyInner = [
     `<h1>${escapeHtml(title)}</h1>`,
@@ -164,7 +164,7 @@ ${bodyInner}
 
 /** Returns a filename-safe slug from the listing's address (fallback: listingId). */
 export function slugForFilename(details: ListingDetails, listingId: string): string {
-  const source = (details as any).address || (details as any).title || listingId;
+  const source = details.address || details.title || listingId;
   const slug = String(source)
     .toLowerCase()
     .replace(/[äöü]/g, (c) => ({ ä: 'ae', ö: 'oe', ü: 'ue' })[c] ?? c)

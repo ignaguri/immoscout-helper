@@ -121,8 +121,8 @@ export async function ingestSnapshot(args: {
   const meta: SavedSnapshotMeta = {
     listingId,
     url,
-    title: String((details as any).title || ''),
-    address: String((details as any).address || ''),
+    title: details.title || '',
+    address: details.address || '',
     landlordName: landlord?.name || '',
     savedAt,
     imageCount: images.length,

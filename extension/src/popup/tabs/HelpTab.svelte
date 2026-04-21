@@ -299,7 +299,7 @@ async function generateBugReport() {
       <span class="feature-icon">&#x1F4E6;</span>
       <div>
         <strong>Save &amp; Export Listings</strong>
-        <p>Saves a full offline snapshot of any listing &mdash; photos included. On any listing page, click the <strong>&#x1F4E6;</strong> button to save or export directly. In the <strong>Conversations</strong> tab, use the save icon on a conversation card to capture the listing and export it as <strong>HTML</strong>, <strong>PDF</strong>, or <strong>ZIP</strong>. Up to 100 snapshots stored locally; oldest are auto-removed.</p>
+        <p>Creates full offline listing snapshots &mdash; photos included. On listing pages, click the <strong>&#x1F4E6; Export listing</strong> control to choose <strong>HTML</strong>, <strong>PDF</strong>, or <strong>ZIP</strong>. In the <strong>Conversations</strong> tab, expand the conversation card if needed, then click <strong>&#x1F4E6; Save snapshot</strong>. After a snapshot has been saved, export buttons for <strong>HTML</strong>, <strong>PDF</strong>, and <strong>ZIP</strong> will appear. Up to 100 snapshots are stored locally; oldest are auto-removed.</p>
       </div>
     </div>
   </div>

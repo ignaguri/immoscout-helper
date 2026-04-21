@@ -294,6 +294,14 @@ async function generateBugReport() {
         <p>Generates a Selbstauskunft (tenant self-disclosure) PDF with your profile data pre-filled. Available only in <strong>Server mode</strong> &mdash; requires the local AI server running. Find it in conversation cards via the "Generate Docs" button.</p>
       </div>
     </div>
+
+    <div class="feature">
+      <span class="feature-icon">&#x1F4E6;</span>
+      <div>
+        <strong>Save &amp; Export Listings</strong>
+        <p>Creates full offline listing snapshots &mdash; photos included. On listing pages, click the <strong>&#x1F4E6; Export listing</strong> control to choose <strong>HTML</strong>, <strong>PDF</strong>, or <strong>ZIP</strong>. In the <strong>Conversations</strong> tab, expand the conversation card if needed, then click <strong>&#x1F4E6; Save snapshot</strong>. After a snapshot has been saved, export buttons for <strong>HTML</strong>, <strong>PDF</strong>, and <strong>ZIP</strong> will appear. Up to 100 snapshots are stored locally; oldest are auto-removed.</p>
+      </div>
+    </div>
   </div>
 
   <div class="section-title">Report a Bug</div>

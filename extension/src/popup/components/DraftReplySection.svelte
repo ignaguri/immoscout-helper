@@ -1,7 +1,14 @@
 <script lang="ts">
 import { getMessengerUrl } from '../../shared/constants';
 import type { ConversationEntry } from '../../shared/types';
-import { generateDocuments, regenerateDraft, sendConversationReply } from '../lib/messages';
+import {
+  dismissDraftError,
+  generateDocuments,
+  regenerateDraft,
+  sendConversationReply,
+} from '../lib/messages';
+
+const DRAFT_WATCHDOG_MS = 90_000;
 
 let {
   conversation,
@@ -17,6 +24,8 @@ let sendBtnDisabled = $state(false);
 let sendBtnStyle = $state('');
 let regenBtnText = $state('Generate');
 let regenBtnDisabled = $state(false);
+let localDraftError = $state<string | null>(null);
+let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Refine state
 let refineInput = $state('');
@@ -42,6 +51,20 @@ $effect(() => {
   regenBtnText = conversation.draftReply ? 'Regenerate' : 'Generate';
   showRefineInput = false;
   refineInput = '';
+});
+
+// Drive the watchdog off draftStatus so it also covers popup remount mid-generation.
+// Also clears local error when generation completes, and cleans up on unmount.
+$effect(() => {
+  if (conversation.draftStatus === 'generating') {
+    if (!watchdogTimer) startWatchdog();
+  } else {
+    clearWatchdog();
+    if (conversation.draftStatus === 'ready') {
+      localDraftError = null;
+    }
+  }
+  return clearWatchdog;
 });
 
 // Pre-fill docs address when the form is opened (tracked by conversationId to avoid overwriting edits)
@@ -81,13 +104,35 @@ async function handleSendReply() {
   }, 5000);
 }
 
+function clearWatchdog() {
+  if (watchdogTimer) {
+    clearTimeout(watchdogTimer);
+    watchdogTimer = null;
+  }
+}
+
+function startWatchdog() {
+  clearWatchdog();
+  watchdogTimer = setTimeout(() => {
+    if (conversation.draftStatus === 'generating') {
+      localDraftError = 'Draft generation timed out. Try again.';
+    }
+  }, DRAFT_WATCHDOG_MS);
+}
+
 async function handleRegenerate() {
   regenBtnDisabled = true;
   regenBtnText = 'Generating...';
   draftText = '';
+  localDraftError = null;
   try {
-    await regenerateDraft(conversation.conversationId, '');
-  } catch {
+    const result = await regenerateDraft(conversation.conversationId, '');
+    if (!result?.success) {
+      localDraftError = result?.error || 'Failed to generate draft.';
+      regenBtnText = 'Error';
+    }
+  } catch (e: any) {
+    localDraftError = e?.message || 'Failed to generate draft.';
     regenBtnText = 'Error';
   }
   setTimeout(() => {
@@ -102,9 +147,15 @@ async function handleRefine() {
   refineBtnText = 'Applying...';
   const userContext = `CURRENT DRAFT:\n${draftText}\n\nREFINEMENT INSTRUCTIONS:\n${refineInput.trim()}`;
   draftText = '';
+  localDraftError = null;
   try {
-    await regenerateDraft(conversation.conversationId, userContext);
-  } catch {
+    const result = await regenerateDraft(conversation.conversationId, userContext);
+    if (!result?.success) {
+      localDraftError = result?.error || 'Failed to refine draft.';
+      refineBtnText = 'Error';
+    }
+  } catch (e: any) {
+    localDraftError = e?.message || 'Failed to refine draft.';
     refineBtnText = 'Error';
   }
   refineInput = '';
@@ -113,6 +164,13 @@ async function handleRefine() {
     refineBtnDisabled = false;
     refineBtnText = 'Apply';
   }, 3000);
+}
+
+async function handleDismissError() {
+  localDraftError = null;
+  try {
+    await dismissDraftError(conversation.conversationId);
+  } catch {}
 }
 
 function handleOpen() {
@@ -150,6 +208,23 @@ async function handleGenerateDocs() {
 <div class="draft-section">
   {#if conversation.draftStatus === 'generating'}
     <div class="draft-generating">Generating AI draft...</div>
+    {#if localDraftError}
+      <div class="draft-error">
+        <div class="draft-error-msg">{localDraftError}</div>
+        <div class="draft-error-actions">
+          <button class="draft-btn regen" onclick={handleRegenerate}>Try again</button>
+          <button class="draft-btn" onclick={handleDismissError}>Write manually</button>
+        </div>
+      </div>
+    {/if}
+  {:else if conversation.draftStatus === 'error'}
+    <div class="draft-error">
+      <div class="draft-error-msg">{conversation.draftError || localDraftError || 'Failed to generate draft.'}</div>
+      <div class="draft-error-actions">
+        <button class="draft-btn regen" disabled={regenBtnDisabled} onclick={handleRegenerate}>Try again</button>
+        <button class="draft-btn" onclick={handleDismissError}>Write manually</button>
+      </div>
+    </div>
   {:else}
     <div class="draft-label">
       {conversation.draftReply ? 'AI Draft Reply' : 'Write Reply'}
@@ -253,6 +328,26 @@ async function handleGenerateDocs() {
     font-size: 11px;
     color: #888;
     font-style: italic;
+  }
+
+  .draft-error {
+    margin-top: 6px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #fff5f5;
+    border: 1px solid #f5c2c2;
+  }
+
+  .draft-error-msg {
+    font-size: 11px;
+    color: #a02424;
+    margin-bottom: 6px;
+    word-wrap: break-word;
+  }
+
+  .draft-error-actions {
+    display: flex;
+    gap: 6px;
   }
 
   .draft-label {

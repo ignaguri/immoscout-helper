@@ -669,14 +669,18 @@ export function registerMessageHandler(): void {
             }
 
             await updateConversationDraft(conversationId, null, 'generating');
-            // Notify popup of status change
-            try {
-              await chrome.runtime.sendMessage({ action: 'conversationUpdate' });
-            } catch (_e) {
-              debug('[MessageHandler] Could not notify popup of draft status change');
-            }
-
             await generateDraftReply(conv, aiConfig.apiKey, userContext);
+            sendResponse({ success: true });
+          } catch (err: any) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      } else if (request.action === 'dismissDraftError') {
+        (async () => {
+          try {
+            const { conversationId } = request;
+            await updateConversationDraft(conversationId, null, 'none', null);
             sendResponse({ success: true });
           } catch (err: any) {
             sendResponse({ success: false, error: err.message });

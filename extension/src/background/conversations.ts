@@ -141,6 +141,7 @@ export async function checkForNewReplies(): Promise<void> {
         messages: stored?.messages || [],
         draftReply: stored?.draftReply || null,
         draftStatus: stored?.draftStatus || 'none',
+        draftError: stored?.draftError || null,
       };
 
       // If unread, try to fetch conversation detail for message history
@@ -260,14 +261,39 @@ export async function fetchConversationMessages(conversationId: string): Promise
   return null;
 }
 
+// Write a terminal draft state (ready/error) only if the user hasn't dismissed or started another generation.
+async function finalizeDraft(
+  conversationId: string,
+  draftReply: string | null,
+  draftStatus: 'ready' | 'error',
+  draftError: string | null,
+): Promise<boolean> {
+  const stored: Record<string, any> = await chrome.storage.local.get([C.CONVERSATIONS_KEY]);
+  const current = (stored[C.CONVERSATIONS_KEY] as ConversationEntry[] | undefined)?.find(
+    (c) => c.conversationId === conversationId,
+  );
+  if (current?.draftStatus !== 'generating') return false;
+  await updateConversationDraft(conversationId, draftReply, draftStatus, draftError);
+  return true;
+}
+
 // Generate a draft reply using AI (direct Gemini or server)
 export async function generateDraftReply(
   conversation: ConversationEntry,
   apiKey: string | undefined,
   userContext: string = '',
 ): Promise<void> {
-  if (!conversation.messages || conversation.messages.length === 0) return;
+  if (!conversation.messages || conversation.messages.length === 0) {
+    await finalizeDraft(
+      conversation.conversationId,
+      null,
+      'error',
+      'No conversation history available. Open the conversation first.',
+    );
+    return;
+  }
 
+  let errorReported = false;
   try {
     const config = await getAIConfig();
     const profile = await getProfile();
@@ -332,8 +358,14 @@ export async function generateDraftReply(
 
       if (!response.ok) {
         error(`[Conversations] Draft reply API error: ${response.status}`);
-        await updateConversationDraft(conversation.conversationId, null, 'none');
-        return;
+        await finalizeDraft(
+          conversation.conversationId,
+          null,
+          'error',
+          `AI server error (${response.status}). Try again.`,
+        );
+        errorReported = true;
+        throw new Error(`AI server error (${response.status})`);
       }
 
       const result: { reply?: string; usage?: { promptTokens?: number; completionTokens?: number } } =
@@ -347,27 +379,46 @@ export async function generateDraftReply(
       }
     } else {
       warn('[Conversations] No valid AI configuration for draft reply');
-      await updateConversationDraft(conversation.conversationId, null, 'none');
-      return;
+      await finalizeDraft(
+        conversation.conversationId,
+        null,
+        'error',
+        'No AI configured. Set an API key or server URL in Settings.',
+      );
+      errorReported = true;
+      throw new Error('No valid AI configuration');
     }
 
     if (reply) {
-      await updateConversationDraft(conversation.conversationId, reply, 'ready');
-      log(`[Conversations] Draft reply generated for ${conversation.conversationId} (${reply.length} chars)`);
+      const wrote = await finalizeDraft(conversation.conversationId, reply, 'ready', null);
       await trackTokenUsage(replyUsage.promptTokens, replyUsage.completionTokens);
-
-      // Notify popup
-      try {
-        await chrome.runtime.sendMessage({ action: 'conversationUpdate' });
-      } catch (_e) {
-        debug('[Conversations] Could not notify popup of draft update (likely closed)');
+      if (wrote) {
+        log(`[Conversations] Draft reply generated for ${conversation.conversationId} (${reply.length} chars)`);
+      } else {
+        // User dismissed or started another generation; discard this result.
+        log(`[Conversations] Draft reply for ${conversation.conversationId} discarded (state changed during generation)`);
       }
     } else {
-      await updateConversationDraft(conversation.conversationId, null, 'none');
+      await finalizeDraft(
+        conversation.conversationId,
+        null,
+        'error',
+        'AI returned an empty reply. Try again.',
+      );
+      errorReported = true;
+      throw new Error('AI returned an empty reply');
     }
-  } catch (err) {
+  } catch (err: any) {
     error(`[Conversations] Error generating draft:`, err);
-    await updateConversationDraft(conversation.conversationId, null, 'none');
+    if (!errorReported) {
+      await finalizeDraft(
+        conversation.conversationId,
+        null,
+        'error',
+        err?.message || 'Unknown error generating draft',
+      );
+    }
+    throw err;
   }
 }
 
@@ -375,19 +426,25 @@ export async function generateDraftReply(
 export async function updateConversationDraft(
   conversationId: string,
   draftReply: string | null,
-  draftStatus: string,
+  draftStatus: ConversationEntry['draftStatus'],
+  draftError: string | null = null,
 ): Promise<void> {
   const stored: Record<string, any> = await chrome.storage.local.get([C.CONVERSATIONS_KEY]);
   if (!stored[C.CONVERSATIONS_KEY]) return;
 
   const updated = stored[C.CONVERSATIONS_KEY].map((c: ConversationEntry) => {
     if (c.conversationId === conversationId) {
-      return { ...c, draftReply, draftStatus };
+      return { ...c, draftReply, draftStatus, draftError };
     }
     return c;
   });
 
   await chrome.storage.local.set({ [C.CONVERSATIONS_KEY]: updated });
+  try {
+    await chrome.runtime.sendMessage({ action: 'conversationUpdate' });
+  } catch (_e) {
+    debug('[Conversations] Could not notify popup of draft update (likely closed)');
+  }
 }
 
 // Update a single conversation's appointment status in storage

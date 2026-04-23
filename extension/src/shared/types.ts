@@ -196,7 +196,8 @@ export interface ConversationEntry {
   appointmentStatus: string | null;
   messages: ConversationMessage[];
   draftReply: string | null;
-  draftStatus: string;
+  draftStatus: 'none' | 'generating' | 'ready' | 'sent' | 'error';
+  draftError?: string | null;
 }
 
 // Queue status response from background

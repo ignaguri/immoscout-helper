@@ -53,13 +53,16 @@ $effect(() => {
   refineInput = '';
 });
 
-// Clear watchdog & local error once generation settles; also clean up on unmount.
+// Drive the watchdog off draftStatus so it also covers popup remount mid-generation.
+// Also clears local error when generation completes, and cleans up on unmount.
 $effect(() => {
-  if (conversation.draftStatus !== 'generating') {
+  if (conversation.draftStatus === 'generating') {
+    if (!watchdogTimer) startWatchdog();
+  } else {
     clearWatchdog();
-  }
-  if (conversation.draftStatus === 'ready') {
-    localDraftError = null;
+    if (conversation.draftStatus === 'ready') {
+      localDraftError = null;
+    }
   }
   return clearWatchdog;
 });
@@ -122,7 +125,6 @@ async function handleRegenerate() {
   regenBtnText = 'Generating...';
   draftText = '';
   localDraftError = null;
-  startWatchdog();
   try {
     const result = await regenerateDraft(conversation.conversationId, '');
     if (!result?.success) {
@@ -132,8 +134,6 @@ async function handleRegenerate() {
   } catch (e: any) {
     localDraftError = e?.message || 'Failed to generate draft.';
     regenBtnText = 'Error';
-  } finally {
-    clearWatchdog();
   }
   setTimeout(() => {
     regenBtnDisabled = false;
@@ -148,7 +148,6 @@ async function handleRefine() {
   const userContext = `CURRENT DRAFT:\n${draftText}\n\nREFINEMENT INSTRUCTIONS:\n${refineInput.trim()}`;
   draftText = '';
   localDraftError = null;
-  startWatchdog();
   try {
     const result = await regenerateDraft(conversation.conversationId, userContext);
     if (!result?.success) {
@@ -158,8 +157,6 @@ async function handleRefine() {
   } catch (e: any) {
     localDraftError = e?.message || 'Failed to refine draft.';
     refineBtnText = 'Error';
-  } finally {
-    clearWatchdog();
   }
   refineInput = '';
   showRefineInput = false;

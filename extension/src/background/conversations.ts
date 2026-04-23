@@ -261,13 +261,37 @@ export async function fetchConversationMessages(conversationId: string): Promise
   return null;
 }
 
+// Write a terminal draft state (ready/error) only if the user hasn't dismissed or started another generation.
+async function finalizeDraft(
+  conversationId: string,
+  draftReply: string | null,
+  draftStatus: 'ready' | 'error',
+  draftError: string | null,
+): Promise<boolean> {
+  const stored: Record<string, any> = await chrome.storage.local.get([C.CONVERSATIONS_KEY]);
+  const current = (stored[C.CONVERSATIONS_KEY] as ConversationEntry[] | undefined)?.find(
+    (c) => c.conversationId === conversationId,
+  );
+  if (current?.draftStatus !== 'generating') return false;
+  await updateConversationDraft(conversationId, draftReply, draftStatus, draftError);
+  return true;
+}
+
 // Generate a draft reply using AI (direct Gemini or server)
 export async function generateDraftReply(
   conversation: ConversationEntry,
   apiKey: string | undefined,
   userContext: string = '',
 ): Promise<void> {
-  if (!conversation.messages || conversation.messages.length === 0) return;
+  if (!conversation.messages || conversation.messages.length === 0) {
+    await finalizeDraft(
+      conversation.conversationId,
+      null,
+      'error',
+      'No conversation history available. Open the conversation first.',
+    );
+    return;
+  }
 
   let errorReported = false;
   try {
@@ -334,7 +358,7 @@ export async function generateDraftReply(
 
       if (!response.ok) {
         error(`[Conversations] Draft reply API error: ${response.status}`);
-        await updateConversationDraft(
+        await finalizeDraft(
           conversation.conversationId,
           null,
           'error',
@@ -355,7 +379,7 @@ export async function generateDraftReply(
       }
     } else {
       warn('[Conversations] No valid AI configuration for draft reply');
-      await updateConversationDraft(
+      await finalizeDraft(
         conversation.conversationId,
         null,
         'error',
@@ -366,11 +390,16 @@ export async function generateDraftReply(
     }
 
     if (reply) {
-      await updateConversationDraft(conversation.conversationId, reply, 'ready', null);
-      log(`[Conversations] Draft reply generated for ${conversation.conversationId} (${reply.length} chars)`);
+      const wrote = await finalizeDraft(conversation.conversationId, reply, 'ready', null);
       await trackTokenUsage(replyUsage.promptTokens, replyUsage.completionTokens);
+      if (wrote) {
+        log(`[Conversations] Draft reply generated for ${conversation.conversationId} (${reply.length} chars)`);
+      } else {
+        // User dismissed or started another generation; discard this result.
+        log(`[Conversations] Draft reply for ${conversation.conversationId} discarded (state changed during generation)`);
+      }
     } else {
-      await updateConversationDraft(
+      await finalizeDraft(
         conversation.conversationId,
         null,
         'error',
@@ -382,7 +411,7 @@ export async function generateDraftReply(
   } catch (err: any) {
     error(`[Conversations] Error generating draft:`, err);
     if (!errorReported) {
-      await updateConversationDraft(
+      await finalizeDraft(
         conversation.conversationId,
         null,
         'error',

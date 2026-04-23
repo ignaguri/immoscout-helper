@@ -81,8 +81,17 @@ export async function sendConversationReply(
   return chrome.runtime.sendMessage({ action: 'sendConversationReply', conversationId, message });
 }
 
-export async function regenerateDraft(conversationId: string, userContext: string): Promise<void> {
-  await chrome.runtime.sendMessage({ action: 'regenerateDraft', conversationId, userContext });
+export async function regenerateDraft(
+  conversationId: string,
+  userContext: string,
+): Promise<{ success: boolean; error?: string }> {
+  return chrome.runtime.sendMessage({ action: 'regenerateDraft', conversationId, userContext });
+}
+
+export async function dismissDraftError(
+  conversationId: string,
+): Promise<{ success: boolean; error?: string }> {
+  return chrome.runtime.sendMessage({ action: 'dismissDraftError', conversationId });
 }
 
 export async function respondToAppointment(

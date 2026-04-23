@@ -141,6 +141,7 @@ export async function checkForNewReplies(): Promise<void> {
         messages: stored?.messages || [],
         draftReply: stored?.draftReply || null,
         draftStatus: stored?.draftStatus || 'none',
+        draftError: stored?.draftError || null,
       };
 
       // If unread, try to fetch conversation detail for message history
@@ -268,6 +269,7 @@ export async function generateDraftReply(
 ): Promise<void> {
   if (!conversation.messages || conversation.messages.length === 0) return;
 
+  let errorReported = false;
   try {
     const config = await getAIConfig();
     const profile = await getProfile();
@@ -332,8 +334,14 @@ export async function generateDraftReply(
 
       if (!response.ok) {
         error(`[Conversations] Draft reply API error: ${response.status}`);
-        await updateConversationDraft(conversation.conversationId, null, 'none');
-        return;
+        await updateConversationDraft(
+          conversation.conversationId,
+          null,
+          'error',
+          `AI server error (${response.status}). Try again.`,
+        );
+        errorReported = true;
+        throw new Error(`AI server error (${response.status})`);
       }
 
       const result: { reply?: string; usage?: { promptTokens?: number; completionTokens?: number } } =
@@ -347,27 +355,41 @@ export async function generateDraftReply(
       }
     } else {
       warn('[Conversations] No valid AI configuration for draft reply');
-      await updateConversationDraft(conversation.conversationId, null, 'none');
-      return;
+      await updateConversationDraft(
+        conversation.conversationId,
+        null,
+        'error',
+        'No AI configured. Set an API key or server URL in Settings.',
+      );
+      errorReported = true;
+      throw new Error('No valid AI configuration');
     }
 
     if (reply) {
-      await updateConversationDraft(conversation.conversationId, reply, 'ready');
+      await updateConversationDraft(conversation.conversationId, reply, 'ready', null);
       log(`[Conversations] Draft reply generated for ${conversation.conversationId} (${reply.length} chars)`);
       await trackTokenUsage(replyUsage.promptTokens, replyUsage.completionTokens);
-
-      // Notify popup
-      try {
-        await chrome.runtime.sendMessage({ action: 'conversationUpdate' });
-      } catch (_e) {
-        debug('[Conversations] Could not notify popup of draft update (likely closed)');
-      }
     } else {
-      await updateConversationDraft(conversation.conversationId, null, 'none');
+      await updateConversationDraft(
+        conversation.conversationId,
+        null,
+        'error',
+        'AI returned an empty reply. Try again.',
+      );
+      errorReported = true;
+      throw new Error('AI returned an empty reply');
     }
-  } catch (err) {
+  } catch (err: any) {
     error(`[Conversations] Error generating draft:`, err);
-    await updateConversationDraft(conversation.conversationId, null, 'none');
+    if (!errorReported) {
+      await updateConversationDraft(
+        conversation.conversationId,
+        null,
+        'error',
+        err?.message || 'Unknown error generating draft',
+      );
+    }
+    throw err;
   }
 }
 
@@ -375,19 +397,25 @@ export async function generateDraftReply(
 export async function updateConversationDraft(
   conversationId: string,
   draftReply: string | null,
-  draftStatus: string,
+  draftStatus: ConversationEntry['draftStatus'],
+  draftError: string | null = null,
 ): Promise<void> {
   const stored: Record<string, any> = await chrome.storage.local.get([C.CONVERSATIONS_KEY]);
   if (!stored[C.CONVERSATIONS_KEY]) return;
 
   const updated = stored[C.CONVERSATIONS_KEY].map((c: ConversationEntry) => {
     if (c.conversationId === conversationId) {
-      return { ...c, draftReply, draftStatus };
+      return { ...c, draftReply, draftStatus, draftError };
     }
     return c;
   });
 
   await chrome.storage.local.set({ [C.CONVERSATIONS_KEY]: updated });
+  try {
+    await chrome.runtime.sendMessage({ action: 'conversationUpdate' });
+  } catch (_e) {
+    debug('[Conversations] Could not notify popup of draft update (likely closed)');
+  }
 }
 
 // Update a single conversation's appointment status in storage

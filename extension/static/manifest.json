@@ -1,6 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Apartment Messenger - ImmoScout24 Edition",
+  "short_name": "ImmoScout apartment messenger",
+  "author": "ignaguri",
+  "homepage_url": "https://github.com/ignaguri/immoscout-helper",
   "version": "1.15.2",
   "description": "Automatically contacts landlords on ImmoScout24 when new listings appear",
   "permissions": [

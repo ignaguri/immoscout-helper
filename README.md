@@ -174,6 +174,34 @@ All extension data is stored locally in `chrome.storage.local`. Nothing leaves t
 
 **Listing shows "Needs Approval"** → It's a tenant-recommendation listing. Review it in the Activity tab and approve or skip manually.
 
+## Permissions
+
+The extension requests these Chrome permissions. Each is required for a specific feature; nothing is requested speculatively.
+
+| Permission | Why it's needed |
+|---|---|
+| `storage` | Persist your profile, settings, activity log, queue, and conversations locally in `chrome.storage.local`. |
+| `tabs` | Open listing pages in background tabs to extract details and submit contact forms. |
+| `activeTab` | Interact with the currently open ImmoScout24 page from the side panel. |
+| `scripting` | Inject the content-script logic on demand for form filling and listing extraction. |
+| `alarms` | Schedule periodic checks of your saved search URLs. |
+| `notifications` | Notify you when a new landlord reply arrives or a message sends successfully. |
+| `downloads` | Let you export your activity log and conversations to a file. |
+| `sidePanel` | Render the extension UI as a Chrome side panel. |
+
+| Host permission | Why it's needed |
+|---|---|
+| `https://www.immobilienscout24.de/*` | Read listings from your saved searches and submit contact forms — the core function. |
+| `https://pictures.immobilienscout24.de/*` | Fetch listing photos for AI-based scoring previews. |
+| `https://generativelanguage.googleapis.com/*` | Optional: call Google Gemini for scoring, drafting, and captcha solving (only if you supply an API key). |
+| `https://api.openai.com/*` | Optional: call OpenAI for scoring, drafting, and captcha solving (only if you supply an API key). |
+
+## Privacy
+
+All extension data is stored locally in `chrome.storage.local`. The only outgoing traffic is (1) contact-form submissions and replies sent directly to ImmoScout24, and (2) optional AI-provider calls (Gemini / OpenAI / your LiteLLM endpoint) — and only if you supply an API key. No analytics, no telemetry, no third-party trackers.
+
+See the full [Privacy Policy](./PRIVACY.md) for details on every data flow.
+
 ## Disclaimer
 
 For personal use. Please use responsibly and respect ImmoScout24's terms of service.

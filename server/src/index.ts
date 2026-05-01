@@ -162,6 +162,8 @@ app.post('/analyze', async (req: Request<Record<string, never>, unknown, Analyze
     provider,
     profile,
     examples,
+    customScoringPrompt,
+    customMessagePrompt,
   } = req.body;
 
   if (!listingDetails) {
@@ -184,7 +186,7 @@ app.post('/analyze', async (req: Request<Record<string, never>, unknown, Analyze
   let totalPromptTokens = 0;
   let totalCompletionTokens = 0;
   try {
-    const scoringPrompt = buildScoringPrompt(userProfile || {}, profile, examples);
+    const scoringPrompt = buildScoringPrompt(userProfile || {}, profile, customScoringPrompt);
     const { text: scoreText, usage: scoreUsage_ } = await generateText({
       model,
       system: scoringPrompt,
@@ -232,7 +234,7 @@ app.post('/analyze', async (req: Request<Record<string, never>, unknown, Analyze
   // Step 2: Generate personalized message
   let message: string | null = null;
   try {
-    const messagePrompt = buildMessagePrompt(userProfile || {}, landlordInfo || {}, messageTemplate, profile, examples);
+    const messagePrompt = buildMessagePrompt(userProfile || {}, landlordInfo || {}, messageTemplate, profile, examples, customMessagePrompt);
     const { text, usage: msgUsage } = await generateText({
       model,
       system: messagePrompt,
@@ -455,6 +457,7 @@ app.post('/refine', async (req: Request, res: Response) => {
     profile,
     isTenantNetwork,
     userProfile,
+    customMessagePrompt,
   } = req.body;
 
   if (!currentMessage || !instructions) {
@@ -472,6 +475,8 @@ app.post('/refine', async (req: Request, res: Response) => {
       mergedLandlordInfo,
       undefined,
       profile,
+      undefined,
+      customMessagePrompt,
     );
 
     const userPrompt = `CURRENT MESSAGE:\n${currentMessage}\n\nREFINEMENT INSTRUCTIONS:\n${instructions}`;

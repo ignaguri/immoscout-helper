@@ -48,6 +48,8 @@ export { LITELLM_DEFAULT_MODEL } from '@repo/shared-types';
 export const AI_SERVER_URL_KEY = 'aiServerUrl' as const;
 export const AI_MIN_SCORE_KEY = 'aiMinScore' as const;
 export const AI_ABOUT_ME_KEY = 'aiAboutMe' as const;
+export const AI_CUSTOM_SCORING_PROMPT_KEY = 'aiCustomScoringPrompt' as const;
+export const AI_CUSTOM_MESSAGE_PROMPT_KEY = 'aiCustomMessagePrompt' as const;
 export const AI_LISTINGS_SCORED_KEY = 'aiListingsScored' as const;
 export const AI_LISTINGS_SKIPPED_KEY = 'aiListingsSkipped' as const;
 export const AI_USAGE_PROMPT_TOKENS_KEY = 'aiUsagePromptTokens' as const;

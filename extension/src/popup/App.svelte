@@ -72,6 +72,8 @@ let settings: PopupSettings = $state({
   aiServerUrl: 'http://localhost:3456',
   aiMinScore: 5,
   aiAboutMe: '',
+  aiCustomScoringPrompt: '',
+  aiCustomMessagePrompt: '',
 });
 
 let settingsLoaded = $state(false);

@@ -35,6 +35,19 @@ export interface UserProfile {
   maxWarmmiete?: number;
 }
 
+export interface CustomPrompts {
+  scoring?: string;
+  message?: string;
+}
+
+export async function getCustomPrompts(): Promise<CustomPrompts> {
+  const stored = await chrome.storage.local.get([C.AI_CUSTOM_SCORING_PROMPT_KEY, C.AI_CUSTOM_MESSAGE_PROMPT_KEY]);
+  return {
+    scoring: stored[C.AI_CUSTOM_SCORING_PROMPT_KEY] || undefined,
+    message: stored[C.AI_CUSTOM_MESSAGE_PROMPT_KEY] || undefined,
+  };
+}
+
 export async function getProfile(): Promise<UserProfile> {
   const keys = [
     C.PROFILE_NAME_KEY,
@@ -111,10 +124,12 @@ async function tryAIAnalysisDirect(
 ): Promise<AIAnalysisResult | null> {
   let profile: Awaited<ReturnType<typeof getProfile>>;
   let listingDetails: any;
+  let customPrompts: CustomPrompts;
   try {
-    [profile, listingDetails] = await Promise.all([
+    [profile, listingDetails, customPrompts] = await Promise.all([
       getProfile(),
       chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' }),
+      getCustomPrompts(),
     ]);
   } catch (e: any) {
     error('[AI/Direct] Failed to extract listing details:', e.message);
@@ -128,14 +143,14 @@ async function tryAIAnalysisDirect(
 
   const listingText = formatListingWithAnalysis(formatListingForPrompt(listingDetails), listingDetails, profile.maxWarmmiete, formValues.income);
   const userProfile = { ...formValues, aboutMe: config.aboutMe };
-  const scoringPrompt = buildScoringPrompt(userProfile, profile);
+  const scoringPrompt = buildScoringPrompt(userProfile, profile, customPrompts.scoring);
   const landlordInfo = {
     title: landlordTitle || undefined,
     name: landlordName || undefined,
     isPrivate: isPrivateLandlord,
     isTenantNetwork,
   };
-  const messagePrompt = buildMessagePrompt(userProfile, landlordInfo, messageTemplate, profile);
+  const messagePrompt = buildMessagePrompt(userProfile, landlordInfo, messageTemplate, profile, undefined, customPrompts.message);
 
   const fallbacks = getAvailableFallbacks(config.allApiKeys);
   if (fallbacks.length === 0) {
@@ -267,11 +282,15 @@ async function tryAIAnalysisServer(
   messageTemplate: string,
   isTenantNetwork: boolean,
 ): Promise<AIAnalysisResult | null> {
-  const profile = await getProfile();
-
+  let profile: Awaited<ReturnType<typeof getProfile>>;
   let listingDetails: any;
+  let customPrompts: CustomPrompts;
   try {
-    listingDetails = await chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' });
+    [profile, listingDetails, customPrompts] = await Promise.all([
+      getProfile(),
+      chrome.tabs.sendMessage(tabId, { action: 'extractListingDetails' }),
+      getCustomPrompts(),
+    ]);
   } catch (e: any) {
     error('[AI/Server] Failed to extract listing details:', e.message);
     lastAIError = `Failed to extract listing details: ${e.message}`;
@@ -291,6 +310,8 @@ async function tryAIAnalysisServer(
     apiKey: config.apiKey,
     provider: config.provider,
     profile,
+    customScoringPrompt: customPrompts.scoring,
+    customMessagePrompt: customPrompts.message,
     ...litellmPayload(config),
   };
 

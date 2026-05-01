@@ -7,6 +7,14 @@ import {
   NOTIFICATION_PREFS_KEY,
   type NotificationEvent,
 } from '../../shared/constants';
+import {
+  DEFAULT_MESSAGE_TEMPLATE,
+  DEFAULT_SCORING_TEMPLATE,
+  MESSAGE_PLACEHOLDERS,
+  type PlaceholderInfo,
+  SCORING_PLACEHOLDERS,
+  validateTemplate,
+} from '../../shared/prompts';
 import CollapsibleSection from '../components/CollapsibleSection.svelte';
 import { clearSeenListings } from '../lib/messages';
 import type { PopupSettings } from '../lib/storage';
@@ -116,6 +124,20 @@ async function fetchLitellmModels() {
     clearTimeout(timeout);
     litellmModelsLoading = false;
   }
+}
+
+let scoringUnknown = $derived(validateTemplate(settings.aiCustomScoringPrompt || '', SCORING_PLACEHOLDERS).unknown);
+let messageUnknown = $derived(validateTemplate(settings.aiCustomMessagePrompt || '', MESSAGE_PLACEHOLDERS).unknown);
+
+type CustomPromptField = 'aiCustomScoringPrompt' | 'aiCustomMessagePrompt';
+function setCustomPrompt(field: CustomPromptField, value: string) {
+  settings[field] = value;
+  autoSaveImmediate();
+}
+
+let activePlaceholder = $state<PlaceholderInfo | null>(null);
+function togglePlaceholder(ph: PlaceholderInfo) {
+  activePlaceholder = activePlaceholder?.name === ph.name ? null : ph;
 }
 
 // Cost calculation using the active provider's pricing
@@ -310,6 +332,8 @@ const ALLOWED_IMPORT_KEYS = new Set([
   'aiServerUrl',
   'aiMinScore',
   'aiAboutMe',
+  'aiCustomScoringPrompt',
+  'aiCustomMessagePrompt',
   'aiListingsScored',
   'aiListingsSkipped',
   'aiUsagePromptTokens',
@@ -561,6 +585,80 @@ async function handleImport(e: Event) {
     </div>
   </CollapsibleSection>
 
+  <CollapsibleSection title="AI Prompts (advanced)" open={false}>
+    <div class="prompt-warning">
+      ⚠ Editing these can break AI behavior. Leave empty to use the built-in default. Use <code>{'{{variableName}}'}</code> placeholders from the legend below — values are interpolated at runtime.
+    </div>
+
+    <div class="field">
+      <label for="customScoringPrompt">Scoring system prompt</label>
+      <div class="hint">System prompt the AI sees when scoring a listing 1–10.</div>
+      <textarea
+        id="customScoringPrompt"
+        class="prompt-textarea"
+        bind:value={settings.aiCustomScoringPrompt}
+        oninput={autoSave}
+        onblur={autoSaveImmediate}
+        placeholder="(empty = use default — click Load default to edit)"
+      ></textarea>
+      <div class="prompt-toolbar">
+        <button type="button" class="btn btn-secondary" onclick={() => setCustomPrompt('aiCustomScoringPrompt', DEFAULT_SCORING_TEMPLATE)}>Load default</button>
+        <button type="button" class="btn btn-secondary" onclick={() => setCustomPrompt('aiCustomScoringPrompt', '')} disabled={!settings.aiCustomScoringPrompt}>Reset</button>
+      </div>
+      <div class="placeholder-legend">
+        <span class="legend-label">Available variables:</span>
+        {#each SCORING_PLACEHOLDERS as ph}
+          <button type="button" class="placeholder-chip" class:active={activePlaceholder?.name === ph.name} title={ph.description} onclick={() => togglePlaceholder(ph)}>{`{{${ph.name}}}`}</button>
+        {/each}
+      </div>
+      {#if activePlaceholder && SCORING_PLACEHOLDERS.some((p) => p.name === activePlaceholder?.name)}
+        <div class="placeholder-help">
+          <div><code>{`{{${activePlaceholder.name}}}`}</code> — {activePlaceholder.description}</div>
+          <div class="placeholder-source">Source: {activePlaceholder.source}</div>
+        </div>
+      {/if}
+      {#if scoringUnknown.length}
+        <div class="prompt-warning prompt-error">
+          Unknown variables: {scoringUnknown.map((n) => `{{${n}}}`).join(', ')} — these will appear literally in the prompt sent to the AI.
+        </div>
+      {/if}
+    </div>
+
+    <div class="field">
+      <label for="customMessagePrompt">Message system prompt</label>
+      <div class="hint">System prompt the AI sees when composing the outreach message to landlords.</div>
+      <textarea
+        id="customMessagePrompt"
+        class="prompt-textarea"
+        bind:value={settings.aiCustomMessagePrompt}
+        oninput={autoSave}
+        onblur={autoSaveImmediate}
+        placeholder="(empty = use default — click Load default to edit)"
+      ></textarea>
+      <div class="prompt-toolbar">
+        <button type="button" class="btn btn-secondary" onclick={() => setCustomPrompt('aiCustomMessagePrompt', DEFAULT_MESSAGE_TEMPLATE)}>Load default</button>
+        <button type="button" class="btn btn-secondary" onclick={() => setCustomPrompt('aiCustomMessagePrompt', '')} disabled={!settings.aiCustomMessagePrompt}>Reset</button>
+      </div>
+      <div class="placeholder-legend">
+        <span class="legend-label">Available variables:</span>
+        {#each MESSAGE_PLACEHOLDERS as ph}
+          <button type="button" class="placeholder-chip" class:active={activePlaceholder?.name === ph.name} title={ph.description} onclick={() => togglePlaceholder(ph)}>{`{{${ph.name}}}`}</button>
+        {/each}
+      </div>
+      {#if activePlaceholder && MESSAGE_PLACEHOLDERS.some((p) => p.name === activePlaceholder?.name)}
+        <div class="placeholder-help">
+          <div><code>{`{{${activePlaceholder.name}}}`}</code> — {activePlaceholder.description}</div>
+          <div class="placeholder-source">Source: {activePlaceholder.source}</div>
+        </div>
+      {/if}
+      {#if messageUnknown.length}
+        <div class="prompt-warning prompt-error">
+          Unknown variables: {messageUnknown.map((n) => `{{${n}}}`).join(', ')} — these will appear literally in the prompt sent to the AI.
+        </div>
+      {/if}
+    </div>
+  </CollapsibleSection>
+
   <div class="section-title">AI Usage</div>
 
   <div class="ai-stats-grid">
@@ -697,5 +795,112 @@ async function handleImport(e: Event) {
     white-space: nowrap;
     width: auto;
     margin-top: 0;
+  }
+
+  .prompt-textarea {
+    min-height: 160px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11px;
+  }
+
+  .prompt-warning {
+    font-size: 11px;
+    color: #7a5b00;
+    background: #fff7d9;
+    border: 1px solid #f0d97c;
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  .prompt-warning code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  .prompt-error {
+    color: #842029;
+    background: #f8d7da;
+    border-color: #f1aeb5;
+    margin-top: 6px;
+    margin-bottom: 0;
+  }
+
+  .prompt-toolbar {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .prompt-toolbar :global(.btn) {
+    flex: 0 0 auto;
+    width: auto;
+    font-size: 11px;
+    margin-top: 0;
+    padding: 4px 10px;
+  }
+
+  .placeholder-legend {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    font-size: 11px;
+    color: #555;
+  }
+
+  .legend-label {
+    font-weight: 600;
+    color: #444;
+    margin-right: 4px;
+  }
+
+  .placeholder-chip {
+    background: #eef3f6;
+    border: 1px solid #d4dde3;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    color: inherit;
+    cursor: help;
+  }
+
+  .placeholder-chip:hover {
+    background: #dfeaf1;
+  }
+
+  .placeholder-chip.active {
+    background: #4a90e2;
+    border-color: #357abd;
+    color: #fff;
+  }
+
+  .placeholder-help {
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: #f4f8fb;
+    border: 1px solid #d4dde3;
+    border-radius: 4px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #333;
+  }
+
+  .placeholder-help code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 10px;
+  }
+
+  .placeholder-source {
+    margin-top: 4px;
+    font-size: 10px;
+    color: #666;
+    font-style: italic;
   }
 </style>

@@ -4,6 +4,8 @@ import {
   AI_ABOUT_ME_KEY,
   AI_API_KEY_GEMINI_KEY,
   AI_API_KEY_OPENAI_KEY,
+  AI_CUSTOM_MESSAGE_PROMPT_KEY,
+  AI_CUSTOM_SCORING_PROMPT_KEY,
   AI_LITELLM_BASE_URL_KEY,
   AI_LITELLM_CLIENT_ID_KEY,
   AI_LITELLM_CLIENT_SECRET_KEY,
@@ -130,6 +132,8 @@ export interface PopupSettings {
   aiServerUrl: string;
   aiMinScore: number;
   aiAboutMe: string;
+  aiCustomScoringPrompt: string;
+  aiCustomMessagePrompt: string;
 }
 
 const ALL_SETTINGS_KEYS = [
@@ -163,6 +167,8 @@ const ALL_SETTINGS_KEYS = [
   AI_SERVER_URL_KEY,
   AI_MIN_SCORE_KEY,
   AI_ABOUT_ME_KEY,
+  AI_CUSTOM_SCORING_PROMPT_KEY,
+  AI_CUSTOM_MESSAGE_PROMPT_KEY,
   PROFILE_NAME_KEY,
   PROFILE_AGE_KEY,
   PROFILE_OCCUPATION_KEY,
@@ -247,6 +253,8 @@ export async function loadAllSettings(): Promise<PopupSettings> {
     aiServerUrl: result[AI_SERVER_URL_KEY] || 'http://localhost:3456',
     aiMinScore: result[AI_MIN_SCORE_KEY] ?? 5,
     aiAboutMe: result[AI_ABOUT_ME_KEY] || '',
+    aiCustomScoringPrompt: result[AI_CUSTOM_SCORING_PROMPT_KEY] || '',
+    aiCustomMessagePrompt: result[AI_CUSTOM_MESSAGE_PROMPT_KEY] || '',
   };
 }
 
@@ -305,6 +313,8 @@ export async function saveAllSettings(s: PopupSettings): Promise<void> {
     [AI_SERVER_URL_KEY]: s.aiServerUrl.trim() || 'http://localhost:3456',
     [AI_MIN_SCORE_KEY]: Math.max(1, Math.min(10, s.aiMinScore || 5)),
     [AI_ABOUT_ME_KEY]: s.aiAboutMe,
+    [AI_CUSTOM_SCORING_PROMPT_KEY]: s.aiCustomScoringPrompt,
+    [AI_CUSTOM_MESSAGE_PROMPT_KEY]: s.aiCustomMessagePrompt,
   });
 }
 

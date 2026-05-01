@@ -119,6 +119,8 @@ export interface AnalyzeRequestBody extends LiteLLMConfig {
   provider?: ProviderId;
   profile?: Profile;
   examples?: Example[];
+  customScoringPrompt?: string;
+  customMessagePrompt?: string;
 }
 
 export interface CaptchaRequestBody extends LiteLLMConfig {

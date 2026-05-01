@@ -28,6 +28,7 @@ import { Label } from '$lib/components/ui/label';
 import * as Select from '$lib/components/ui/select';
 import EmptyState from '$lib/components/EmptyState.svelte';
 import Section from '$lib/components/Section.svelte';
+import { cn } from '$lib/utils';
 
 let {
   settings = $bindable(),
@@ -362,7 +363,7 @@ const sendModeOptions = [
     </div>
 
     {#if captureStatus}
-      <div class={`text-xs ${captureStatusClass}`} role="status">{captureStatus}</div>
+      <div class={cn('text-xs', captureStatusClass)} role="status">{captureStatus}</div>
     {/if}
 
     {#if queue.length === 0}
@@ -377,7 +378,7 @@ const sendModeOptions = [
           {@const title = item.title ? (item.title.length > 45 ? item.title.substring(0, 45) + '…' : item.title) : 'Untitled'}
           {@const id = item.id || '?'}
           {@const url = item.url || `https://www.immobilienscout24.de/expose/${id}`}
-          <div class={`py-0.5 ${i < queue.length - 1 ? 'border-b border-border' : ''}`}>
+          <div class={cn('py-0.5', i < queue.length - 1 && 'border-b border-border')}>
             {i + 1}.
             <a href={url} target="_blank" rel="noopener noreferrer" class="text-muted-foreground no-underline hover:underline" title="Open listing">({id})</a>
             {' '}{title}
@@ -402,7 +403,7 @@ const sendModeOptions = [
                   : line.type === 'wait'
                     ? 'italic text-muted-foreground'
                     : 'text-foreground/70'}
-          <div class={`py-0.5 ${cls}`}>{line.text}</div>
+          <div class={cn('py-0.5', cls)}>{line.text}</div>
         {/each}
       </div>
     {/if}
@@ -463,11 +464,12 @@ const sendModeOptions = [
 
     {#if testResultVisible}
       <div
-        class={`mt-3 max-h-48 overflow-y-auto rounded-md border p-3 ${
+        class={cn(
+          'mt-3 max-h-48 overflow-y-auto rounded-md border p-3',
           testResultIsError
             ? 'border-destructive/40 bg-destructive/10'
-            : 'border-success/40 bg-success/10'
-        }`}
+            : 'border-success/40 bg-success/10',
+        )}
       >
         <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[11px]">{testResultContent}</pre>
       </div>

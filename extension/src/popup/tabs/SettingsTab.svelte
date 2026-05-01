@@ -28,6 +28,7 @@ import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
 import * as Alert from '$lib/components/ui/alert';
 import StatusPill from '$lib/components/StatusPill.svelte';
 import Section from '$lib/components/Section.svelte';
+import { cn } from '$lib/utils';
 
 let {
   settings = $bindable(),
@@ -657,7 +658,12 @@ const providerOptions = Object.values(PROVIDERS).map((p) => ({ value: p.id, labe
             {#each group.placeholders as ph}
               <button
                 type="button"
-                class={`rounded border px-1.5 py-0.5 font-mono text-[10px] ${activePlaceholder?.name === ph.name ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted'}`}
+                class={cn(
+                  'rounded border px-1.5 py-0.5 font-mono text-[10px]',
+                  activePlaceholder?.name === ph.name
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-muted',
+                )}
                 title={ph.description}
                 onclick={() => togglePlaceholder(ph)}
               >

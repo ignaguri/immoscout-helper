@@ -14,6 +14,7 @@ import DraftReplySection from './DraftReplySection.svelte';
 import { APPOINTMENT_STATUS_TONES } from '../lib/tone';
 import { Button } from '$lib/components/ui/button';
 import { Badge } from '$lib/components/ui/badge';
+import { cn } from '$lib/utils';
 
 let {
   conversation,
@@ -138,7 +139,12 @@ let timeStr = $derived(
 </script>
 
 <div
-  class={`overflow-hidden rounded-lg border bg-background ${hasUnread ? 'border-l-[3px] border-l-destructive border-y-border border-r-border' : 'border-border'}`}
+  class={cn(
+    'overflow-hidden rounded-lg border bg-background',
+    hasUnread
+      ? 'border-l-[3px] border-l-destructive border-y-border border-r-border'
+      : 'border-border',
+  )}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div

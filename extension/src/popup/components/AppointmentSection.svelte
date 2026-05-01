@@ -6,6 +6,7 @@ import { APPOINTMENT_STATUS_TONES } from '../lib/tone';
 import { Button } from '$lib/components/ui/button';
 import { Textarea } from '$lib/components/ui/textarea';
 import { Badge } from '$lib/components/ui/badge';
+import { cn } from '$lib/utils';
 
 let {
   conversation,
@@ -140,9 +141,10 @@ async function handleAppointmentResponse(response: string, _btnLabel: string) {
     </div>
     {#if apptResultText}
       <div
-        class={`mt-1.5 rounded-md px-2 py-1.5 text-[11px] ${
-          apptResultIsError ? 'bg-destructive/10 text-destructive' : 'bg-success/15 text-success'
-        }`}
+        class={cn(
+          'mt-1.5 rounded-md px-2 py-1.5 text-[11px]',
+          apptResultIsError ? 'bg-destructive/10 text-destructive' : 'bg-success/15 text-success',
+        )}
         role="status"
       >
         {apptResultText}

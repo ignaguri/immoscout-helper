@@ -5,6 +5,7 @@ import { PENDING_DUPLICATE_DECISION_KEY } from '../../shared/constants';
 import type { ActivityLogEntry } from '../../shared/types';
 import { sendDuplicateLandlordDecision } from '../lib/messages';
 import { Button } from '$lib/components/ui/button';
+import { cn } from '$lib/utils';
 
 let { entry }: { entry: ActivityLogEntry } = $props();
 let showErrorDetail = $state(false);
@@ -126,7 +127,7 @@ function formatTime(ts: number): string {
         aria-expanded={showErrorDetail}
       >
         {showErrorDetail ? 'Hide details' : 'Show details'}
-        <ChevronRight class={`transition-transform ${showErrorDetail ? 'rotate-90' : ''}`} aria-hidden="true" />
+        <ChevronRight class={cn('transition-transform', showErrorDetail && 'rotate-90')} aria-hidden="true" />
       </Button>
     {/if}
   </div>

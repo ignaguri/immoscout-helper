@@ -11,6 +11,7 @@ import { getPendingApprovalListings, getStatus, startMonitoring, stopMonitoring 
 import type { PopupSettings } from './lib/storage';
 import { Button } from '$lib/components/ui/button';
 import { Badge } from '$lib/components/ui/badge';
+import { cn } from '$lib/utils';
 import {
   loadActivityLog as loadActivityLogStorage,
   loadAllSettings,
@@ -448,11 +449,12 @@ onMount(() => {
     {#each tabs as tab}
       <button
         type="button"
-        class={`flex-1 cursor-pointer border-0 border-b-2 bg-transparent px-2 py-3 text-xs font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+        class={cn(
+          'flex-1 cursor-pointer border-0 border-b-2 bg-transparent px-2 py-3 text-xs font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring',
           activeTab === tab.id
             ? 'border-primary text-primary'
-            : 'border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-        }`}
+            : 'border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground',
+        )}
         onclick={() => activeTab = tab.id}
       >
         {tab.label}

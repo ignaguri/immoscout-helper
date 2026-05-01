@@ -259,7 +259,7 @@ async function handleAnalyze() {
         const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;
 
         // Score
-        const scoringPrompt = buildScoringPrompt(userProfile, profile);
+        const scoringPrompt = buildScoringPrompt(userProfile, profile, settings.aiCustomScoringPrompt);
         const userPrompt = notes
           ? `Bewerte dieses Inserat:\n\n${listingText}\n\nNotizen: ${notes}`
           : `Bewerte dieses Inserat:\n\n${listingText}`;
@@ -276,7 +276,14 @@ async function handleAnalyze() {
         // Generate message (always, since minScore=0 for popup analyze)
         let message: string | undefined;
         try {
-          const msgPrompt = buildMessagePrompt(userProfile, landlordInfo, settings.messageTemplate || '', profile);
+          const msgPrompt = buildMessagePrompt(
+            userProfile,
+            landlordInfo,
+            settings.messageTemplate || '',
+            profile,
+            undefined,
+            settings.aiCustomMessagePrompt,
+          );
           const msgResult = await provider.generateText(
             apiKey!,
             msgPrompt,
@@ -312,6 +319,8 @@ async function handleAnalyze() {
           apiKey,
           provider: settings.aiProvider,
           profile,
+          customScoringPrompt: settings.aiCustomScoringPrompt || undefined,
+          customMessagePrompt: settings.aiCustomMessagePrompt || undefined,
           ...settingsLitellm(),
         };
 

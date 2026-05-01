@@ -174,6 +174,9 @@ export const TYPING_CHUNK_MAX = 49;
 // Notification preferences
 export const NOTIFICATION_PREFS_KEY = 'notificationPrefs' as const;
 
+// Popup UI state
+export const SETTINGS_ACTIVE_SUBTAB_KEY = 'settingsActiveSubTab' as const;
+
 export type NotificationEvent =
   | 'duplicateLandlord'
   | 'listingSkipped'

@@ -415,7 +415,7 @@ onMount(() => {
   </div>
   {#if !isMonitoring && !aiServerConnected}
     <div class="mx-5 mb-3 text-center text-[11px] text-warning">
-      AI not connected \u2014 open Settings to configure.
+      AI not connected — open Settings to configure.
     </div>
   {/if}
 

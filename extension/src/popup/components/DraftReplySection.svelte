@@ -7,10 +7,14 @@ import {
   regenerateDraft,
   sendConversationReply,
 } from '../lib/messages';
+import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
+import ExternalLink from '@lucide/svelte/icons/external-link';
+import FileText from '@lucide/svelte/icons/file-text';
 import { Button } from '$lib/components/ui/button';
 import { Textarea } from '$lib/components/ui/textarea';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';
+import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 const DRAFT_WATCHDOG_MS = 90_000;
 
@@ -242,7 +246,6 @@ const sendBtnClass = $derived(
       class="min-h-20 text-[11px]"
     />
     <div class="mt-1.5 flex flex-wrap items-start gap-1.5">
-      <Button size="sm" variant="secondary" onclick={handleOpen}>Open</Button>
       <Button size="sm" variant="secondary" loading={regenBtnDisabled} disabled={regenBtnDisabled} onclick={handleRegenerate}>
         {regenBtnText}
       </Button>
@@ -266,6 +269,33 @@ const sendBtnClass = $derived(
       >
         {sendBtnText}
       </Button>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+          {#snippet child({ props })}
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label="More draft actions"
+              title="More actions"
+              {...props}
+            >
+              <MoreHorizontal aria-hidden="true" />
+            </Button>
+          {/snippet}
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end">
+          <DropdownMenu.Item onSelect={handleOpen}>
+            <ExternalLink aria-hidden="true" />
+            Open in messenger
+          </DropdownMenu.Item>
+          {#if aiMode === 'server'}
+            <DropdownMenu.Item onSelect={() => { showDocsForm = true; }}>
+              <FileText aria-hidden="true" />
+              Generate Docs
+            </DropdownMenu.Item>
+          {/if}
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
     </div>
     {#if showRefineInput}
       <div class="mt-1.5 flex items-end gap-1.5">
@@ -285,18 +315,7 @@ const sendBtnClass = $derived(
         </Button>
       </div>
     {/if}
-    {#if aiMode === 'server'}
-      {#if !showDocsForm}
-        <Button
-          size="sm"
-          variant="secondary"
-          class="mt-2 w-full"
-          title="Generate Selbstauskunft + supporting documents PDF"
-          onclick={() => { showDocsForm = true; }}
-        >
-          Generate Docs
-        </Button>
-      {:else}
+    {#if aiMode === 'server' && showDocsForm}
         <div class="mt-2 rounded-md border border-border bg-muted/40 p-2.5">
           <div class="mb-2 space-y-1">
             <Label for="docs-address-{conversation.conversationId}" class="text-[10px] uppercase">Address</Label>
@@ -335,7 +354,6 @@ const sendBtnClass = $derived(
             </div>
           {/if}
         </div>
-      {/if}
     {/if}
   {/if}
 </div>

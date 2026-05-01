@@ -58,6 +58,17 @@ export function validateField(name: ValidatedField, value: unknown): string | nu
   return validators[name](value);
 }
 
+export function errorAria(
+  field: ValidatedField,
+  errors: Partial<Record<ValidatedField, string>>,
+): { 'aria-invalid': true | undefined; 'aria-describedby': string | undefined } {
+  const e = errors[field];
+  return {
+    'aria-invalid': e ? true : undefined,
+    'aria-describedby': e ? `${field}-error` : undefined,
+  };
+}
+
 export function isFilled(v: unknown): boolean {
   if (v === undefined || v === null) return false;
   if (typeof v === 'number') return true;

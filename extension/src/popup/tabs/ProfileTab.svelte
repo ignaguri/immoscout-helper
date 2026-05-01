@@ -9,6 +9,7 @@ import Section from '$lib/components/Section.svelte';
 import FormField from '$lib/components/FormField.svelte';
 import {
   REQUIRED_FIELDS,
+  errorAria,
   isFilled,
   validateField as validateFieldSchema,
   type ValidatedField,
@@ -23,6 +24,7 @@ let {
 } = $props();
 
 const SAVED_FLASH_MS = 1200;
+const SAVE_DEBOUNCE_MS = 400;
 const REQUIRED_SET = new Set<keyof PopupSettings>(REQUIRED_FIELDS);
 
 type SectionKey = 'about' | 'doc' | 'form';
@@ -67,7 +69,11 @@ $effect(() => {
 let currentSection: SectionKey = $state('about');
 let savedFlashSection: SectionKey | null = $state(null);
 let flashTimer: ReturnType<typeof setTimeout> | undefined;
-$effect(() => () => clearTimeout(flashTimer));
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+$effect(() => () => {
+  clearTimeout(flashTimer);
+  clearTimeout(saveTimer);
+});
 
 let errors = $state<Partial<Record<ValidatedField, string>>>({});
 
@@ -80,7 +86,14 @@ function validateOnBlur(field: ValidatedField) {
   }
 }
 
-async function autoSave() {
+function blurFor(field: ValidatedField) {
+  return () => {
+    autoSave();
+    validateOnBlur(field);
+  };
+}
+
+async function flushSave() {
   if (!settingsLoaded) return;
   const sec = currentSection;
   await saveAllSettings(settings);
@@ -89,6 +102,12 @@ async function autoSave() {
   flashTimer = setTimeout(() => {
     if (savedFlashSection === sec) savedFlashSection = null;
   }, SAVED_FLASH_MS);
+}
+
+function autoSave() {
+  if (!settingsLoaded) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, SAVE_DEBOUNCE_MS);
 }
 
 const maritalOptions = [
@@ -195,10 +214,9 @@ const isReq = (k: keyof PopupSettings) => REQUIRED_SET.has(k);
           id="profileMaxWarmmiete"
           type="number"
           bind:value={settings.profileMaxWarmmiete}
-          aria-invalid={!!errors.profileMaxWarmmiete}
-          aria-describedby={errors.profileMaxWarmmiete ? 'profileMaxWarmmiete-error' : undefined}
+          {...errorAria('profileMaxWarmmiete', errors)}
           oninput={autoSave}
-          onblur={() => { autoSave(); validateOnBlur('profileMaxWarmmiete'); }}
+          onblur={blurFor('profileMaxWarmmiete')}
           placeholder="1200"
         />
       </FormField>
@@ -245,10 +263,9 @@ const isReq = (k: keyof PopupSettings) => REQUIRED_SET.has(k);
         id="profileEmail"
         type="email"
         bind:value={settings.profileEmail}
-        aria-invalid={!!errors.profileEmail}
-        aria-describedby={errors.profileEmail ? 'profileEmail-error' : undefined}
+        {...errorAria('profileEmail', errors)}
         oninput={autoSave}
-        onblur={() => { autoSave(); validateOnBlur('profileEmail'); }}
+        onblur={blurFor('profileEmail')}
         placeholder="name@example.com"
       />
     </FormField>
@@ -258,10 +275,9 @@ const isReq = (k: keyof PopupSettings) => REQUIRED_SET.has(k);
         id="profileNetIncome"
         type="number"
         bind:value={settings.profileNetIncome}
-        aria-invalid={!!errors.profileNetIncome}
-        aria-describedby={errors.profileNetIncome ? 'profileNetIncome-error' : undefined}
+        {...errorAria('profileNetIncome', errors)}
         oninput={autoSave}
-        onblur={() => { autoSave(); validateOnBlur('profileNetIncome'); }}
+        onblur={blurFor('profileNetIncome')}
         min={0}
         max={99999}
         step="0.01"
@@ -288,10 +304,9 @@ const isReq = (k: keyof PopupSettings) => REQUIRED_SET.has(k);
           id="profileLandlordPhone"
           type="tel"
           bind:value={settings.profileLandlordPhone}
-          aria-invalid={!!errors.profileLandlordPhone}
-          aria-describedby={errors.profileLandlordPhone ? 'profileLandlordPhone-error' : undefined}
+          {...errorAria('profileLandlordPhone', errors)}
           oninput={autoSave}
-          onblur={() => { autoSave(); validateOnBlur('profileLandlordPhone'); }}
+          onblur={blurFor('profileLandlordPhone')}
           placeholder="+49 179 …"
         />
       </FormField>
@@ -300,10 +315,9 @@ const isReq = (k: keyof PopupSettings) => REQUIRED_SET.has(k);
           id="profileLandlordEmail"
           type="email"
           bind:value={settings.profileLandlordEmail}
-          aria-invalid={!!errors.profileLandlordEmail}
-          aria-describedby={errors.profileLandlordEmail ? 'profileLandlordEmail-error' : undefined}
+          {...errorAria('profileLandlordEmail', errors)}
           oninput={autoSave}
-          onblur={() => { autoSave(); validateOnBlur('profileLandlordEmail'); }}
+          onblur={blurFor('profileLandlordEmail')}
           placeholder="landlord@example.com"
         />
       </FormField>
@@ -332,10 +346,9 @@ const isReq = (k: keyof PopupSettings) => REQUIRED_SET.has(k);
           id="formPhone"
           type="tel"
           bind:value={settings.formPhone}
-          aria-invalid={!!errors.formPhone}
-          aria-describedby={errors.formPhone ? 'formPhone-error' : undefined}
+          {...errorAria('formPhone', errors)}
           oninput={autoSave}
-          onblur={() => { autoSave(); validateOnBlur('formPhone'); }}
+          onblur={blurFor('formPhone')}
           placeholder="+49 170 1234567"
         />
       </FormField>
@@ -402,10 +415,9 @@ const isReq = (k: keyof PopupSettings) => REQUIRED_SET.has(k);
           id="formIncome"
           type="number"
           bind:value={settings.formIncome}
-          aria-invalid={!!errors.formIncome}
-          aria-describedby={errors.formIncome ? 'formIncome-error' : undefined}
+          {...errorAria('formIncome', errors)}
           oninput={autoSave}
-          onblur={() => { autoSave(); validateOnBlur('formIncome'); }}
+          onblur={blurFor('formIncome')}
           min={0}
           max={50000}
         />

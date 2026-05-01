@@ -1,4 +1,5 @@
 <script lang="ts">
+import { onMount } from 'svelte';
 import {
   DEFAULT_NOTIFICATION_PREFS,
   NOTIFICATION_LABELS,
@@ -9,13 +10,13 @@ import {
 let notifPrefs: Record<NotificationEvent, boolean> = $state({ ...DEFAULT_NOTIFICATION_PREFS });
 let notifPrefsLoaded = $state(false);
 
-async function loadNotifPrefs() {
+onMount(async () => {
   const stored = await chrome.storage.local.get([NOTIFICATION_PREFS_KEY]);
   if (stored[NOTIFICATION_PREFS_KEY]) {
     notifPrefs = { ...DEFAULT_NOTIFICATION_PREFS, ...stored[NOTIFICATION_PREFS_KEY] };
   }
   notifPrefsLoaded = true;
-}
+});
 
 async function saveNotifPrefs() {
   await chrome.storage.local.set({ [NOTIFICATION_PREFS_KEY]: { ...notifPrefs } });
@@ -25,8 +26,6 @@ function handleNotifToggle(event: NotificationEvent) {
   notifPrefs[event] = !notifPrefs[event];
   saveNotifPrefs();
 }
-
-loadNotifPrefs();
 </script>
 
 <div class="flex flex-col gap-1.5">

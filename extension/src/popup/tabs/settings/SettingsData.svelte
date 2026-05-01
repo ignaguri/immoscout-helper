@@ -1,5 +1,6 @@
 <script lang="ts">
 import { Button } from '$lib/components/ui/button';
+import Section from '$lib/components/Section.svelte';
 import { clearSeenListings } from '../../lib/messages';
 
 let {
@@ -110,29 +111,25 @@ async function handleImport(e: Event) {
 }
 </script>
 
-<div class="space-y-3">
-  <div>
-    <h4 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Seen Listings</h4>
-    <Button variant="ghost" class="text-destructive hover:bg-destructive/10" onclick={handleClearSeen}>
-      Clear Seen Listings ({stats.seenCount})
-    </Button>
-  </div>
+<Section title="Seen Listings">
+  <Button variant="ghost" class="text-destructive hover:bg-destructive/10" onclick={handleClearSeen}>
+    Clear Seen Listings ({stats.seenCount})
+  </Button>
+</Section>
 
-  <div class="pt-3 border-t border-border">
-    <h4 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Backup &amp; Restore</h4>
-    <div class="mb-2 flex gap-2">
-      <Button class="flex-1" onclick={handleExport}>Export All Data</Button>
-      <Button class="flex-1" onclick={() => fileInput?.click()}>Import Data</Button>
-      <input
-        type="file"
-        accept=".json"
-        bind:this={fileInput}
-        onchange={handleImport}
-        class="hidden"
-      />
-    </div>
-    <p class="text-xs text-muted-foreground m-0">
-      Export downloads a JSON backup of all settings, profile, and seen listings. Import merges the backup into current storage.
-    </p>
+<Section title="Backup & Restore">
+  <div class="mb-2 flex gap-2">
+    <Button class="flex-1" onclick={handleExport}>Export All Data</Button>
+    <Button class="flex-1" onclick={() => fileInput?.click()}>Import Data</Button>
+    <input
+      type="file"
+      accept=".json"
+      bind:this={fileInput}
+      onchange={handleImport}
+      class="hidden"
+    />
   </div>
-</div>
+  <p class="text-xs text-muted-foreground m-0">
+    Export downloads a JSON backup of all settings, profile, and seen listings. Import merges the backup into current storage.
+  </p>
+</Section>

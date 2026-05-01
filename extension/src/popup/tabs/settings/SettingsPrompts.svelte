@@ -11,6 +11,7 @@ import { Button } from '$lib/components/ui/button';
 import { Textarea } from '$lib/components/ui/textarea';
 import { Label } from '$lib/components/ui/label';
 import * as Alert from '$lib/components/ui/alert';
+import Section from '$lib/components/Section.svelte';
 import { cn } from '$lib/utils';
 import type { PopupSettings } from '../../lib/storage';
 import { getSettingsContext } from './settings-context';
@@ -38,42 +39,39 @@ let scoringUnknown = $derived(validateTemplate(settings.aiCustomScoringPrompt ||
 let messageUnknown = $derived(validateTemplate(settings.aiCustomMessagePrompt || '', MESSAGE_PLACEHOLDERS).unknown);
 </script>
 
-<div class="space-y-3">
-  <div>
-    <h4 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Style guide</h4>
-    <div class="space-y-3">
-      <div class="space-y-1.5">
-        <Label for="aiAboutMe">About Me (for AI context)</Label>
-        <Textarea
-          id="aiAboutMe"
-          bind:value={settings.aiAboutMe}
-          oninput={ctx.autoSave}
-          onblur={ctx.autoSaveImmediate}
-          placeholder="Tell the AI about yourself…"
-          class="min-h-15"
-        />
-      </div>
+<Section title="Style guide">
+  <div class="space-y-3">
+    <div class="space-y-1.5">
+      <Label for="aiAboutMe">About Me (for AI context)</Label>
+      <Textarea
+        id="aiAboutMe"
+        bind:value={settings.aiAboutMe}
+        oninput={ctx.autoSave}
+        onblur={ctx.autoSaveImmediate}
+        placeholder="Tell the AI about yourself…"
+        class="min-h-15"
+      />
+    </div>
 
-      <div class="space-y-1.5">
-        <Label for="messageTemplate">Message Template</Label>
-        <Textarea
-          id="messageTemplate"
-          bind:value={settings.messageTemplate}
-          oninput={ctx.autoSave}
-          onblur={ctx.autoSaveImmediate}
-          placeholder={`Sehr geehrte(r) {name},\n\nich interessiere mich…`}
-          class="min-h-20"
-        />
-        <p class="text-xs text-muted-foreground m-0">
-          Write a sample message to guide the AI's tone. Use {'{name}'} for landlord greeting.
-        </p>
-      </div>
+    <div class="space-y-1.5">
+      <Label for="messageTemplate">Message Template</Label>
+      <Textarea
+        id="messageTemplate"
+        bind:value={settings.messageTemplate}
+        oninput={ctx.autoSave}
+        onblur={ctx.autoSaveImmediate}
+        placeholder={`Sehr geehrte(r) {name},\n\nich interessiere mich…`}
+        class="min-h-20"
+      />
+      <p class="text-xs text-muted-foreground m-0">
+        Write a sample message to guide the AI's tone. Use {'{name}'} for landlord greeting.
+      </p>
     </div>
   </div>
+</Section>
 
-  <div class="space-y-3 pt-3 border-t border-border">
-    <h4 class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Advanced prompts</h4>
-
+<Section title="Advanced prompts">
+  <div class="space-y-3">
     <Alert.Root class="border-warning/40 bg-warning/15 text-warning border-l-[3px]">
       <Alert.Description class="text-warning">
         ⚠ Editing these can break AI behavior. Leave empty to use the built-in default. Use
@@ -139,4 +137,4 @@ let messageUnknown = $derived(validateTemplate(settings.aiCustomMessagePrompt ||
       </div>
     {/each}
   </div>
-</div>
+</Section>

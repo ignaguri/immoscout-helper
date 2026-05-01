@@ -9,7 +9,12 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["chrome"]
+    "types": ["chrome"],
+    "baseUrl": ".",
+    "paths": {
+      "$lib": ["src/popup/lib"],
+      "$lib/*": ["src/popup/lib/*"]
+    }
   },
   "include": ["src/**/*", "src/**/*.svelte"]
 }

@@ -2,6 +2,11 @@
 import type { ConversationEntry } from '../../shared/types';
 import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
 import { respondToAppointment } from '../lib/messages';
+import { APPOINTMENT_STATUS_TONES } from '../lib/tone';
+import { Button } from '$lib/components/ui/button';
+import { Textarea } from '$lib/components/ui/textarea';
+import { Badge } from '$lib/components/ui/badge';
+import { cn } from '$lib/utils';
 
 let {
   conversation,
@@ -11,7 +16,7 @@ let {
 
 let apptBtnsDisabled = $state(false);
 let apptResultText = $state('');
-let apptResultStyle = $state('');
+let apptResultIsError = $state(false);
 let apptUserContext = $state('');
 
 let apptDate = $derived.by(() => {
@@ -42,6 +47,13 @@ let apptDuration = $derived.by(() => {
 });
 let apptLocation = $derived(conversation.appointment?.address || conversation.appointment?.location || '');
 
+const STATUS_LABELS: Record<string, string> = {
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  alternative_requested: 'Alternative requested',
+  pending: 'Pending',
+};
+
 async function handleAppointmentResponse(response: string, _btnLabel: string) {
   const appt = conversation.appointment;
   let apptDateVal = appt?.date || appt?.startDate || '';
@@ -56,8 +68,8 @@ async function handleAppointmentResponse(response: string, _btnLabel: string) {
   const apptLocationVal = appt?.address || appt?.location || '';
 
   apptBtnsDisabled = true;
-  apptResultText = 'Processing...';
-  apptResultStyle = '';
+  apptResultText = 'Processing…';
+  apptResultIsError = false;
   try {
     const result = await respondToAppointment(conversation.conversationId, response, apptUserContext.trim(), {
       date: apptDateVal,
@@ -65,165 +77,104 @@ async function handleAppointmentResponse(response: string, _btnLabel: string) {
       location: apptLocationVal,
     });
     if (result.success) {
-      apptResultText = 'Tab opened - review & send';
-      apptResultStyle = 'background: #e6fff5; color: #1a1a1a;';
+      apptResultText = 'Tab opened — review & send';
+      apptResultIsError = false;
     } else {
       apptResultText = `Failed: ${result.error || 'unknown'}`;
-      apptResultStyle = 'background: #fff5f5; color: #c00;';
+      apptResultIsError = true;
     }
   } catch (e: any) {
     apptResultText = `Error: ${e.message}`;
-    apptResultStyle = 'background: #fff5f5; color: #c00;';
+    apptResultIsError = true;
   }
   setTimeout(() => {
     apptBtnsDisabled = false;
     apptResultText = '';
-    apptResultStyle = '';
+    apptResultIsError = false;
   }, 5000);
 }
 </script>
 
 {#if conversation.appointment && conversation.appointmentStatus === 'pending'}
-  <div class="appt-section">
-    <div class="appt-header">Besichtigungstermin</div>
-    <div class="appt-details">
+  <div class="mt-2 rounded-lg border border-info/30 bg-info/10 p-2.5">
+    <div class="mb-1.5 text-[11px] font-semibold text-foreground">Besichtigungstermin</div>
+    <div class="mb-2 text-[11px] leading-relaxed text-foreground/70">
       {#if apptDate}Datum: {apptDate}<br>{/if}
       {#if apptTime}Zeit: {apptTime}{#if apptDuration} ({apptDuration}){/if}<br>{/if}
       {#if apptLocation}Ort: {apptLocation}{/if}
       {#if !apptDate && !apptTime && !apptLocation}Termindetails nicht verfügbar{/if}
     </div>
-    <textarea
-      class="appt-context"
-      placeholder='Optional: Add context for the AI, e.g. "reject because move-in is too soon"'
+    <Textarea
       bind:value={apptUserContext}
-    ></textarea>
-    <div class="appt-buttons">
-      <button
-        class="appt-btn accept"
+      placeholder='Optional: Add context for the AI, e.g. "reject because move-in is too soon"'
+      rows={2}
+      class="mb-2 text-[11px]"
+    />
+    <div class="flex gap-1.5">
+      <Button
+        size="sm"
+        variant="outline"
+        class="flex-1 border-success/40 bg-success/15 text-success hover:bg-success/25"
         disabled={apptBtnsDisabled}
         onclick={() => handleAppointmentResponse('accept', 'Accept')}
-      >Accept</button>
-      <button
-        class="appt-btn reject"
+      >
+        Accept
+      </Button>
+      <Button
+        size="sm"
+        variant="destructive"
+        class="flex-1"
         disabled={apptBtnsDisabled}
         onclick={() => handleAppointmentResponse('reject', 'Reject')}
-      >Reject</button>
-      <button
-        class="appt-btn alternative"
+      >
+        Reject
+      </Button>
+      <Button
+        size="sm"
+        variant="secondary"
+        class="flex-1"
         disabled={apptBtnsDisabled}
         onclick={() => handleAppointmentResponse('alternative', 'Alternative')}
-      >Alternative</button>
+      >
+        Alternative
+      </Button>
     </div>
     {#if apptResultText}
-      <div class="appt-result" style={apptResultStyle}>{apptResultText}</div>
+      <div
+        class={cn(
+          'mt-1.5 rounded-md px-2 py-1.5 text-[11px]',
+          apptResultIsError ? 'bg-destructive/10 text-destructive' : 'bg-success/15 text-success',
+        )}
+        role="status"
+      >
+        {apptResultText}
+      </div>
     {/if}
   </div>
 {:else if conversation.appointment && conversation.appointmentStatus && conversation.appointmentStatus !== 'pending'}
-  {@const statusLabels: Record<string, string> = { accepted: 'Accepted', rejected: 'Rejected', alternative_requested: 'Alternative requested' }}
-  {@const statusColors: Record<string, string> = { accepted: '#d4edda', rejected: '#f8d7da', alternative_requested: '#fff3cd' }}
-  <div class="appt-status" style="background: {statusColors[conversation.appointmentStatus] || '#f0f0f0'};">
-    Appointment: {statusLabels[conversation.appointmentStatus] || conversation.appointmentStatus}
+  <div class="mt-2">
+    <Badge variant={APPOINTMENT_STATUS_TONES[conversation.appointmentStatus] || 'secondary'}>
+      Appointment: {STATUS_LABELS[conversation.appointmentStatus] || conversation.appointmentStatus}
+    </Badge>
   </div>
   {#if conversation.appointmentStatus === 'accepted'}
-    <div class="cal-buttons">
-      <button class="cal-btn" onclick={() => window.open(buildGoogleCalendarUrl(conversation), '_blank', 'noopener,noreferrer')}>
+    <div class="mt-1.5 flex gap-1.5">
+      <Button
+        variant="outline"
+        size="sm"
+        class="flex-1 text-[10px]"
+        onclick={() => window.open(buildGoogleCalendarUrl(conversation), '_blank', 'noopener,noreferrer')}
+      >
         📅 Google Calendar
-      </button>
-      <button class="cal-btn" onclick={() => downloadICS(conversation)}>
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        class="flex-1 text-[10px]"
+        onclick={() => downloadICS(conversation)}
+      >
         ⬇ Download .ics
-      </button>
+      </Button>
     </div>
   {/if}
 {/if}
-
-<style>
-  .appt-section {
-    margin-top: 8px;
-    padding: 10px;
-    background: #f8f9ff;
-    border: 1px solid #d0d5ff;
-    border-radius: 8px;
-  }
-
-  .appt-header {
-    font-size: 11px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-  }
-
-  .appt-details {
-    font-size: 11px;
-    color: #555;
-    margin-bottom: 8px;
-    line-height: 1.5;
-  }
-
-  .appt-context {
-    width: 100%;
-    min-height: 40px;
-    padding: 6px 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 11px;
-    font-family: inherit;
-    resize: vertical;
-    margin-bottom: 8px;
-  }
-
-  .appt-buttons {
-    display: flex;
-    gap: 6px;
-  }
-
-  .appt-btn {
-    flex: 1;
-    padding: 8px 6px;
-    border: none;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .appt-btn.accept { background: #d4edda; color: #1a5c2a; }
-  .appt-btn.reject { background: #f8d7da; color: #721c24; }
-  .appt-btn.alternative { background: #f0f0f0; color: #333; }
-  .appt-btn:disabled { opacity: 0.6; }
-
-  .appt-result {
-    margin-top: 6px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    font-size: 11px;
-  }
-
-  .appt-status {
-    margin-top: 8px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    font-size: 11px;
-    color: #555;
-  }
-
-  .cal-buttons {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
-
-  .cal-btn {
-    flex: 1;
-    padding: 6px 8px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 10px;
-    background: #fff;
-    cursor: pointer;
-    color: #333;
-  }
-
-  .cal-btn:hover {
-    background: #f5f5f5;
-  }
-</style>

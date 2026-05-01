@@ -1,11 +1,17 @@
 <script lang="ts">
 import { onMount } from 'svelte';
+import Play from '@lucide/svelte/icons/play';
+import Square from '@lucide/svelte/icons/square';
 import { PROVIDERS } from '../shared/ai-router';
 import { ALARM_NAME } from '../shared/constants';
 import type { ActivityLogEntry, ConversationEntry, PendingApprovalItem, QueueItem } from '../shared/types';
 import UpdateBanner from './components/UpdateBanner.svelte';
+import { checkAiHealth } from './lib/ai-health';
 import { getPendingApprovalListings, getStatus, startMonitoring, stopMonitoring } from './lib/messages';
 import type { PopupSettings } from './lib/storage';
+import { Button } from '$lib/components/ui/button';
+import { Badge } from '$lib/components/ui/badge';
+import { cn } from '$lib/utils';
 import {
   loadActivityLog as loadActivityLogStorage,
   loadAllSettings,
@@ -133,7 +139,7 @@ const tabs = [
 
 // Status badge
 let statusText = $derived(isMonitoring ? 'Active' : 'Stopped');
-let statusClass = $derived(isMonitoring ? 'active' : 'inactive');
+let statusVariant = $derived<'success' | 'secondary'>(isMonitoring ? 'success' : 'secondary');
 
 async function updateStats() {
   try {
@@ -194,32 +200,7 @@ async function updateAiStats() {
 }
 
 async function checkAiServerHealth() {
-  if (settings.aiMode === 'direct') {
-    const currentApiKey = settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai;
-    if (!currentApiKey) {
-      aiServerConnected = false;
-      return;
-    }
-    try {
-      aiServerConnected = await (PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini).validateKey(currentApiKey);
-    } catch {
-      aiServerConnected = false;
-    }
-  } else {
-    // Server mode: check /health endpoint
-    const url = settings.aiServerUrl || 'http://localhost:3456';
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    try {
-      const response = await fetch(`${url}/health`, { signal: controller.signal });
-      const data = await response.json();
-      aiServerConnected = data.status === 'ok';
-    } catch {
-      aiServerConnected = false;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
+  aiServerConnected = await checkAiHealth(settings);
 }
 
 async function handleToggle() {
@@ -399,77 +380,97 @@ onMount(() => {
 });
 </script>
 
-<div class="popup-container">
+<div class="flex h-screen flex-col overflow-hidden">
   <!-- Header -->
-  <div class="header">
-    <div class="header-title">
-      <h1>Apartment Messenger</h1>
-      <span class="subtitle">ImmoScout24 Auto-Sender</span>
+  <div
+    class="flex items-center justify-between px-5 py-4 text-foreground"
+    style="background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-deep)) 100%);"
+  >
+    <div class="flex flex-col">
+      <h1 class="text-base font-semibold m-0">Apartment Messenger</h1>
+      <span class="text-[11px] opacity-70 mt-0.5">ImmoScout24 Auto-Sender</span>
     </div>
-    <span class="status-badge {statusClass}">{statusText}</span>
+    <Badge variant={statusVariant} class="bg-background/60">{statusText}</Badge>
   </div>
 
   <UpdateBanner />
 
   <!-- Toggle Button -->
-  <button
-    class="toggle-btn {isMonitoring ? 'stop' : 'start'}"
-    onclick={handleToggle}
-    disabled={!isMonitoring && !aiServerConnected}
-    title={!isMonitoring && !aiServerConnected ? 'AI connection not available — check Settings' : ''}
-  >
-    <span>{isMonitoring ? '\u23F9' : '\u25B6'}</span>
-    <span>{isMonitoring ? 'Stop' : 'Start'}</span>
-  </button>
+  <div class="px-5 pt-4 pb-1">
+    <Button
+      class="w-full h-12 text-[15px] font-semibold"
+      variant={isMonitoring ? 'destructive' : 'default'}
+      onclick={handleToggle}
+      disabled={!isMonitoring && !aiServerConnected}
+      title={!isMonitoring && !aiServerConnected ? 'AI connection not available — check Settings' : ''}
+    >
+    {#if isMonitoring}
+      <Square aria-hidden="true" />
+      Stop
+    {:else}
+      <Play aria-hidden="true" />
+      Start
+    {/if}
+    </Button>
+  </div>
   {#if !isMonitoring && !aiServerConnected}
-    <div class="toggle-disabled-reason">{'AI not connected \u2014 open Settings to configure.'}</div>
+    <div class="mx-5 mb-3 text-center text-[11px] text-warning">
+      AI not connected \u2014 open Settings to configure.
+    </div>
   {/if}
 
   <!-- Stats Bar -->
-  <div class="stats-bar">
-    <div class="stat">
-      <span class="stat-value">{statsSentHour}</span>
-      <span class="stat-label">/hour</span>
+  <div class="flex justify-around bg-background px-5 pt-3 pb-2">
+    <div class="flex flex-col items-center">
+      <span class="text-sm font-semibold text-foreground">{statsSentHour}</span>
+      <span class="text-[11px] text-muted-foreground">/hour</span>
     </div>
-    <div class="stat">
-      <span class="stat-value">{actSent}</span>
-      <span class="stat-label">Sent</span>
+    <div class="flex flex-col items-center">
+      <span class="text-sm font-semibold text-foreground">{actSent}</span>
+      <span class="text-[11px] text-muted-foreground">Sent</span>
     </div>
-    <div class="stat">
-      <span class="stat-value">{actSkipped}</span>
-      <span class="stat-label">Skipped</span>
+    <div class="flex flex-col items-center">
+      <span class="text-sm font-semibold text-foreground">{actSkipped}</span>
+      <span class="text-[11px] text-muted-foreground">Skipped</span>
     </div>
-    <div class="stat">
-      <span class="stat-value">{actFailed}</span>
-      <span class="stat-label">Failed</span>
+    <div class="flex flex-col items-center">
+      <span class="text-sm font-semibold text-foreground">{actFailed}</span>
+      <span class="text-[11px] text-muted-foreground">Failed</span>
     </div>
   </div>
-  <div class="stats-bar stats-bar-secondary">
-    <span class="stat-secondary">{statsSeenCount} seen</span>
-    {#if actFilled > 0}<span class="stat-secondary">{actFilled} pending review</span>{/if}
-    <span class="stat-secondary">Next: {statsNextCheck}</span>
+  <div class="flex justify-center gap-3 border-b border-border bg-background px-5 pb-2">
+    <span class="text-[11px] text-muted-foreground">{statsSeenCount} seen</span>
+    {#if actFilled > 0}<span class="text-[11px] text-muted-foreground">{actFilled} pending review</span>{/if}
+    <span class="text-[11px] text-muted-foreground">Next: {statsNextCheck}</span>
   </div>
 
   <!-- Tabs -->
-  <div class="tabs">
+  <div class="flex border-b border-border bg-background">
     {#each tabs as tab}
       <button
-        class="tab"
-        class:active={activeTab === tab.id}
+        type="button"
+        class={cn(
+          'flex-1 cursor-pointer border-0 border-b-2 bg-transparent px-2 py-3 text-xs font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring',
+          activeTab === tab.id
+            ? 'border-primary text-primary'
+            : 'border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground',
+        )}
         onclick={() => activeTab = tab.id}
       >
         {tab.label}
         {#if tab.id === 'replies' && convUnreadCount > 0}
-          <span class="tab-badge">{convUnreadCount}</span>
+          <span class="ml-1 inline-block rounded-full bg-destructive px-1.5 py-0 align-top text-[9px] font-semibold text-destructive-foreground">
+            {convUnreadCount}
+          </span>
         {/if}
       </button>
     {/each}
   </div>
 
   <!-- Tab Content -->
-  <div class="tab-content-container">
+  <div class="flex-1 overflow-hidden">
     {#if activeTab === 'activity'}
-      <div class="tab-content active">
+      <div class="h-full overflow-y-auto bg-background px-5 py-4">
         <ActivityTab
           bind:settings
           {settingsLoaded}
@@ -487,11 +488,11 @@ onMount(() => {
         />
       </div>
     {:else if activeTab === 'profile'}
-      <div class="tab-content active">
+      <div class="h-full overflow-y-auto bg-background px-5 py-4">
         <ProfileTab bind:settings {settingsLoaded} />
       </div>
     {:else if activeTab === 'replies'}
-      <div class="tab-content active">
+      <div class="h-full overflow-y-auto bg-background px-5 py-4">
         <ConversationsTab
           bind:conversations
           bind:lastCheckTime={convLastCheckTime}
@@ -500,7 +501,7 @@ onMount(() => {
         />
       </div>
     {:else if activeTab === 'settings'}
-      <div class="tab-content active">
+      <div class="h-full overflow-y-auto bg-background px-5 py-4">
         <SettingsTab
           bind:settings
           {settingsLoaded}
@@ -514,579 +515,9 @@ onMount(() => {
         />
       </div>
     {:else if activeTab === 'help'}
-      <div class="tab-content active">
+      <div class="h-full overflow-y-auto bg-background px-5 py-4">
         <HelpTab />
       </div>
     {/if}
   </div>
 </div>
-
-<style>
-  :global(*) { box-sizing: border-box; }
-
-  :global(:root) {
-    --color-brand: #83F1DC;
-    --color-brand-hover: #6de8d0;
-    --color-brand-strong: #3dbda8;
-    --color-text: #1a1a1a;
-    --color-text-muted: #555;
-    --color-text-subtle: #888;
-    --color-border: #e2e2e2;
-    --color-bg: #ffffff;
-    --color-bg-subtle: #f5f7f9;
-    --color-success-bg: #e6fff5;
-    --color-success-fg: #0d7a4e;
-    --color-warning-bg: #fff7d9;
-    --color-warning-fg: #7a5a00;
-    --color-danger-bg: #fff5f5;
-    --color-danger-fg: #a02424;
-    --color-info-bg: #eef6ff;
-    --color-info-fg: #1f5fb6;
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 20px;
-    --space-6: 24px;
-    --text-xs: 11px;
-    --text-sm: 12px;
-    --text-base: 13px;
-    --text-md: 14px;
-    --text-lg: 16px;
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
-    --transition-fast: 0.15s ease;
-  }
-
-  :global(body) {
-    width: 100%;
-    min-width: 320px;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    margin: 0;
-    background: #f5f5f5;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .popup-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  /* Header */
-  .header {
-    background: linear-gradient(135deg, var(--color-brand) 0%, #5ce0c8 100%);
-    color: var(--color-text);
-    padding: var(--space-4) var(--space-5);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .header-title {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .header h1 {
-    font-size: var(--text-lg);
-    margin: 0;
-    font-weight: 600;
-  }
-
-  .header .subtitle {
-    font-size: var(--text-xs);
-    opacity: 0.7;
-    margin-top: 2px;
-  }
-
-  .status-badge {
-    font-size: var(--text-xs);
-    padding: var(--space-1) 10px;
-    border-radius: 12px;
-    font-weight: 500;
-  }
-
-  .status-badge.active {
-    background: rgba(255,255,255,0.5);
-    color: var(--color-text);
-  }
-
-  .status-badge.inactive {
-    background: rgba(0,0,0,0.15);
-    color: #333;
-  }
-
-  /* Toggle Button */
-  .toggle-btn {
-    width: calc(100% - 40px);
-    margin: var(--space-4) var(--space-5) var(--space-1);
-    padding: 14px;
-    border: none;
-    border-radius: var(--radius-lg);
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-  }
-
-  .toggle-btn.start {
-    background: var(--color-brand);
-    color: var(--color-text);
-  }
-
-  .toggle-btn.start:hover {
-    background: var(--color-brand-hover);
-  }
-
-  .toggle-btn.stop {
-    background: #333;
-    color: white;
-  }
-
-  .toggle-btn.stop:hover {
-    background: #222;
-  }
-
-  .toggle-btn:disabled {
-    background: #ccc;
-    color: var(--color-text-subtle);
-    cursor: not-allowed;
-    opacity: 0.7;
-  }
-
-  .toggle-btn:disabled:hover {
-    background: #ccc;
-  }
-
-  .toggle-disabled-reason {
-    margin: 0 var(--space-5) var(--space-3);
-    font-size: var(--text-xs);
-    color: var(--color-warning-fg);
-    text-align: center;
-  }
-
-  /* Stats Bar */
-  .stats-bar {
-    display: flex;
-    justify-content: space-around;
-    padding: var(--space-3) var(--space-5) var(--space-2);
-    background: white;
-  }
-
-  .stats-bar-secondary {
-    justify-content: center;
-    gap: var(--space-3);
-    padding: 0 var(--space-5) var(--space-2);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .stat-secondary {
-    font-size: var(--text-xs);
-    color: var(--color-text-muted);
-  }
-
-  .stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .stat-value {
-    font-size: var(--text-md);
-    font-weight: 600;
-    color: #333;
-  }
-
-  .stat-label {
-    font-size: var(--text-xs);
-    color: var(--color-text-subtle);
-  }
-
-  /* Tabs */
-  .tabs {
-    display: flex;
-    background: white;
-    border-bottom: 1px solid #e0e0e0;
-  }
-
-  .tab {
-    flex: 1;
-    padding: var(--space-3) var(--space-2);
-    border: none;
-    background: none;
-    font-size: var(--text-sm);
-    font-weight: 500;
-    color: #666;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s;
-    position: relative;
-  }
-
-  .tab:hover {
-    color: #5ce0c8;
-    background: #f0fdfb;
-  }
-
-  .tab.active {
-    color: var(--color-brand-strong);
-    border-bottom-color: var(--color-brand);
-    background: white;
-  }
-
-  .tab-badge {
-    display: inline-block;
-    background: #e74c3c;
-    color: white;
-    font-size: 9px;
-    font-weight: 600;
-    padding: 1px 5px;
-    border-radius: var(--radius-lg);
-    margin-left: var(--space-1);
-    vertical-align: top;
-  }
-
-  /* Tab Content */
-  .tab-content-container {
-    flex: 1;
-    overflow: hidden;
-  }
-
-  .tab-content {
-    padding: var(--space-4) var(--space-5);
-    background: white;
-    height: 100%;
-    overflow-y: auto;
-  }
-
-  /* Global form styles for child components */
-  :global(.field) {
-    margin-bottom: 14px;
-  }
-
-  :global(.field:last-child) {
-    margin-bottom: 0;
-  }
-
-  :global(label) {
-    display: block;
-    font-size: var(--text-sm);
-    font-weight: 500;
-    color: var(--color-text-muted);
-    margin-bottom: var(--space-1);
-  }
-
-  :global(input[type="text"]),
-  :global(input[type="url"]),
-  :global(input[type="number"]),
-  :global(input[type="tel"]),
-  :global(input[type="email"]),
-  :global(input[type="password"]),
-  :global(input[type="date"]),
-  :global(select),
-  :global(textarea) {
-    width: 100%;
-    padding: 10px var(--space-3);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    font-size: var(--text-base);
-    font-family: inherit;
-    transition: border-color 0.2s;
-  }
-
-  :global(input:focus),
-  :global(select:focus),
-  :global(textarea:focus) {
-    outline: none;
-    border-color: var(--color-brand);
-  }
-
-  :global(textarea) {
-    min-height: 100px;
-    resize: vertical;
-  }
-
-  :global(.hint) {
-    font-size: var(--text-xs);
-    color: var(--color-text-subtle);
-    margin-top: var(--space-1);
-  }
-
-  :global(.grid-2) {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-3);
-  }
-
-  :global(.grid-2 .field label) {
-    display: flex;
-    align-items: flex-end;
-    min-height: 2.6em;
-  }
-
-  /* Buttons */
-  :global(.btn) {
-    width: 100%;
-    padding: 10px;
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: var(--text-base);
-    font-weight: 500;
-    cursor: pointer;
-    margin-top: var(--space-2);
-  }
-
-  :global(.btn-secondary) {
-    background: #f0f0f0;
-    color: #333;
-  }
-
-  :global(.btn-secondary:hover) {
-    background: #e0e0e0;
-  }
-
-  :global(.btn-test) {
-    background: var(--color-brand);
-    color: var(--color-text);
-  }
-
-  :global(.btn-test:hover) {
-    background: var(--color-brand-hover);
-  }
-
-  :global(.btn-danger) {
-    background: none;
-    color: #dc3545;
-    font-size: var(--text-sm);
-  }
-
-  :global(.btn-danger:hover) {
-    background: var(--color-danger-bg);
-  }
-
-  :global(.btn:disabled) {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  /* Section titles */
-  :global(.section-title) {
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: #999;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: var(--space-4) 0 10px 0;
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--color-border);
-  }
-
-  :global(.section-title:first-child) {
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
-  }
-
-  /* Empty state */
-  :global(.empty-state) {
-    border: 1px dashed var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--space-5);
-    text-align: center;
-    background: var(--color-bg-subtle);
-  }
-
-  :global(.empty-state-headline) {
-    font-size: var(--text-base);
-    color: var(--color-text-muted);
-    font-weight: 500;
-  }
-
-  :global(.empty-state-sub) {
-    font-size: var(--text-xs);
-    color: var(--color-text-subtle);
-    margin-top: var(--space-1);
-  }
-
-  /* Toggle row */
-  :global(.toggle-row) {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  :global(.toggle-row input[type="checkbox"]) {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--color-brand);
-  }
-
-  :global(.toggle-row label) {
-    margin-bottom: 0;
-    font-size: var(--text-base);
-    font-weight: 600;
-    color: #333;
-  }
-
-  /* AI status */
-  :global(.ai-status) {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: var(--text-xs);
-    padding: var(--space-1) 10px;
-    border-radius: 12px;
-    margin-bottom: var(--space-3);
-  }
-
-  :global(.ai-status.connected) {
-    background: var(--color-success-bg);
-    color: var(--color-success-fg);
-  }
-
-  :global(.ai-status.disconnected) {
-    background: var(--color-danger-bg);
-    color: #dc3545;
-  }
-
-  :global(.ai-status .dot) {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-
-  :global(.ai-status.connected .dot) {
-    background: #28a745;
-  }
-
-  :global(.ai-status.disconnected .dot) {
-    background: #dc3545;
-  }
-
-  :global(.ai-status-reason) {
-    display: block;
-    font-size: var(--text-xs);
-    color: var(--color-text-subtle);
-    margin: -8px 0 var(--space-3);
-  }
-
-  /* AI settings group */
-  :global(.ai-settings-group) {
-    transition: opacity 0.2s;
-  }
-
-  :global(.ai-settings-group.disabled) {
-    opacity: 0.5;
-    pointer-events: none;
-  }
-
-  /* Collapsible */
-  :global(.collapsible-header) {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    user-select: none;
-    padding: var(--space-3) var(--space-2);
-    border-top: 1px solid var(--color-border);
-    margin-top: var(--space-4);
-    border-radius: var(--radius-sm);
-    transition: background var(--transition-fast);
-  }
-
-  :global(.collapsible-header:hover) {
-    background: var(--color-bg-subtle);
-  }
-
-  :global(.collapsible-header .chevron) {
-    display: inline-block;
-    font-size: 18px;
-    line-height: 1;
-    color: var(--color-text-muted);
-    transition: transform var(--transition-fast);
-  }
-
-  :global(.collapsible-header .chevron.open) {
-    transform: rotate(90deg);
-  }
-
-  :global(.collapsible-body) {
-    padding-top: var(--space-2);
-  }
-
-  /* Password field */
-  :global(.password-field) {
-    position: relative;
-  }
-
-  :global(.password-field input) {
-    padding-right: 40px;
-  }
-
-  :global(.password-toggle) {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    font-size: 12px;
-    color: #888;
-    cursor: pointer;
-    padding: 4px;
-    width: auto;
-  }
-
-  /* Setup instructions box */
-  :global(.setup-box) {
-    margin-bottom: 12px;
-    padding: 12px;
-    background: #f0f7ff;
-    border: 1px solid #c8dff5;
-    border-radius: 6px;
-    font-size: 12px;
-    color: #333;
-    line-height: 1.6;
-  }
-
-  :global(.setup-box strong) {
-    display: block;
-    margin-bottom: 6px;
-    color: #1a1a1a;
-  }
-
-  :global(.setup-box code) {
-    display: block;
-    background: #e8eef5;
-    padding: 8px 10px;
-    border-radius: 4px;
-    font-family: 'SF Mono', Monaco, monospace;
-    font-size: 11px;
-    margin: 6px 0;
-    word-break: break-all;
-  }
-
-  :global(.setup-box .copy-cmd) {
-    font-size: 11px;
-    color: #3dbda8;
-    cursor: pointer;
-    border: none;
-    background: none;
-    padding: 0;
-    text-decoration: underline;
-    width: auto;
-  }
-</style>

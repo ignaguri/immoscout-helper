@@ -12,6 +12,12 @@ import {
   parseScoreJSON,
 } from '../../shared/prompts';
 import type { PopupSettings } from '../lib/storage';
+import { scoreTone } from '../lib/tone';
+import { Button } from '$lib/components/ui/button';
+import { Input } from '$lib/components/ui/input';
+import { Textarea } from '$lib/components/ui/textarea';
+import { Badge } from '$lib/components/ui/badge';
+import { Label } from '$lib/components/ui/label';
 
 let {
   settings,
@@ -82,12 +88,6 @@ function buildProfileFromSettings() {
   };
 }
 
-function getScoreColor(score: number): string {
-  if (score >= 8) return '#28a745';
-  if (score >= 6) return '#5cb85c';
-  if (score >= 4) return '#f0ad4e';
-  return '#dc3545';
-}
 
 function getFormValues() {
   return {
@@ -478,9 +478,9 @@ function isFlagWarning(f: string): boolean {
 }
 </script>
 
-<div class="field">
-  <label for="analyzeNotes">Notes for AI (optional)</label>
-  <input
+<div class="mb-3 space-y-1">
+  <Label for="analyzeNotes">Notes for AI (optional)</Label>
+  <Input
     type="text"
     id="analyzeNotes"
     bind:value={analyzeNotes}
@@ -488,146 +488,57 @@ function isFlagWarning(f: string): boolean {
   />
 </div>
 
-<button class="btn btn-test" disabled={analyzeBtnDisabled} onclick={handleAnalyze}>
+<Button class="w-full" loading={analyzeBtnDisabled} disabled={analyzeBtnDisabled} onclick={handleAnalyze}>
   {analyzeBtnText}
-</button>
+</Button>
 
 {#if analyzeResult}
-  <div class="analyze-result">
-    <div class="analyze-header">
-      <span class="score-badge" style="background: {getScoreColor(analyzeResult.score)};">
+  <div class="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+    <div class="mb-1.5 flex items-center gap-2">
+      <Badge variant={scoreTone(analyzeResult.score)} class="h-6 px-2.5 text-sm font-bold">
         {analyzeResult.score}
-      </span>
-      <span class="analyze-title">{analyzeResult.listingTitle}</span>
+      </Badge>
+      <span class="text-[13px] font-semibold text-foreground">{analyzeResult.listingTitle}</span>
     </div>
-    <div class="analyze-reason">{analyzeResult.reason || ''}</div>
+    <div class="mb-1.5 text-xs text-foreground/70">{analyzeResult.reason || ''}</div>
     {#if analyzeResult.summary}
-      <div class="analyze-summary">{analyzeResult.summary}</div>
+      <div class="mb-2 rounded border border-border bg-background px-2 py-1.5 text-[11px] text-muted-foreground">
+        {analyzeResult.summary}
+      </div>
     {/if}
     {#if analyzeResult.flags && analyzeResult.flags.length > 0}
-      <div class="analyze-flags">
+      <div class="mb-2 flex flex-wrap gap-1">
         {#each analyzeResult.flags as flag}
-          <span class="flag-badge" style="background: {isFlagWarning(flag) ? '#dc3545' : '#f0ad4e'};">
+          <Badge variant={isFlagWarning(flag) ? 'destructive' : 'warning'} class="text-[10px]">
             {flagLabels[flag] || flag}
-          </span>
+          </Badge>
         {/each}
       </div>
     {/if}
     {#if analyzeResult.message}
-      <div class="analyze-msg-section">
-        <textarea class="analyze-message" bind:value={analyzeMessageText}></textarea>
-        <div class="analyze-btn-row">
-          <button class="btn btn-test" disabled={sendAnalyzedBtnDisabled} onclick={handleSendAnalyzed}>{sendAnalyzedBtnText}</button>
-          <button class="btn btn-secondary" onclick={handleCopyAnalyzed}>{copyBtnText}</button>
+      <div class="mt-2 space-y-1.5">
+        <Textarea bind:value={analyzeMessageText} class="min-h-20" />
+        <div class="flex gap-1.5">
+          <Button class="flex-1" loading={sendAnalyzedBtnDisabled} disabled={sendAnalyzedBtnDisabled} onclick={handleSendAnalyzed}>
+            {sendAnalyzedBtnText}
+          </Button>
+          <Button variant="secondary" class="flex-1" onclick={handleCopyAnalyzed}>
+            {copyBtnText}
+          </Button>
         </div>
       </div>
     {/if}
-    <button class="btn btn-secondary" style="font-size:11px;" onclick={() => showExtractedData = !showExtractedData}>
+    <Button
+      variant="secondary"
+      size="xs"
+      class="mt-2"
+      aria-expanded={showExtractedData}
+      onclick={() => showExtractedData = !showExtractedData}
+    >
       {showExtractedData ? 'Hide extracted data' : 'Show extracted data'}
-    </button>
+    </Button>
     {#if showExtractedData}
-      <pre class="extracted-data">{extractedDataText}</pre>
+      <pre class="mt-1.5 max-h-36 overflow-y-auto rounded bg-muted px-2 py-1.5 text-[10px] whitespace-pre-wrap break-words">{extractedDataText}</pre>
     {/if}
   </div>
 {/if}
-
-<style>
-  .analyze-result {
-    margin-top: 12px;
-    padding: 12px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-  }
-
-  .analyze-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-
-  .score-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 700;
-    color: white;
-  }
-
-  .analyze-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: #333;
-  }
-
-  .analyze-reason {
-    font-size: 12px;
-    color: #555;
-    margin-bottom: 6px;
-  }
-
-  .analyze-summary {
-    font-size: 11px;
-    color: #666;
-    background: #fff;
-    padding: 8px;
-    border-radius: 4px;
-    margin-bottom: 8px;
-    border: 1px solid #eee;
-  }
-
-  .analyze-flags {
-    margin-bottom: 8px;
-  }
-
-  .flag-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 600;
-    color: white;
-    margin-right: 4px;
-    margin-top: 4px;
-  }
-
-  .analyze-msg-section {
-    margin-top: 8px;
-  }
-
-  .analyze-message {
-    width: 100%;
-    min-height: 80px;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 12px;
-    font-family: inherit;
-    resize: vertical;
-    margin-bottom: 6px;
-  }
-
-  .analyze-btn-row {
-    display: flex;
-    gap: 6px;
-  }
-
-  .analyze-btn-row .btn {
-    flex: 1;
-    margin-top: 0;
-  }
-
-  .extracted-data {
-    font-size: 10px;
-    background: #f0f0f0;
-    padding: 8px;
-    border-radius: 4px;
-    white-space: pre-wrap;
-    word-break: break-word;
-    margin-top: 6px;
-    max-height: 150px;
-    overflow-y: auto;
-  }
-</style>

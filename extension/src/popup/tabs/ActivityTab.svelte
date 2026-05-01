@@ -1,5 +1,8 @@
 <script lang="ts">
 import { onMount } from 'svelte';
+import X from '@lucide/svelte/icons/x';
+import Inbox from '@lucide/svelte/icons/inbox';
+import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
 import type {
   ActivityLogEntry as ActivityLogEntryType,
   ManualReviewData,
@@ -8,7 +11,6 @@ import type {
 } from '../../shared/types';
 import ActivityLogEntry from '../components/ActivityLogEntry.svelte';
 import AnalyzeSection from '../components/AnalyzeSection.svelte';
-import CollapsibleSection from '../components/CollapsibleSection.svelte';
 import ManualReviewPanel from '../components/ManualReviewPanel.svelte';
 import {
   approvePendingListing,
@@ -20,6 +22,13 @@ import {
 } from '../lib/messages';
 import type { PopupSettings } from '../lib/storage';
 import { clearActivityLog, clearQueue, loadQueue, saveAllSettings } from '../lib/storage';
+import { Button } from '$lib/components/ui/button';
+import { Input } from '$lib/components/ui/input';
+import { Label } from '$lib/components/ui/label';
+import * as Select from '$lib/components/ui/select';
+import EmptyState from '$lib/components/EmptyState.svelte';
+import Section from '$lib/components/Section.svelte';
+import { cn } from '$lib/utils';
 
 let {
   settings = $bindable(),
@@ -56,7 +65,6 @@ const STICK_TO_BOTTOM_PX = 10;
 let logBoxEl: HTMLDivElement | undefined = $state();
 let manualReview = $state<ManualReviewData | null>(null);
 
-// Load manual review data on mount and poll for changes
 onMount(() => {
   getManualReview()
     .then((r) => {
@@ -73,21 +81,28 @@ onMount(() => {
   return () => clearInterval(interval);
 });
 
-// Queue state
 type StatusKind = '' | 'error' | 'success' | 'muted';
 let captureStatus = $state('');
-let captureStatusKind: StatusKind = $state('');
+let captureStatusKind = $state<StatusKind>('');
 let captureBtnText = $state('Capture');
 let captureBtnDisabled = $state(false);
-let queueOpen = $derived(queue.length > 0);
-let queueTitle = $derived(`Queue (${queue.length} pending)`);
+
+let queueOpen = $state(false);
+let pendingOpen = $state(true);
+let analyzeOpen = $state(false);
+
+let queueAutoOpened = false;
+$effect(() => {
+  if (!queueAutoOpened && queue.length > 0) {
+    queueOpen = true;
+    queueAutoOpened = true;
+  }
+});
+
 let newUrlInput = $state('');
 
-// Auto-scroll activity log when entries change, but only if user is already at the bottom.
-// If they've scrolled up to read older entries, leave them alone.
 let stickToBottom = true;
 $effect(() => {
-  // Track entry count so this effect re-runs on append.
   void activityLog.length;
   if (logBoxEl && stickToBottom) {
     logBoxEl.scrollTop = logBoxEl.scrollHeight;
@@ -117,22 +132,6 @@ function addSearchUrl() {
 function removeSearchUrl(index: number) {
   settings.searchUrls = settings.searchUrls.filter((_: string, i: number) => i !== index);
   autoSave();
-}
-
-async function handleCheckIntervalChange() {
-  await autoSave();
-  // If monitoring, update the alarm interval
-  try {
-    const status = await chrome.runtime.sendMessage({ action: 'getStatus' });
-    if (status.isMonitoring) {
-      await chrome.runtime.sendMessage({
-        action: 'updateInterval',
-        interval: settings.checkInterval || 60,
-      });
-    }
-  } catch {
-    /* ignore */
-  }
 }
 
 function showTestResult(content: string, isError = false) {
@@ -170,7 +169,7 @@ async function handleCapture() {
     }
 
     captureBtnDisabled = true;
-    captureBtnText = 'Capturing...';
+    captureBtnText = 'Capturing…';
     captureStatus = '';
 
     let listings: any[];
@@ -219,7 +218,7 @@ async function handleProcess() {
       await stopQueueProcessing();
       queueProgressLines = [
         ...queueProgressLines,
-        { text: 'Stop requested \u2014 finishing current listing...', type: 'wait' },
+        { text: 'Stop requested — finishing current listing…', type: 'wait' },
       ];
       isQueueProcessing = false;
     } catch (e: any) {
@@ -233,7 +232,7 @@ async function handleProcess() {
     const response = await startQueueProcessing();
     if (response?.success) {
       isQueueProcessing = true;
-      queueProgressLines = [{ text: 'Queue processing started...', type: 'header' }];
+      queueProgressLines = [{ text: 'Queue processing started…', type: 'header' }];
     } else {
       queueProgressLines = [{ text: `Could not start: ${response?.error || 'Unknown error'}`, type: 'result-failed' }];
     }
@@ -259,431 +258,220 @@ async function handleClearActivity() {
   await clearActivityLog();
   activityLog = [];
 }
+
+const captureStatusClass = $derived(
+  captureStatusKind === 'error'
+    ? 'text-destructive'
+    : captureStatusKind === 'success'
+      ? 'text-success'
+      : 'text-muted-foreground',
+);
+
+const sendModeOptions = [
+  { value: 'auto', label: 'Auto (fill + submit)' },
+  { value: 'manual', label: 'Manual (fill only)' },
+];
 </script>
 
-<div class="field">
-  <label for="newSearchUrl">Search URLs</label>
-  {#if settings.searchUrls.length > 0}
-    <div class="search-url-list">
-      {#each settings.searchUrls as url, i}
-        <div class="search-url-item">
-          <span class="search-url-text" title={url}>{url.length > 50 ? url.substring(0, 50) + '...' : url}</span>
-          <button class="search-url-remove" onclick={() => removeSearchUrl(i)} title="Remove">&times;</button>
-        </div>
-      {/each}
+<div class="space-y-3">
+  <div class="space-y-1.5">
+    <Label for="newSearchUrl">Search URLs</Label>
+    {#if settings.searchUrls.length > 0}
+      <div class="space-y-1">
+        {#each settings.searchUrls as url, i}
+          <div class="flex items-center justify-between gap-1.5 rounded bg-muted px-2 py-1 text-[11px]">
+            <span class="flex-1 truncate text-foreground/70" title={url}>
+              {url.length > 50 ? url.substring(0, 50) + '…' : url}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              class="text-muted-foreground hover:text-destructive"
+              aria-label="Remove URL"
+              onclick={() => removeSearchUrl(i)}
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+        {/each}
+      </div>
+    {/if}
+    <div class="flex items-stretch gap-1.5">
+      <Input
+        type="url"
+        id="newSearchUrl"
+        bind:value={newUrlInput}
+        placeholder="https://www.immobilienscout24.de/Suche/…"
+        class="flex-1"
+        onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') addSearchUrl(); }}
+      />
+      <Button onclick={addSearchUrl} disabled={!newUrlInput.trim()}>Add</Button>
     </div>
-  {/if}
-  <div class="search-url-add">
-    <input
-      type="url"
-      id="newSearchUrl"
-      bind:value={newUrlInput}
-      placeholder="https://www.immobilienscout24.de/Suche/..."
-      onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') addSearchUrl(); }}
-    />
-    <button class="btn btn-test" onclick={addSearchUrl} disabled={!newUrlInput.trim()}>Add</button>
+    <p class="text-xs text-muted-foreground m-0">Add one or more ImmoScout24 search URLs. Monitoring cycles through them round-robin.</p>
   </div>
-  <div class="hint">Add one or more ImmoScout24 search URLs. Monitoring cycles through them round-robin.</div>
+
+  <div class="space-y-1.5">
+    <Label for="autoSendMode">Send Mode</Label>
+    <Select.Root type="single" bind:value={settings.autoSendMode} onValueChange={autoSave}>
+      <Select.Trigger id="autoSendMode" class="w-full">
+        {sendModeOptions.find((o) => o.value === settings.autoSendMode)?.label ?? 'Auto (fill + submit)'}
+      </Select.Trigger>
+      <Select.Content>
+        {#each sendModeOptions as opt}
+          <Select.Item value={opt.value}>{opt.label}</Select.Item>
+        {/each}
+      </Select.Content>
+    </Select.Root>
+  </div>
 </div>
 
-<div class="field">
-  <label for="autoSendMode">Send Mode</label>
-  <select id="autoSendMode" bind:value={settings.autoSendMode} onchange={autoSave}>
-    <option value="auto">Auto (fill + submit)</option>
-    <option value="manual">Manual (fill only)</option>
-  </select>
-</div>
-
-<!-- Manual Review Panel -->
 {#if manualReview}
   <ManualReviewPanel review={manualReview} onDismiss={() => { manualReview = null; }} />
 {/if}
 
-<!-- Pending Approval Section -->
 {#if pendingApproval.length > 0}
-<CollapsibleSection title={`Needs Approval (${pendingApproval.length})`} open={true}>
-  <div class="pending-list">
-    {#each pendingApproval as item}
-      {@const url = item.url || `https://www.immobilienscout24.de/expose/${item.id}`}
-      <div class="pending-item">
-        <div class="pending-title">
-          <a href={url} target="_blank" rel="noopener noreferrer" class="pending-id" title="Open listing">#{item.id}</a>
-          {item.title || '—'}
-        </div>
-        <div class="pending-actions">
-          <button class="btn-approve" onclick={() => handleApprove(item)}>Approve</button>
-          <button class="btn-skip" onclick={() => handleSkipPending(item.id)}>Skip</button>
-        </div>
+  <CollapsibleSection title="Needs Approval ({pendingApproval.length})" bind:open={pendingOpen}>
+      <div class="flex flex-col gap-2">
+        {#each pendingApproval as item}
+          {@const url = item.url || `https://www.immobilienscout24.de/expose/${item.id}`}
+          <div class="rounded-md border border-border bg-background p-3">
+            <div class="mb-2 text-xs leading-snug text-foreground break-words">
+              <a href={url} target="_blank" rel="noopener noreferrer" class="mr-1 text-muted-foreground no-underline hover:underline" title="Open listing">#{item.id}</a>
+              {item.title || '—'}
+            </div>
+            <div class="flex items-stretch gap-2">
+              <Button class="flex-1" onclick={() => handleApprove(item)}>Approve</Button>
+              <Button variant="outline" onclick={() => handleSkipPending(item.id)}>Skip</Button>
+            </div>
+          </div>
+        {/each}
       </div>
-    {/each}
-  </div>
-</CollapsibleSection>
+  </CollapsibleSection>
 {/if}
 
-<!-- Queue Section -->
-<CollapsibleSection title={queueTitle} open={queueOpen}>
-  <div class="queue-controls">
-    <button
-      class="btn btn-test btn-capture"
-      disabled={captureBtnDisabled || isQueueProcessing}
-      aria-busy={captureBtnDisabled || isQueueProcessing}
-      onclick={handleCapture}
-    >
-      + {captureBtnText}
-    </button>
-  </div>
-
-  {#if captureStatus}
-    <div class="capture-status capture-status-{captureStatusKind}">{captureStatus}</div>
-  {/if}
-
-  {#if queue.length === 0}
-    <div class="empty-state">
-      <div class="empty-state-headline">Queue is empty</div>
-      <div class="empty-state-sub">Capture listings from a search page to add them here.</div>
-    </div>
-  {:else}
-    <div class="queue-list">
-      {#each queue as item, i}
-        {@const title = item.title ? (item.title.length > 45 ? item.title.substring(0, 45) + '...' : item.title) : 'Untitled'}
-        {@const id = item.id || '?'}
-        {@const url = item.url || `https://www.immobilienscout24.de/expose/${id}`}
-        <div class="queue-item" class:bordered={i < queue.length - 1}>
-          {i + 1}.
-          <a href={url} target="_blank" rel="noopener noreferrer" style="color:#888; text-decoration:none;" title="Open listing">({id})</a>
-          {' '}{title}
-          {#if item.source}
-            <span class="queue-source">({item.source})</span>
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {/if}
-
-  {#if queueProgressLines.length > 0}
-    <div class="queue-progress">
-      {#each queueProgressLines as line}
-        <div class="queue-progress-line {line.type}">{line.text}</div>
-      {/each}
-    </div>
-  {/if}
-
-  <div class="queue-actions">
-    {#if !isMonitoring}
-      <button
-        class="btn {isQueueProcessing ? 'btn-secondary' : 'btn-test'}"
-        onclick={handleProcess}
+<CollapsibleSection title="Queue ({queue.length} pending)" bind:open={queueOpen}>
+  <div class="space-y-2">
+    <div>
+      <Button
+        size="sm"
+        loading={captureBtnDisabled || isQueueProcessing}
+        disabled={captureBtnDisabled || isQueueProcessing}
+        onclick={handleCapture}
       >
-        {isQueueProcessing ? '\u23F9 Stop Processing' : '\u25B6 Process Queue'}
-      </button>
+        + {captureBtnText}
+      </Button>
+    </div>
+
+    {#if captureStatus}
+      <div class={cn('text-xs', captureStatusClass)} role="status">{captureStatus}</div>
     {/if}
-    <button class="btn btn-secondary" onclick={handleClearQueue}>Clear</button>
+
+    {#if queue.length === 0}
+      <EmptyState
+        icon={Inbox}
+        title="Queue is empty"
+        sub="Capture listings from a search page to add them here."
+      />
+    {:else}
+      <div class="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/40 px-2.5 py-2 text-[11px]">
+        {#each queue as item, i}
+          {@const title = item.title ? (item.title.length > 45 ? item.title.substring(0, 45) + '…' : item.title) : 'Untitled'}
+          {@const id = item.id || '?'}
+          {@const url = item.url || `https://www.immobilienscout24.de/expose/${id}`}
+          <div class={cn('py-0.5', i < queue.length - 1 && 'border-b border-border')}>
+            {i + 1}.
+            <a href={url} target="_blank" rel="noopener noreferrer" class="text-muted-foreground no-underline hover:underline" title="Open listing">({id})</a>
+            {' '}{title}
+            {#if item.source}
+              <span class="text-[10px] italic text-muted-foreground/70">({item.source})</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    {#if queueProgressLines.length > 0}
+      <div class="max-h-32 overflow-y-auto rounded-md border border-border bg-muted/40 px-2.5 py-2 text-[11px]">
+        {#each queueProgressLines as line}
+          {@const cls =
+            line.type === 'header'
+              ? 'font-semibold text-foreground'
+              : line.type === 'result-success'
+                ? 'text-success'
+                : line.type === 'result-failed'
+                  ? 'text-destructive'
+                  : line.type === 'wait'
+                    ? 'italic text-muted-foreground'
+                    : 'text-foreground/70'}
+          <div class={cn('py-0.5', cls)}>{line.text}</div>
+        {/each}
+      </div>
+    {/if}
+
+    <div class="flex gap-2">
+      {#if !isMonitoring}
+        <Button
+          class="flex-1"
+          variant={isQueueProcessing ? 'secondary' : 'default'}
+          onclick={handleProcess}
+        >
+          {isQueueProcessing ? '⏹ Stop Processing' : '▶ Process Queue'}
+        </Button>
+      {/if}
+      <Button class="flex-1" variant="secondary" onclick={handleClearQueue}>Clear</Button>
+    </div>
   </div>
 </CollapsibleSection>
 
-<!-- Activity Log -->
-<div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
-  <span>Activity Log</span>
-  <button class="btn-clear-log" onclick={handleClearActivity}>Clear</button>
-</div>
+<Section title="Activity Log">
+  {#snippet actions()}
+    <Button variant="ghost" size="xs" class="text-muted-foreground" onclick={handleClearActivity}>
+      Clear
+    </Button>
+  {/snippet}
 
-{#if activityLog.length === 0}
-  <div class="empty-state">
-    <div class="empty-state-headline">No activity yet</div>
-    <div class="empty-state-sub">Listings the extension processes will show up here.</div>
-  </div>
-{:else}
-  <div class="activity-log-box" bind:this={logBoxEl} onscroll={handleLogScroll}>
-    {#each activityLog as entry}
-      <ActivityLogEntry {entry} />
-    {/each}
-  </div>
-{/if}
-
-<!-- Analyze Current Listing -->
-<CollapsibleSection title="Analyze Current Listing">
-  <AnalyzeSection
-    {settings}
-    bind:testResultVisible
-    bind:testResultContent
-    bind:testResultIsError
-    bind:analyzeResult
-    bind:lastAnalyzeContext
-    {appendToResult}
-    {showTestResult}
-  />
-
-  {#if testResultVisible}
-    <div class="test-result" class:test-result-error={testResultIsError} class:test-result-success={!testResultIsError}>
-      <pre class="test-result-content">{testResultContent}</pre>
+  {#if activityLog.length === 0}
+    <EmptyState
+      title="No activity yet"
+      sub="Listings the extension processes will show up here."
+    />
+  {:else}
+    <div
+      class="max-h-52 overflow-y-auto rounded-md border border-border bg-muted/40 p-2.5 text-[11px]"
+      bind:this={logBoxEl}
+      onscroll={handleLogScroll}
+      aria-live="polite"
+      aria-relevant="additions"
+    >
+      {#each activityLog as entry}
+        <ActivityLogEntry {entry} />
+      {/each}
     </div>
   {/if}
+</Section>
+
+<CollapsibleSection title="Analyze Current Listing" bind:open={analyzeOpen}>
+    <AnalyzeSection
+      {settings}
+      bind:testResultVisible
+      bind:testResultContent
+      bind:testResultIsError
+      bind:analyzeResult
+      bind:lastAnalyzeContext
+      {appendToResult}
+      {showTestResult}
+    />
+
+    {#if testResultVisible}
+      <div
+        class={cn(
+          'mt-3 max-h-48 overflow-y-auto rounded-md border p-3',
+          testResultIsError
+            ? 'border-destructive/40 bg-destructive/10'
+            : 'border-success/40 bg-success/10',
+        )}
+      >
+        <pre class="m-0 whitespace-pre-wrap break-words font-mono text-[11px]">{testResultContent}</pre>
+      </div>
+    {/if}
 </CollapsibleSection>
-
-<style>
-  .activity-log-box {
-    background: #fafafa;
-    border: 1px solid #eee;
-    border-radius: 6px;
-    padding: 10px;
-    max-height: 200px;
-    overflow-y: auto;
-    font-size: 11px;
-    margin-bottom: 8px;
-  }
-
-  .test-result {
-    margin-top: 12px;
-    padding: 12px;
-    border-radius: 6px;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg-subtle);
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .test-result-error {
-    border-color: var(--color-danger-fg);
-    background: var(--color-danger-bg);
-  }
-
-  .test-result-success {
-    border-color: var(--color-success-fg);
-    background: var(--color-success-bg);
-  }
-
-  .test-result-content {
-    font-size: 11px;
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-family: 'SF Mono', Monaco, monospace;
-    margin: 0;
-  }
-
-  /* Queue styles */
-  .queue-controls {
-    margin-bottom: 8px;
-  }
-
-  .btn-capture {
-    width: auto;
-    padding: 6px 14px;
-    font-size: 12px;
-    margin-top: 0;
-  }
-
-  .capture-status {
-    font-size: var(--text-sm);
-    margin-bottom: var(--space-2);
-  }
-
-  .capture-status-error { color: var(--color-danger-fg); }
-  .capture-status-success { color: var(--color-success-fg); }
-  .capture-status-muted { color: var(--color-text-muted); }
-
-  .queue-list {
-    background: #fafafa;
-    border: 1px solid #eee;
-    border-radius: 6px;
-    padding: 8px 10px;
-    max-height: 200px;
-    overflow-y: auto;
-    font-size: 11px;
-    margin-bottom: 8px;
-  }
-
-  .queue-item {
-    padding: 3px 0;
-  }
-
-  .queue-item.bordered {
-    border-bottom: 1px solid #eee;
-  }
-
-  .queue-source {
-    color: #aaa;
-    font-size: 10px;
-    font-style: italic;
-  }
-
-  .queue-actions {
-    display: flex;
-    gap: 8px;
-  }
-
-  .queue-actions .btn {
-    flex: 1;
-  }
-
-  .queue-progress {
-    background: #fafafa;
-    border: 1px solid #eee;
-    border-radius: 6px;
-    padding: 8px 10px;
-    max-height: 120px;
-    overflow-y: auto;
-    font-size: 11px;
-    margin-bottom: 8px;
-  }
-
-  .queue-progress-line {
-    padding: 2px 0;
-    color: #555;
-  }
-
-  .queue-progress-line.header {
-    font-weight: 600;
-    color: #333;
-  }
-
-  .queue-progress-line.result-success {
-    color: #28a745;
-  }
-
-  .queue-progress-line.result-failed {
-    color: #dc3545;
-  }
-
-  .queue-progress-line.wait {
-    color: #888;
-    font-style: italic;
-  }
-
-  .btn-clear-log {
-    background: none;
-    border: none;
-    color: #999;
-    font-size: 11px;
-    cursor: pointer;
-    padding: 2px 6px;
-  }
-
-  .btn-clear-log:hover {
-    color: #666;
-  }
-
-  /* Multi-URL styles */
-  .search-url-list {
-    margin-bottom: 6px;
-  }
-
-  .search-url-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 4px 8px;
-    background: #f5f5f5;
-    border-radius: 4px;
-    margin-bottom: 4px;
-    font-size: 11px;
-  }
-
-  .search-url-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-    color: #555;
-  }
-
-  .search-url-remove {
-    background: none;
-    border: none;
-    color: #999;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 0 4px;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-
-  .search-url-remove:hover {
-    color: #e53e3e;
-  }
-
-  .search-url-add {
-    display: flex;
-    gap: 6px;
-    align-items: stretch;
-  }
-
-  .search-url-add input {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .search-url-add :global(.btn) {
-    flex-shrink: 0;
-    width: auto;
-    margin-top: 0;
-  }
-
-  .pending-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
-  .pending-item {
-    padding: var(--space-3);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-bg);
-  }
-
-  .pending-title {
-    font-size: var(--text-sm);
-    line-height: 1.4;
-    color: var(--color-text);
-    margin-bottom: var(--space-2);
-    word-break: break-word;
-  }
-
-  .pending-id {
-    color: var(--color-text-subtle);
-    text-decoration: none;
-    margin-right: 4px;
-  }
-
-  .pending-id:hover {
-    text-decoration: underline;
-  }
-
-  .pending-actions {
-    display: flex;
-    gap: var(--space-2);
-    align-items: stretch;
-  }
-
-  .btn-approve {
-    flex: 1;
-    background: var(--color-brand);
-    color: var(--color-text);
-    border: none;
-    border-radius: var(--radius-md);
-    padding: 10px;
-    font-size: var(--text-base);
-    font-weight: 600;
-    cursor: pointer;
-    transition: background var(--transition-fast);
-  }
-
-  .btn-approve:hover {
-    background: var(--color-brand-hover);
-  }
-
-  .btn-skip {
-    background: none;
-    color: var(--color-text-muted);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 10px var(--space-4);
-    font-size: var(--text-sm);
-    cursor: pointer;
-    transition: background var(--transition-fast);
-  }
-
-  .btn-skip:hover {
-    background: var(--color-bg-subtle);
-  }
-</style>

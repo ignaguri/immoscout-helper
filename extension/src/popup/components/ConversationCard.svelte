@@ -1,4 +1,5 @@
 <script lang="ts">
+import Trash2 from '@lucide/svelte/icons/trash-2';
 import { error } from '../../shared/logger';
 import type { ConversationEntry, ExportFormat, SavedSnapshotMeta } from '../../shared/types';
 import {
@@ -10,6 +11,10 @@ import {
 import AppointmentSection from './AppointmentSection.svelte';
 import ConversationMessages from './ConversationMessages.svelte';
 import DraftReplySection from './DraftReplySection.svelte';
+import { APPOINTMENT_STATUS_TONES } from '../lib/tone';
+import { Button } from '$lib/components/ui/button';
+import { Badge } from '$lib/components/ui/badge';
+import { cn } from '$lib/utils';
 
 let {
   conversation,
@@ -99,7 +104,6 @@ async function handleDelete(e: Event) {
 
 let hasUnread = $state(false);
 
-// Sync from conversation prop
 $effect(() => {
   hasUnread = conversation.hasUnreadReply;
 });
@@ -116,7 +120,6 @@ function handleHeaderClick() {
   }
 }
 
-// Computed values
 let lastMsg = $derived(
   conversation.lastMessagePreview ||
     (conversation.messages.length > 0 ? conversation.messages[conversation.messages.length - 1].text : ''),
@@ -132,71 +135,97 @@ let timeStr = $derived(
       })
     : '',
 );
+
 </script>
 
-<div class="conv-card" class:unread={hasUnread}>
-  <!-- Header (always visible) -->
+<div
+  class={cn(
+    'overflow-hidden rounded-lg border bg-background',
+    hasUnread
+      ? 'border-l-[3px] border-l-destructive border-y-border border-r-border'
+      : 'border-border',
+  )}
+>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="conv-header" onclick={handleHeaderClick} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleHeaderClick(); } }} role="button" tabindex="0">
+  <div
+    class="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+    onclick={handleHeaderClick}
+    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleHeaderClick(); } }}
+    role="button"
+    tabindex="0"
+    aria-expanded={isExpanded}
+  >
     {#if hasUnread}
-      <span class="unread-dot"></span>
+      <span class="size-2 shrink-0 rounded-full bg-destructive" aria-label="Unread"></span>
     {/if}
-    <div class="conv-header-content">
-      <div class="conv-landlord">{conversation.landlordName || 'Unknown'}</div>
+    <div class="min-w-0 flex-1">
+      <div class="truncate text-xs font-semibold text-foreground">{conversation.landlordName || 'Unknown'}</div>
       {#if conversation.referenceId}
-        <a class="conv-listing" href="https://www.immobilienscout24.de/expose/{conversation.referenceId}" target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()}>
+        <a
+          class="block truncate text-[11px] text-muted-foreground no-underline hover:text-primary hover:underline"
+          href="https://www.immobilienscout24.de/expose/{conversation.referenceId}"
+          target="_blank"
+          rel="noopener noreferrer"
+          onclick={(e) => e.stopPropagation()}
+        >
           {conversation.listingTitle || `Expose ${conversation.referenceId}`}
         </a>
       {:else if conversation.listingTitle}
-        <div class="conv-listing">{conversation.listingTitle}</div>
+        <div class="truncate text-[11px] text-muted-foreground">{conversation.listingTitle}</div>
       {/if}
-      {#if snapshot}
-        <span class="snap-badge" title="Saved {snapshotDateStr(snapshot)} ({snapshot.imageCount} images)">📦 Saved</span>
-      {/if}
-      {#if conversation.appointment && conversation.appointmentStatus}
-        {@const apptStartRaw = conversation.appointment.start ? new Date(conversation.appointment.start) : null}
-        {@const apptStart = apptStartRaw && !Number.isNaN(apptStartRaw.getTime()) ? apptStartRaw : null}
-        {@const isPast = apptStart ? apptStart < new Date() : false}
-        {@const apptBadgeLabels: Record<string, string> = {
-          pending: '📅 Viewing pending',
-          accepted: isPast ? '✓ Visit done' : '📅 Visit upcoming',
-          rejected: '✗ Visit rejected',
-          alternative_requested: '↺ Alternative requested',
-        }}
-        {@const apptBadgeColors: Record<string, string> = {
-          pending: '#e8eaff',
-          accepted: isPast ? '#e0e0e0' : '#d4edda',
-          rejected: '#f8d7da',
-          alternative_requested: '#fff3cd',
-        }}
-        <span class="appt-badge" style="background: {apptBadgeColors[conversation.appointmentStatus] || '#f0f0f0'}; {isPast && conversation.appointmentStatus === 'accepted' ? 'color: #888;' : ''}">
-          {apptBadgeLabels[conversation.appointmentStatus] || conversation.appointmentStatus}
-        </span>
-      {/if}
-      <div class="conv-preview">{preview}</div>
+      <div class="mt-1 flex flex-wrap gap-1">
+        {#if snapshot}
+          <Badge variant="success" class="text-[10px]" title="Saved {snapshotDateStr(snapshot)} ({snapshot.imageCount} images)">📦 Saved</Badge>
+        {/if}
+        {#if conversation.appointment && conversation.appointmentStatus}
+          {@const apptStartRaw = conversation.appointment.start ? new Date(conversation.appointment.start) : null}
+          {@const apptStart = apptStartRaw && !Number.isNaN(apptStartRaw.getTime()) ? apptStartRaw : null}
+          {@const isPast = apptStart ? apptStart < new Date() : false}
+          {@const apptBadgeLabels: Record<string, string> = {
+            pending: '📅 Viewing pending',
+            accepted: isPast ? '✓ Visit done' : '📅 Visit upcoming',
+            rejected: '✗ Visit rejected',
+            alternative_requested: '↺ Alternative requested',
+          }}
+          {@const tone = isPast && conversation.appointmentStatus === 'accepted' ? 'secondary' : APPOINTMENT_STATUS_TONES[conversation.appointmentStatus] || 'secondary'}
+          <Badge variant={tone} class="text-[10px]">
+            {apptBadgeLabels[conversation.appointmentStatus] || conversation.appointmentStatus}
+          </Badge>
+        {/if}
+      </div>
+      <div class="mt-1 text-[10px] text-muted-foreground/70">{preview}</div>
     </div>
-    <div class="conv-time">{timeStr}</div>
+    <div class="shrink-0 text-[10px] text-muted-foreground/70">{timeStr}</div>
   </div>
 
-  <!-- Body (expanded) -->
   {#if isExpanded}
-    <div class="conv-body">
+    <div class="border-t border-border px-3 py-2.5">
       {#if conversation.referenceId}
-        <div class="snap-row">
+        <div class="mb-2 flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-muted/40 p-2">
           {#if snapshot}
-            <span class="snap-summary">📦 {snapshot.imageCount} images · {snapshotDateStr(snapshot)}</span>
-            <button class="snap-btn" onclick={handleView}>View</button>
-            <button class="snap-btn" disabled={exportBusy} onclick={(e) => handleExport(e, 'html')}>HTML</button>
-            <button class="snap-btn" disabled={exportBusy} onclick={(e) => handleExport(e, 'pdf')}>PDF</button>
-            <button class="snap-btn" disabled={exportBusy} onclick={(e) => handleExport(e, 'zip')}>ZIP</button>
-            <button class="snap-btn snap-delete" disabled={deleteBusy} onclick={handleDelete} title="Delete snapshot">🗑</button>
+            <span class="mr-1 text-[11px] text-muted-foreground">📦 {snapshot.imageCount} images · {snapshotDateStr(snapshot)}</span>
+            <Button variant="outline" size="xs" onclick={handleView}>View</Button>
+            <Button variant="outline" size="xs" disabled={exportBusy} onclick={(e) => handleExport(e, 'html')}>HTML</Button>
+            <Button variant="outline" size="xs" disabled={exportBusy} onclick={(e) => handleExport(e, 'pdf')}>PDF</Button>
+            <Button variant="outline" size="xs" disabled={exportBusy} onclick={(e) => handleExport(e, 'zip')}>ZIP</Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              class="text-destructive hover:bg-destructive/10"
+              disabled={deleteBusy}
+              aria-label="Delete snapshot"
+              title="Delete snapshot"
+              onclick={handleDelete}
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
           {:else}
-            <button class="snap-btn snap-save" disabled={saveBusy} onclick={handleSaveSnapshot}>
+            <Button size="xs" loading={saveBusy} disabled={saveBusy} onclick={handleSaveSnapshot}>
               {saveBusy ? 'Saving…' : '📦 Save snapshot'}
-            </button>
+            </Button>
           {/if}
           {#if saveStatus}
-            <span class="snap-status">{saveStatus}</span>
+            <span class="ml-auto text-[11px] text-primary">{saveStatus}</span>
           {/if}
         </div>
       {/if}
@@ -206,162 +235,3 @@ let timeStr = $derived(
     </div>
   {/if}
 </div>
-
-<style>
-  .conv-card {
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    background: white;
-    overflow: hidden;
-  }
-
-  .conv-card.unread {
-    border-left-color: #e74c3c;
-    border-left-width: 3px;
-  }
-
-  .conv-header {
-    padding: 10px 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .conv-header:hover {
-    background: #fafafa;
-  }
-
-  .unread-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #e74c3c;
-    flex-shrink: 0;
-  }
-
-  .conv-header-content {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .conv-landlord {
-    font-size: 12px;
-    font-weight: 600;
-    color: #333;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .conv-listing {
-    font-size: 11px;
-    color: #888;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-decoration: none;
-    display: block;
-  }
-
-  a.conv-listing:hover {
-    color: #3dbda8;
-    text-decoration: underline;
-  }
-
-  .appt-badge {
-    display: inline-block;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-top: 3px;
-    color: #333;
-    font-weight: 500;
-  }
-
-  .conv-preview {
-    font-size: 10px;
-    color: #aaa;
-    margin-top: 2px;
-  }
-
-  .conv-time {
-    font-size: 10px;
-    color: #bbb;
-    flex-shrink: 0;
-  }
-
-  .conv-body {
-    border-top: 1px solid #eee;
-    padding: 10px 12px;
-  }
-
-  .snap-badge {
-    display: inline-block;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-top: 3px;
-    margin-left: 4px;
-    color: #22533c;
-    background: #d6f5e6;
-    font-weight: 500;
-  }
-
-  .snap-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    padding: 8px;
-    margin-bottom: 8px;
-    background: #fafafa;
-    border: 1px solid #eee;
-    border-radius: 6px;
-  }
-
-  .snap-summary {
-    font-size: 11px;
-    color: #555;
-    margin-right: 4px;
-  }
-
-  .snap-btn {
-    border: 1px solid #ddd;
-    background: white;
-    border-radius: 5px;
-    padding: 4px 8px;
-    font-size: 11px;
-    cursor: pointer;
-    color: #333;
-  }
-
-  .snap-btn:hover:not(:disabled) {
-    background: #f0f0f0;
-  }
-
-  .snap-btn:disabled {
-    opacity: 0.6;
-    cursor: wait;
-  }
-
-  .snap-btn.snap-save {
-    background: #3dbda8;
-    color: white;
-    border-color: #3dbda8;
-  }
-
-  .snap-btn.snap-save:hover:not(:disabled) {
-    background: #34a690;
-  }
-
-  .snap-btn.snap-delete {
-    color: #c0392b;
-  }
-
-  .snap-status {
-    font-size: 11px;
-    color: #3dbda8;
-    margin-left: auto;
-  }
-</style>

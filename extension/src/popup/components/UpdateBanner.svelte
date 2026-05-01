@@ -1,7 +1,9 @@
 <script lang="ts">
 import { onMount } from 'svelte';
+import X from '@lucide/svelte/icons/x';
 import { UPDATE_AVAILABLE_KEY, UPDATE_DISMISSED_KEY } from '../../shared/constants';
 import type { UpdateInfo } from '../../shared/types';
+import { Button } from '$lib/components/ui/button';
 
 let updateInfo: UpdateInfo | null = $state(null);
 let dismissed = $state(false);
@@ -63,63 +65,28 @@ function openRelease() {
 </script>
 
 {#if updateInfo && !dismissed}
-  <div class="update-banner">
-    <span class="update-text">
+  <div
+    class="flex items-center justify-between gap-2 border-b border-warning/40 bg-warning/15 px-4 py-2 text-xs text-warning"
+    role="status"
+  >
+    <span class="flex flex-wrap items-center gap-1.5">
       v{updateInfo.version} available!
-      <button class="update-link" onclick={openRelease}>Download update</button>
+      <Button
+        variant="link"
+        size="xs"
+        class="h-auto p-0 font-semibold underline"
+        onclick={openRelease}
+      >
+        Download update
+      </Button>
     </span>
-    <button class="update-dismiss" onclick={dismiss} title="Dismiss">&times;</button>
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      aria-label="Dismiss update notification"
+      onclick={dismiss}
+    >
+      <X aria-hidden="true" />
+    </Button>
   </div>
 {/if}
-
-<style>
-  .update-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 16px;
-    background: #fef3c7;
-    border-bottom: 1px solid #f59e0b;
-    font-size: 12px;
-    color: #92400e;
-  }
-
-  .update-text {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  .update-link {
-    background: none;
-    border: none;
-    color: #d97706;
-    font-weight: 600;
-    font-size: 12px;
-    cursor: pointer;
-    padding: 0;
-    text-decoration: underline;
-    width: auto;
-  }
-
-  .update-link:hover {
-    color: #92400e;
-  }
-
-  .update-dismiss {
-    background: none;
-    border: none;
-    font-size: 16px;
-    color: #92400e;
-    cursor: pointer;
-    padding: 0 2px;
-    line-height: 1;
-    opacity: 0.6;
-    width: auto;
-  }
-
-  .update-dismiss:hover {
-    opacity: 1;
-  }
-</style>

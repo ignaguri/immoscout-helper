@@ -785,6 +785,12 @@ onMount(() => {
     gap: 12px;
   }
 
+  :global(.grid-2 .field label) {
+    display: flex;
+    align-items: flex-end;
+    min-height: 2.6em;
+  }
+
   /* Buttons */
   :global(.btn) {
     width: 100%;
@@ -922,14 +928,27 @@ onMount(() => {
     justify-content: space-between;
     cursor: pointer;
     user-select: none;
-    padding: 12px 0;
+    padding: 12px 8px;
     border-top: 1px solid #eee;
     margin-top: 16px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+
+  :global(.collapsible-header:hover) {
+    background: #f5f7f9;
   }
 
   :global(.collapsible-header .chevron) {
-    font-size: 10px;
-    color: #999;
+    display: inline-block;
+    font-size: 18px;
+    line-height: 1;
+    color: #555;
+    transition: transform 0.15s;
+  }
+
+  :global(.collapsible-header .chevron.open) {
+    transform: rotate(90deg);
   }
 
   :global(.collapsible-body) {

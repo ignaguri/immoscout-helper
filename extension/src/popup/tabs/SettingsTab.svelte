@@ -422,9 +422,16 @@ async function handleImport(e: Event) {
   </div>
 </div>
 
-<div class="field">
-  <label for="minDelay">Min Delay Between Messages (seconds)</label>
-  <input type="number" id="minDelay" bind:value={settings.minDelay} oninput={autoSave} onblur={autoSaveImmediate} min="10" max="300" />
+<div class="grid-2">
+  <div class="field">
+    <label for="minDelay">Min Delay Between Messages (seconds)</label>
+    <input type="number" id="minDelay" bind:value={settings.minDelay} oninput={autoSave} onblur={autoSaveImmediate} min="10" max="300" />
+  </div>
+  <div class="field">
+    <label for="aiMinScore">Min Score (1-10)</label>
+    <input type="number" id="aiMinScore" bind:value={settings.aiMinScore} oninput={autoSave} onblur={autoSaveImmediate} min="1" max="10" />
+    <div class="hint">Listings scoring below this will be skipped</div>
+  </div>
 </div>
 
 <label class="toggle-label" style="margin-top: 8px;">
@@ -433,7 +440,7 @@ async function handleImport(e: Event) {
 </label>
 <div class="hint">Premium users can message "coming soon" listings — enable to skip the automatic deferral</div>
 
-<div class="section-title">AI Scoring</div>
+<div class="section-title">AI Configuration</div>
 
 <div class="ai-settings-group">
   <div class="ai-status" class:connected={aiServerConnected} class:disconnected={!aiServerConnected}>
@@ -551,12 +558,6 @@ async function handleImport(e: Event) {
       <input type="url" id="aiServerUrl" bind:value={settings.aiServerUrl} oninput={autoSave} onblur={() => { autoSaveImmediate(); checkHealth(); }} placeholder="http://localhost:3456" />
     </div>
   {/if}
-
-  <div class="field">
-    <label for="aiMinScore">Min Score (1-10)</label>
-    <input type="number" id="aiMinScore" bind:value={settings.aiMinScore} oninput={autoSave} onblur={autoSaveImmediate} min="1" max="10" />
-    <div class="hint">Listings scoring below this will be skipped</div>
-  </div>
 
   <CollapsibleSection title="Message Style Guide" open={true}>
     <div class="field">

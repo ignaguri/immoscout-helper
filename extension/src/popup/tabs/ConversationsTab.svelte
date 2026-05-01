@@ -1,11 +1,16 @@
 <script lang="ts">
 import { onMount } from 'svelte';
+import Check from '@lucide/svelte/icons/check';
+import X from '@lucide/svelte/icons/x';
 import { SAVED_SNAPSHOTS_KEY } from '../../shared/constants';
 import { error } from '../../shared/logger';
 import type { ConversationEntry, SavedSnapshotMeta } from '../../shared/types';
 import ConversationCard from '../components/ConversationCard.svelte';
 import { checkRepliesNow } from '../lib/messages';
 import { loadConversations as loadConvStorage, loadSavedSnapshots } from '../lib/storage';
+import { Button } from '$lib/components/ui/button';
+import { Input } from '$lib/components/ui/input';
+import EmptyState from '$lib/components/EmptyState.svelte';
 
 let {
   conversations = $bindable(),
@@ -47,7 +52,6 @@ let searchQuery = $state('');
 let displayLimit = $state(10);
 const PAGE_SIZE = 10;
 
-// Sort and optionally filter conversations
 let relevantConversations = $derived(
   conversations
     .filter((c) => {
@@ -103,72 +107,85 @@ function handleBadgeDecrement() {
 }
 </script>
 
-<div class="search-wrap">
-  <input
+<div class="relative mb-3">
+  <Input
     type="text"
-    class="search-input"
-    placeholder="Search by name or address..."
+    placeholder="Search by name or address…"
     bind:value={searchQuery}
     oninput={() => { displayLimit = PAGE_SIZE; }}
+    class="pr-8"
   />
   {#if searchQuery}
-    <button class="search-clear" aria-label="Clear search" title="Clear search" onclick={() => { searchQuery = ''; displayLimit = PAGE_SIZE; }}>×</button>
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      class="absolute right-1 top-1/2 -translate-y-1/2"
+      aria-label="Clear search"
+      onclick={() => { searchQuery = ''; displayLimit = PAGE_SIZE; }}
+    >
+      <X aria-hidden="true" />
+    </Button>
   {/if}
 </div>
 
-<div class="conv-controls">
-  <button class="btn btn-test" disabled={checkBtnDisabled} onclick={handleCheckNow}>
+<div class="mb-3 flex flex-wrap items-center gap-2">
+  <Button size="sm" disabled={checkBtnDisabled} loading={checkBtnDisabled} onclick={handleCheckNow}>
     {checkBtnText}
-  </button>
-  <button
-    class="btn-filter"
-    class:active={unreadOnly}
-    onclick={() => { unreadOnly = !unreadOnly; displayLimit = PAGE_SIZE; }}
+  </Button>
+
+  <Button
+    variant={unreadOnly ? 'default' : 'outline'}
+    size="sm"
+    aria-pressed={unreadOnly}
     title="Show only unread conversations"
+    onclick={() => { unreadOnly = !unreadOnly; displayLimit = PAGE_SIZE; }}
   >
-    {#if unreadOnly}<span class="filter-check">✓</span>{/if}Unread{#if unreadFilterCount > 0} ({unreadFilterCount}){/if}
-  </button>
-  <button
-    class="btn-filter"
-    class:active={repliedOnly}
-    onclick={() => { repliedOnly = !repliedOnly; displayLimit = PAGE_SIZE; }}
+    {#if unreadOnly}<Check aria-hidden="true" />{/if}
+    Unread{#if unreadFilterCount > 0} ({unreadFilterCount}){/if}
+  </Button>
+
+  <Button
+    variant={repliedOnly ? 'default' : 'outline'}
+    size="sm"
+    aria-pressed={repliedOnly}
     title="Show only conversations where the landlord replied"
+    onclick={() => { repliedOnly = !repliedOnly; displayLimit = PAGE_SIZE; }}
   >
-    {#if repliedOnly}<span class="filter-check">✓</span>{/if}Replied{#if repliedFilterCount > 0} ({repliedFilterCount}){/if}
-  </button>
-  <button
-    class="btn-filter"
-    class:active={appointmentsOnly}
-    onclick={() => { appointmentsOnly = !appointmentsOnly; displayLimit = PAGE_SIZE; }}
+    {#if repliedOnly}<Check aria-hidden="true" />{/if}
+    Replied{#if repliedFilterCount > 0} ({repliedFilterCount}){/if}
+  </Button>
+
+  <Button
+    variant={appointmentsOnly ? 'default' : 'outline'}
+    size="sm"
+    aria-pressed={appointmentsOnly}
     title="Show only conversations with appointments"
+    onclick={() => { appointmentsOnly = !appointmentsOnly; displayLimit = PAGE_SIZE; }}
   >
-    {#if appointmentsOnly}<span class="filter-check">✓</span>{/if}📅{#if appointmentCount > 0} ({appointmentCount}){/if}
-  </button>
+    {#if appointmentsOnly}<Check aria-hidden="true" />{/if}
+    📅{#if appointmentCount > 0} ({appointmentCount}){/if}
+  </Button>
+
   {#if lastCheckStr}
-    <span class="last-check">{lastCheckStr}</span>
+    <span class="text-[11px] text-muted-foreground">{lastCheckStr}</span>
   {/if}
 </div>
 
 {#if relevantConversations.length === 0}
-  <div class="empty-state">
-    {#if searchQuery.trim()}
-      <div class="empty-state-headline">No matches</div>
-      <div class="empty-state-sub">No conversations match your search.</div>
-    {:else if unreadOnly || repliedOnly || appointmentsOnly}
-      <div class="empty-state-headline">No matches</div>
-      <div class="empty-state-sub">No conversations match the active filters.</div>
-    {:else}
-      <div class="empty-state-headline">No conversations yet</div>
-      <div class="empty-state-sub">Start monitoring to send messages — replies will appear here.</div>
-    {/if}
-  </div>
+  {#if searchQuery.trim()}
+    <EmptyState title="No matches" sub="No conversations match your search." />
+  {:else if unreadOnly || repliedOnly || appointmentsOnly}
+    <EmptyState title="No matches" sub="No conversations match the active filters." />
+  {:else}
+    <EmptyState title="No conversations yet" sub="Start monitoring to send messages — replies will appear here." />
+  {/if}
 {:else}
   {#if relevantConversations.length > PAGE_SIZE}
-    <div class="showing-count">
+    <div class="mb-2 text-[11px] text-muted-foreground">
       Showing {visibleConversations.length} of {relevantConversations.length} conversations
     </div>
   {/if}
-  <div class="conv-list">
+  <div class="flex flex-col gap-2">
     {#each visibleConversations as conv (conv.conversationId)}
       <ConversationCard
         conversation={conv}
@@ -181,121 +198,8 @@ function handleBadgeDecrement() {
     {/each}
   </div>
   {#if hasMore}
-    <button class="btn btn-secondary load-more" onclick={() => { displayLimit += PAGE_SIZE; }}>
+    <Button variant="secondary" class="mt-3 w-full" onclick={() => { displayLimit += PAGE_SIZE; }}>
       Load more
-    </button>
+    </Button>
   {/if}
 {/if}
-
-<style>
-  .conv-controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-  }
-
-  .conv-controls .btn {
-    width: auto;
-    padding: 8px 16px;
-    margin-top: 0;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .btn-filter {
-    padding: 6px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: #fff;
-    font-size: var(--text-sm);
-    cursor: pointer;
-    color: var(--color-text-muted);
-    white-space: nowrap;
-    transition: background var(--transition-fast), border-color var(--transition-fast);
-  }
-
-  .btn-filter.active {
-    background: var(--color-brand);
-    border-color: var(--color-brand-strong);
-    color: var(--color-text);
-    font-weight: 600;
-  }
-
-  .btn-filter:hover {
-    background: var(--color-bg-subtle);
-  }
-
-  .btn-filter.active:hover {
-    background: var(--color-brand-hover);
-  }
-
-  .filter-check {
-    margin-right: 4px;
-    font-weight: 700;
-  }
-
-  .last-check {
-    font-size: 11px;
-    color: #888;
-  }
-
-  .showing-count {
-    font-size: 11px;
-    color: #888;
-    margin-bottom: 8px;
-  }
-
-  .conv-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .load-more {
-    margin-top: 12px;
-  }
-
-  .search-wrap {
-    position: relative;
-    margin-bottom: 12px;
-  }
-
-  .search-input {
-    width: 100%;
-    padding: 7px 28px 7px 10px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 12px;
-    font-family: inherit;
-    color: #333;
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: #83F1DC;
-  }
-
-  .search-input::placeholder {
-    color: #aaa;
-  }
-
-  .search-clear {
-    position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    font-size: 16px;
-    color: #999;
-    cursor: pointer;
-    padding: 0 4px;
-    line-height: 1;
-  }
-
-  .search-clear:hover {
-    color: #555;
-  }
-</style>

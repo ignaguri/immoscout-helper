@@ -7,6 +7,10 @@ import {
   regenerateDraft,
   sendConversationReply,
 } from '../lib/messages';
+import { Button } from '$lib/components/ui/button';
+import { Textarea } from '$lib/components/ui/textarea';
+import { Input } from '$lib/components/ui/input';
+import { Label } from '$lib/components/ui/label';
 
 const DRAFT_WATCHDOG_MS = 90_000;
 
@@ -21,31 +25,27 @@ let {
 let draftText = $state('');
 let sendBtnText = $state('Send Reply');
 let sendBtnDisabled = $state(false);
-let sendBtnStyle = $state('');
+let sendBtnTone = $state<'default' | 'success' | 'destructive'>('default');
 let regenBtnText = $state('Generate');
 let regenBtnDisabled = $state(false);
 let localDraftError = $state<string | null>(null);
 let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Refine state
 let refineInput = $state('');
 let showRefineInput = $state(false);
 let refineBtnDisabled = $state(false);
 let refineBtnText = $state('Apply');
 
-// Docs form state
 let showDocsForm = $state(false);
 let docsAddress = $state('');
 let docsBtnText = $state('Generate');
 let docsBtnDisabled = $state(false);
 let docsStatus = $state<'idle' | 'success' | 'error'>('idle');
 
-// Default move-in date to 1st of next month
 const nextMonth = new Date();
 nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
 let moveInDate = $state(nextMonth.toISOString().split('T')[0]);
 
-// Sync draft text from conversation prop
 $effect(() => {
   draftText = conversation.draftReply || '';
   regenBtnText = conversation.draftReply ? 'Regenerate' : 'Generate';
@@ -53,8 +53,6 @@ $effect(() => {
   refineInput = '';
 });
 
-// Drive the watchdog off draftStatus so it also covers popup remount mid-generation.
-// Also clears local error when generation completes, and cleans up on unmount.
 $effect(() => {
   if (conversation.draftStatus === 'generating') {
     if (!watchdogTimer) startWatchdog();
@@ -67,7 +65,6 @@ $effect(() => {
   return clearWatchdog;
 });
 
-// Pre-fill docs address when the form is opened (tracked by conversationId to avoid overwriting edits)
 let lastPrefilledId = $state('');
 $effect(() => {
   if (showDocsForm && conversation.conversationId !== lastPrefilledId) {
@@ -83,24 +80,25 @@ async function handleSendReply() {
     return;
   }
   sendBtnDisabled = true;
-  sendBtnText = 'Opening...';
+  sendBtnText = 'Opening…';
+  sendBtnTone = 'default';
   try {
     const result = await sendConversationReply(conversation.conversationId, replyText);
     if (result.success) {
-      sendBtnText = 'Tab opened - review & send';
-      sendBtnStyle = 'background: #e6fff5;';
+      sendBtnText = 'Tab opened — review & send';
+      sendBtnTone = 'success';
     } else {
       sendBtnText = `Failed: ${result.error || 'unknown'}`;
-      sendBtnStyle = 'background: #fff5f5;';
+      sendBtnTone = 'destructive';
     }
   } catch (e: any) {
     sendBtnText = `Error: ${e.message}`;
-    sendBtnStyle = 'background: #fff5f5;';
+    sendBtnTone = 'destructive';
   }
   setTimeout(() => {
     sendBtnDisabled = false;
     sendBtnText = 'Send Reply';
-    sendBtnStyle = '';
+    sendBtnTone = 'default';
   }, 5000);
 }
 
@@ -122,7 +120,7 @@ function startWatchdog() {
 
 async function handleRegenerate() {
   regenBtnDisabled = true;
-  regenBtnText = 'Generating...';
+  regenBtnText = 'Generating…';
   draftText = '';
   localDraftError = null;
   try {
@@ -144,7 +142,7 @@ async function handleRegenerate() {
 async function handleRefine() {
   if (!refineInput.trim()) return;
   refineBtnDisabled = true;
-  refineBtnText = 'Applying...';
+  refineBtnText = 'Applying…';
   const userContext = `CURRENT DRAFT:\n${draftText}\n\nREFINEMENT INSTRUCTIONS:\n${refineInput.trim()}`;
   draftText = '';
   localDraftError = null;
@@ -182,7 +180,7 @@ function handleOpen() {
 
 async function handleGenerateDocs() {
   docsBtnDisabled = true;
-  docsBtnText = 'Generating...';
+  docsBtnText = 'Generating…';
   docsStatus = 'idle';
   try {
     const result = await generateDocuments(conversation.conversationId, docsAddress || '', moveInDate || '');
@@ -203,318 +201,141 @@ async function handleGenerateDocs() {
     docsStatus = 'idle';
   }, 5000);
 }
+
+const sendBtnVariant = $derived(
+  sendBtnTone === 'success' ? 'outline' : sendBtnTone === 'destructive' ? 'destructive' : 'default',
+);
+const sendBtnClass = $derived(
+  sendBtnTone === 'success' ? 'flex-1 border-success/40 bg-success/15 text-success' : 'flex-1',
+);
 </script>
 
-<div class="draft-section">
+<div class="mt-2">
   {#if conversation.draftStatus === 'generating'}
-    <div class="draft-generating">Generating AI draft...</div>
+    <div class="text-[11px] italic text-muted-foreground">Generating AI draft…</div>
     {#if localDraftError}
-      <div class="draft-error">
-        <div class="draft-error-msg">{localDraftError}</div>
-        <div class="draft-error-actions">
-          <button class="draft-btn regen" onclick={handleRegenerate}>Try again</button>
-          <button class="draft-btn" onclick={handleDismissError}>Write manually</button>
+      <div class="mt-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2">
+        <div class="mb-1.5 text-[11px] text-destructive break-words">{localDraftError}</div>
+        <div class="flex gap-1.5">
+          <Button size="sm" variant="secondary" onclick={handleRegenerate}>Try again</Button>
+          <Button size="sm" variant="ghost" onclick={handleDismissError}>Write manually</Button>
         </div>
       </div>
     {/if}
   {:else if conversation.draftStatus === 'error'}
-    <div class="draft-error">
-      <div class="draft-error-msg">{conversation.draftError || localDraftError || 'Failed to generate draft.'}</div>
-      <div class="draft-error-actions">
-        <button class="draft-btn regen" disabled={regenBtnDisabled} onclick={handleRegenerate}>Try again</button>
-        <button class="draft-btn" onclick={handleDismissError}>Write manually</button>
+    <div class="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2">
+      <div class="mb-1.5 text-[11px] text-destructive break-words">
+        {conversation.draftError || localDraftError || 'Failed to generate draft.'}
+      </div>
+      <div class="flex gap-1.5">
+        <Button size="sm" variant="secondary" loading={regenBtnDisabled} disabled={regenBtnDisabled} onclick={handleRegenerate}>Try again</Button>
+        <Button size="sm" variant="ghost" onclick={handleDismissError}>Write manually</Button>
       </div>
     </div>
   {:else}
-    <div class="draft-label">
+    <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
       {conversation.draftReply ? 'AI Draft Reply' : 'Write Reply'}
     </div>
-    <textarea
-      class="draft-textarea"
+    <Textarea
       bind:value={draftText}
-      placeholder={conversation.draftReply ? 'Edit the draft or send as-is...' : 'Type your reply or click Generate for an AI draft...'}
-    ></textarea>
-    <div class="draft-buttons">
-      <button class="draft-btn open" onclick={handleOpen}>Open</button>
-      <button
-        class="draft-btn regen"
-        disabled={regenBtnDisabled}
-        onclick={handleRegenerate}
-      >{regenBtnText}</button>
+      placeholder={conversation.draftReply ? 'Edit the draft or send as-is…' : 'Type your reply or click Generate for an AI draft…'}
+      class="min-h-20 text-[11px]"
+    />
+    <div class="mt-1.5 flex flex-wrap items-start gap-1.5">
+      <Button size="sm" variant="secondary" onclick={handleOpen}>Open</Button>
+      <Button size="sm" variant="secondary" loading={regenBtnDisabled} disabled={regenBtnDisabled} onclick={handleRegenerate}>
+        {regenBtnText}
+      </Button>
       {#if conversation.draftReply}
-        <button
-          class="draft-btn refine"
+        <Button
+          size="sm"
+          variant="secondary"
+          aria-expanded={showRefineInput}
           onclick={() => { showRefineInput = !showRefineInput; }}
-        >Refine</button>
+        >
+          Refine
+        </Button>
       {/if}
-      <button
-        class="draft-btn send"
+      <Button
+        size="sm"
+        variant={sendBtnVariant}
+        class={sendBtnClass}
+        loading={sendBtnDisabled}
         disabled={sendBtnDisabled}
-        style={sendBtnStyle}
         onclick={handleSendReply}
-      >{sendBtnText}</button>
+      >
+        {sendBtnText}
+      </Button>
     </div>
     {#if showRefineInput}
-      <div class="refine-area">
-        <textarea
-          class="refine-textarea"
+      <div class="mt-1.5 flex items-end gap-1.5">
+        <Textarea
           bind:value={refineInput}
-          placeholder="e.g., rewrite in Sie form, be more formal, shorter..."
-          rows="2"
-        ></textarea>
-        <button
-          class="draft-btn refine-apply"
+          placeholder="e.g., rewrite in Sie form, be more formal, shorter…"
+          rows={2}
+          class="flex-1 text-[11px]"
+        />
+        <Button
+          size="sm"
+          loading={refineBtnDisabled}
           disabled={refineBtnDisabled || !refineInput.trim()}
           onclick={handleRefine}
-        >{refineBtnText}</button>
+        >
+          {refineBtnText}
+        </Button>
       </div>
     {/if}
     {#if aiMode === 'server'}
       {#if !showDocsForm}
-        <button
-          class="draft-btn docs-toggle"
-          onclick={() => { showDocsForm = true; }}
+        <Button
+          size="sm"
+          variant="secondary"
+          class="mt-2 w-full"
           title="Generate Selbstauskunft + supporting documents PDF"
-        >Generate Docs</button>
+          onclick={() => { showDocsForm = true; }}
+        >
+          Generate Docs
+        </Button>
       {:else}
-        <div class="docs-form">
-          <div class="docs-form-field">
-            <label class="docs-label" for="docs-address-{conversation.conversationId}">Address</label>
-            <input
+        <div class="mt-2 rounded-md border border-border bg-muted/40 p-2.5">
+          <div class="mb-2 space-y-1">
+            <Label for="docs-address-{conversation.conversationId}" class="text-[10px] uppercase">Address</Label>
+            <Input
               id="docs-address-{conversation.conversationId}"
               type="text"
-              class="docs-input"
               bind:value={docsAddress}
-              placeholder="Listing address..."
+              placeholder="Listing address…"
+              class="text-[11px]"
             />
           </div>
-          <div class="docs-form-field">
-            <label class="docs-label" for="docs-movein-{conversation.conversationId}">Move-in date</label>
-            <input
+          <div class="mb-2 space-y-1">
+            <Label for="docs-movein-{conversation.conversationId}" class="text-[10px] uppercase">Move-in date</Label>
+            <Input
               id="docs-movein-{conversation.conversationId}"
               type="date"
-              class="docs-input docs-date"
               bind:value={moveInDate}
+              class="w-36 text-[11px]"
             />
           </div>
-          <div class="docs-form-actions">
-            <button
-              class="draft-btn docs-generate"
-              disabled={docsBtnDisabled}
-              onclick={handleGenerateDocs}
-            >{docsBtnText}</button>
-            <button
-              class="draft-btn docs-cancel"
-              onclick={() => { showDocsForm = false; docsStatus = 'idle'; }}
-            >Cancel</button>
+          <div class="flex gap-1.5">
+            <Button size="sm" class="flex-1" loading={docsBtnDisabled} disabled={docsBtnDisabled} onclick={handleGenerateDocs}>
+              {docsBtnText}
+            </Button>
+            <Button size="sm" variant="secondary" onclick={() => { showDocsForm = false; docsStatus = 'idle'; }}>
+              Cancel
+            </Button>
           </div>
           {#if docsStatus === 'success'}
-            <div class="docs-feedback success">Documents downloaded!</div>
+            <div class="mt-1.5 rounded bg-success/15 px-2 py-1 text-[11px] text-success" role="status">
+              Documents downloaded!
+            </div>
           {:else if docsStatus === 'error'}
-            <div class="docs-feedback error">Generation failed. Is the server running?</div>
+            <div class="mt-1.5 rounded bg-destructive/10 px-2 py-1 text-[11px] text-destructive" role="status">
+              Generation failed. Is the server running?
+            </div>
           {/if}
         </div>
       {/if}
     {/if}
   {/if}
 </div>
-
-<style>
-  .draft-section {
-    margin-top: 8px;
-  }
-
-  .draft-generating {
-    font-size: 11px;
-    color: #888;
-    font-style: italic;
-  }
-
-  .draft-error {
-    margin-top: 6px;
-    padding: 8px 10px;
-    border-radius: 6px;
-    background: #fff5f5;
-    border: 1px solid #f5c2c2;
-  }
-
-  .draft-error-msg {
-    font-size: 11px;
-    color: #a02424;
-    margin-bottom: 6px;
-    word-wrap: break-word;
-  }
-
-  .draft-error-actions {
-    display: flex;
-    gap: 6px;
-  }
-
-  .draft-label {
-    font-size: 10px;
-    font-weight: 600;
-    color: #999;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-  }
-
-  .draft-textarea {
-    width: 100%;
-    min-height: 80px;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 11px;
-    font-family: inherit;
-    resize: vertical;
-  }
-
-  .draft-buttons {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-    align-items: flex-start;
-  }
-
-  .draft-btn {
-    padding: 8px 12px;
-    border: none;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .draft-btn.send {
-    flex: 1;
-    background: #83F1DC;
-    color: #1a1a1a;
-  }
-
-  .draft-btn.regen,
-  .draft-btn.open {
-    background: #f0f0f0;
-    color: #333;
-  }
-
-  .draft-btn.refine {
-    background: #f0f0f0;
-    color: #333;
-  }
-
-  .draft-btn:disabled { opacity: 0.6; }
-
-  /* Refine area */
-  .refine-area {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-    align-items: flex-end;
-  }
-
-  .refine-textarea {
-    flex: 1;
-    padding: 6px 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 11px;
-    font-family: inherit;
-    resize: none;
-  }
-
-  .refine-textarea:focus {
-    outline: none;
-    border-color: #83F1DC;
-  }
-
-  .draft-btn.refine-apply {
-    background: #83F1DC;
-    color: #1a1a1a;
-    white-space: nowrap;
-  }
-
-  /* Generate Docs toggle button */
-  .draft-btn.docs-toggle {
-    margin-top: 8px;
-    background: #f0f0f0;
-    color: #333;
-    width: 100%;
-  }
-
-  .draft-btn.docs-toggle:hover {
-    background: #e4e4e4;
-  }
-
-  /* Docs form */
-  .docs-form {
-    margin-top: 8px;
-    padding: 10px;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    background: #fafafa;
-  }
-
-  .docs-form-field {
-    margin-bottom: 8px;
-  }
-
-  .docs-label {
-    display: block;
-    font-size: 10px;
-    font-weight: 600;
-    color: #888;
-    margin-bottom: 3px;
-  }
-
-  .docs-input {
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 11px;
-    font-family: inherit;
-  }
-
-  .docs-input:focus {
-    outline: none;
-    border-color: #83F1DC;
-  }
-
-  .docs-input.docs-date {
-    width: 140px;
-  }
-
-  .docs-form-actions {
-    display: flex;
-    gap: 6px;
-  }
-
-  .draft-btn.docs-generate {
-    flex: 1;
-    background: #83F1DC;
-    color: #1a1a1a;
-  }
-
-  .draft-btn.docs-cancel {
-    background: #f0f0f0;
-    color: #333;
-  }
-
-  .docs-feedback {
-    margin-top: 6px;
-    font-size: 11px;
-    padding: 4px 8px;
-    border-radius: 4px;
-  }
-
-  .docs-feedback.success {
-    background: #e6fff5;
-    color: #0d7a4e;
-  }
-
-  .docs-feedback.error {
-    background: #fff5f5;
-    color: #dc3545;
-  }
-</style>

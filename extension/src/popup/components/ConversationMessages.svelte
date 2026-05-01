@@ -9,51 +9,22 @@ let {
 </script>
 
 {#if messages.length > 0}
-  <div class="conv-thread">
+  <div class="mb-2.5 max-h-48 overflow-y-auto">
     {#each messages as msg}
-      <div class="bubble" class:user-bubble={msg.role === 'user'} class:landlord-bubble={msg.role !== 'user'}>
+      <div
+        class={`mb-1.5 max-w-[85%] rounded-lg px-2.5 py-2 text-[11px] leading-snug break-words ${
+          msg.role === 'user'
+            ? 'ml-auto rounded-br-sm bg-primary/15 text-right'
+            : 'mr-auto rounded-bl-sm bg-muted'
+        }`}
+      >
         {msg.text}
         {#if msg.timestamp}
-          <div class="bubble-time">{new Date(msg.timestamp).toLocaleString('de-DE')}</div>
+          <div class="mt-0.5 text-[9px] text-muted-foreground/70">
+            {new Date(msg.timestamp).toLocaleString('de-DE')}
+          </div>
         {/if}
       </div>
     {/each}
   </div>
 {/if}
-
-<style>
-  .conv-thread {
-    max-height: 200px;
-    overflow-y: auto;
-    margin-bottom: 10px;
-  }
-
-  .bubble {
-    padding: 8px 10px;
-    border-radius: 8px;
-    margin-bottom: 6px;
-    font-size: 11px;
-    line-height: 1.4;
-    max-width: 85%;
-    word-wrap: break-word;
-  }
-
-  .user-bubble {
-    background: #e8f8f4;
-    margin-left: auto;
-    text-align: right;
-    border-bottom-right-radius: 2px;
-  }
-
-  .landlord-bubble {
-    background: #f0f0f0;
-    margin-right: auto;
-    border-bottom-left-radius: 2px;
-  }
-
-  .bubble-time {
-    font-size: 9px;
-    color: #bbb;
-    margin-top: 3px;
-  }
-</style>

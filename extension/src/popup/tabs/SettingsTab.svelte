@@ -15,10 +15,19 @@ import {
   SCORING_PLACEHOLDERS,
   validateTemplate,
 } from '../../shared/prompts';
-import CollapsibleSection from '../components/CollapsibleSection.svelte';
+import { checkAiHealth } from '../lib/ai-health';
 import { clearSeenListings } from '../lib/messages';
 import type { PopupSettings } from '../lib/storage';
 import { resetAiUsage, saveAllSettings } from '../lib/storage';
+import { Button } from '$lib/components/ui/button';
+import { Input } from '$lib/components/ui/input';
+import { Textarea } from '$lib/components/ui/textarea';
+import { Label } from '$lib/components/ui/label';
+import * as Select from '$lib/components/ui/select';
+import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
+import * as Alert from '$lib/components/ui/alert';
+import StatusPill from '$lib/components/StatusPill.svelte';
+import Section from '$lib/components/Section.svelte';
 
 let {
   settings = $bindable(),
@@ -46,9 +55,12 @@ let showApiKey = $state(false);
 let copySetupText = $state('Copy command');
 let fileInput: HTMLInputElement | undefined = $state();
 
-// Notification preferences
 let notifPrefs: Record<NotificationEvent, boolean> = $state({ ...DEFAULT_NOTIFICATION_PREFS });
 let notifPrefsLoaded = $state(false);
+
+let stylePromptOpen = $state(true);
+let advancedPromptsOpen = $state(false);
+let notificationsOpen = $state(false);
 
 async function loadNotifPrefs() {
   const stored = await chrome.storage.local.get([NOTIFICATION_PREFS_KEY]);
@@ -67,13 +79,9 @@ function handleNotifToggle(event: NotificationEvent) {
   saveNotifPrefs();
 }
 
-// Load notification prefs on mount
 loadNotifPrefs();
 
-// Active provider metadata (reactive to settings.aiProvider)
 let activeProvider = $derived(PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini);
-
-// Per-provider key accessors (litellm uses separate OIDC credentials, not a simple API key)
 let isLitellm = $derived(settings.aiProvider === 'litellm');
 let currentApiKey = $derived(settings.aiProvider === 'gemini' ? settings.aiApiKeyGemini : settings.aiApiKeyOpenai);
 function setApiKey(val: string) {
@@ -152,7 +160,6 @@ function togglePlaceholder(ph: PlaceholderInfo) {
   activePlaceholder = activePlaceholder?.name === ph.name ? null : ph;
 }
 
-// Cost calculation using the active provider's pricing
 let aiCost = $derived(
   isLitellm
     ? 'Managed by proxy'
@@ -192,32 +199,7 @@ async function handleCheckIntervalChange() {
 }
 
 async function checkHealth() {
-  if (settings.aiMode === 'direct') {
-    // Direct mode: validate API key via the active provider
-    if (!currentApiKey) {
-      aiServerConnected = false;
-      return;
-    }
-    try {
-      aiServerConnected = await activeProvider.validateKey(currentApiKey);
-    } catch {
-      aiServerConnected = false;
-    }
-  } else {
-    // Server mode: check /health endpoint
-    const url = settings.aiServerUrl || 'http://localhost:3456';
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    try {
-      const response = await fetch(`${url}/health`, { signal: controller.signal });
-      const data = await response.json();
-      aiServerConnected = data.status === 'ok';
-    } catch {
-      aiServerConnected = false;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
+  aiServerConnected = await checkAiHealth(settings);
 }
 
 async function handleAiModeChange() {
@@ -226,7 +208,6 @@ async function handleAiModeChange() {
 }
 
 async function handleProviderChange() {
-  // LiteLLM forces server mode
   if (settings.aiProvider === 'litellm' && settings.aiMode !== 'server') {
     settings.aiMode = 'server';
   }
@@ -274,19 +255,14 @@ function handleCopySetup() {
   });
 }
 
-function toggleApiKey() {
-  showApiKey = !showApiKey;
-}
-
-// Keys excluded from export/import — transient state that gets re-derived at runtime
 const EXCLUDED_KEYS = new Set([
-  'conversations', // re-synced from ImmoScout messenger
-  'convLastCheck', // transient sync timestamp
-  'convUnreadCount', // transient unread counter
-  'rateLastMessageTime', // session rate-limit state
-  'rateMessageCount', // session rate-limit state
-  'rateCountResetTime', // session rate-limit state
-  'lastCheckTime', // transient monitoring timestamp
+  'conversations',
+  'convLastCheck',
+  'convUnreadCount',
+  'rateLastMessageTime',
+  'rateMessageCount',
+  'rateCountResetTime',
+  'lastCheckTime',
 ]);
 
 async function handleExport() {
@@ -307,82 +283,21 @@ async function handleExport() {
   }
 }
 
-// Known storage keys that are safe to import
 const ALLOWED_IMPORT_KEYS = new Set([
-  // Settings
-  'searchUrl',
-  'searchUrls',
-  'messageTemplate',
-  'checkInterval',
-  'rateLimit',
-  'minDelay',
-  'isMonitoring',
-  'autoSendMode',
-  // Form fields
-  'formAdults',
-  'formChildren',
-  'formPets',
-  'formSmoker',
-  'formIncome',
-  'formHouseholdSize',
-  'formEmployment',
-  'formIncomeRange',
-  'formDocuments',
-  'formSalutation',
-  'formPhone',
-  // AI settings
-  'aiMode',
-  'aiProvider',
-  'aiEnabled',
-  'aiApiKeyGemini',
-  'aiApiKeyOpenai',
-  'aiLitellmClientId',
-  'aiLitellmClientSecret',
-  'aiLitellmTokenUrl',
-  'aiLitellmBaseUrl',
-  'aiLitellmModel',
-  'aiServerUrl',
-  'aiMinScore',
-  'aiAboutMe',
-  'aiCustomScoringPrompt',
-  'aiCustomMessagePrompt',
-  'aiListingsScored',
-  'aiListingsSkipped',
-  'aiUsagePromptTokens',
-  'aiUsageCompletionTokens',
-  // Profile
-  'profileName',
-  'profileAge',
-  'profileOccupation',
-  'profileLanguages',
-  'profileMovingReason',
-  'profileCurrentNeighborhood',
-  'profileIdealApartment',
-  'profileDealbreakers',
-  'profileStrengths',
-  'profileMaxWarmmiete',
-  'profileBirthDate',
-  'profileMaritalStatus',
-  'profileCurrentAddress',
-  'profileEmail',
-  'profileEmployer',
-  'profileEmployedSince',
-  'profileNetIncome',
-  'profileCurrentLandlord',
-  'profileLandlordPhone',
-  'profileLandlordEmail',
-  // Data
-  'seenListings',
-  'manualQueue',
-  'blacklistedListings',
-  'contactedLandlords',
-  'activityLog',
-  'convCheckInterval',
-  'syncedContactedCount',
-  // Stats
-  'totalMessagesSent',
-  // Notification preferences
-  'notificationPrefs',
+  'searchUrl', 'searchUrls', 'messageTemplate', 'checkInterval', 'rateLimit', 'minDelay', 'isMonitoring', 'autoSendMode',
+  'formAdults', 'formChildren', 'formPets', 'formSmoker', 'formIncome', 'formHouseholdSize', 'formEmployment',
+  'formIncomeRange', 'formDocuments', 'formSalutation', 'formPhone',
+  'aiMode', 'aiProvider', 'aiEnabled', 'aiApiKeyGemini', 'aiApiKeyOpenai',
+  'aiLitellmClientId', 'aiLitellmClientSecret', 'aiLitellmTokenUrl', 'aiLitellmBaseUrl', 'aiLitellmModel',
+  'aiServerUrl', 'aiMinScore', 'aiAboutMe', 'aiCustomScoringPrompt', 'aiCustomMessagePrompt',
+  'aiListingsScored', 'aiListingsSkipped', 'aiUsagePromptTokens', 'aiUsageCompletionTokens',
+  'profileName', 'profileAge', 'profileOccupation', 'profileLanguages', 'profileMovingReason',
+  'profileCurrentNeighborhood', 'profileIdealApartment', 'profileDealbreakers', 'profileStrengths',
+  'profileMaxWarmmiete', 'profileBirthDate', 'profileMaritalStatus', 'profileCurrentAddress', 'profileEmail',
+  'profileEmployer', 'profileEmployedSince', 'profileNetIncome', 'profileCurrentLandlord',
+  'profileLandlordPhone', 'profileLandlordEmail',
+  'seenListings', 'manualQueue', 'blacklistedListings', 'contactedLandlords', 'activityLog',
+  'convCheckInterval', 'syncedContactedCount', 'totalMessagesSent', 'notificationPrefs',
 ]);
 
 async function handleImport(e: Event) {
@@ -396,7 +311,6 @@ async function handleImport(e: Event) {
     if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error('Invalid backup format');
     if (!confirm('This will merge the backup into your current data. Existing values will be overwritten. Continue?'))
       return;
-    // Filter to known keys only to prevent storage pollution
     const filtered: Record<string, unknown> = {};
     let skipped = 0;
     for (const [key, value] of Object.entries(data)) {
@@ -419,292 +333,384 @@ async function handleImport(e: Event) {
     input.value = '';
   }
 }
+
+const aiModeOptions = [
+  { value: 'direct', label: 'Direct (API key)' },
+  { value: 'server', label: 'Server (local)' },
+];
+const providerOptions = Object.values(PROVIDERS).map((p) => ({ value: p.id, label: p.label }));
 </script>
 
-<div class="section-title" style="margin-top:0; padding-top:0; border-top:none;">Monitoring</div>
-
-<div class="grid-2">
-  <div class="field">
-    <label for="checkInterval">Check Interval (seconds)</label>
-    <input type="number" id="checkInterval" bind:value={settings.checkInterval} onchange={handleCheckIntervalChange} onblur={autoSaveImmediate} min="60" max="3600" />
+<Section title="Monitoring">
+  <div class="grid grid-cols-2 gap-3">
+    <div class="space-y-1.5">
+      <Label for="checkInterval">Check Interval (s)</Label>
+      <Input
+        type="number"
+        id="checkInterval"
+        bind:value={settings.checkInterval}
+        onchange={handleCheckIntervalChange}
+        onblur={autoSaveImmediate}
+        min={60}
+        max={3600}
+      />
+    </div>
+    <div class="space-y-1.5">
+      <Label for="rateLimit">Rate Limit (per hour)</Label>
+      <Input
+        type="number"
+        id="rateLimit"
+        bind:value={settings.rateLimit}
+        oninput={autoSave}
+        onblur={autoSaveImmediate}
+        min={1}
+        max={50}
+      />
+    </div>
   </div>
-  <div class="field">
-    <label for="rateLimit">Rate Limit (per hour)</label>
-    <input type="number" id="rateLimit" bind:value={settings.rateLimit} oninput={autoSave} onblur={autoSaveImmediate} min="1" max="50" />
-  </div>
-</div>
 
-<div class="grid-2">
-  <div class="field">
-    <label for="minDelay">Min Delay Between Messages (seconds)</label>
-    <input type="number" id="minDelay" bind:value={settings.minDelay} oninput={autoSave} onblur={autoSaveImmediate} min="10" max="300" />
+  <div class="mt-3 grid grid-cols-2 gap-3">
+    <div class="space-y-1.5">
+      <Label for="minDelay">Min Delay (s)</Label>
+      <Input
+        type="number"
+        id="minDelay"
+        bind:value={settings.minDelay}
+        oninput={autoSave}
+        onblur={autoSaveImmediate}
+        min={10}
+        max={300}
+      />
+    </div>
+    <div class="space-y-1.5">
+      <Label for="aiMinScore">Min Score (1-10)</Label>
+      <Input
+        type="number"
+        id="aiMinScore"
+        bind:value={settings.aiMinScore}
+        oninput={autoSave}
+        onblur={autoSaveImmediate}
+        min={1}
+        max={10}
+      />
+      <p class="text-xs text-muted-foreground m-0">Listings scoring below this will be skipped</p>
+    </div>
   </div>
-  <div class="field">
-    <label for="aiMinScore">Min Score (1-10)</label>
-    <input type="number" id="aiMinScore" bind:value={settings.aiMinScore} oninput={autoSave} onblur={autoSaveImmediate} min="1" max="10" />
-    <div class="hint">Listings scoring below this will be skipped</div>
-  </div>
-</div>
 
-<label class="toggle-label" style="margin-top: 8px;">
-  <input type="checkbox" bind:checked={settings.premiumAccount} onchange={autoSaveImmediate} />
-  ImmoScout24 Premium account
-</label>
-<div class="hint">Premium users can message "coming soon" listings — enable to skip the automatic deferral</div>
+  <label class="mt-3 flex cursor-pointer items-center gap-2 text-xs text-foreground">
+    <input
+      type="checkbox"
+      class="size-4 cursor-pointer accent-primary"
+      bind:checked={settings.premiumAccount}
+      onchange={autoSaveImmediate}
+    />
+    ImmoScout24 Premium account
+  </label>
+  <p class="mt-1 text-xs text-muted-foreground m-0">
+    Premium users can message "coming soon" listings — enable to skip the automatic deferral
+  </p>
+</Section>
 
-<div class="section-title">AI Configuration</div>
-
-<div class="ai-settings-group">
-  <div class="ai-status" class:connected={aiServerConnected} class:disconnected={!aiServerConnected}>
-    <span class="dot"></span>
-    <span>{aiServerConnected ? 'Connected' : 'Disconnected'}</span>
-  </div>
-  {#if !aiServerConnected}
-    <div class="ai-status-reason">{aiDisconnectReason}</div>
-  {/if}
+<Section title="AI Configuration">
+  <StatusPill
+    state={aiServerConnected ? 'connected' : 'disconnected'}
+    reason={!aiServerConnected ? aiDisconnectReason : undefined}
+  />
 
   {#if !aiServerConnected && settings.aiMode === 'server'}
-    <div class="setup-box">
-      <strong>Setup Instructions</strong>
-      The AI server needs to be running locally.
-      <code>cd server && npm install && npm start</code>
-      <button class="copy-cmd" onclick={handleCopySetup}>{copySetupText}</button>
-    </div>
+    <Alert.Root class="mb-3 border-info/40 bg-info/10">
+      <Alert.Title>Setup Instructions</Alert.Title>
+      <Alert.Description>
+        The AI server needs to be running locally.
+        <code class="block my-1.5 rounded bg-muted px-2 py-1.5 font-mono text-[11px] break-all">cd server && npm install && npm start</code>
+        <Button variant="link" size="xs" class="h-auto p-0 underline" onclick={handleCopySetup}>
+          {copySetupText}
+        </Button>
+      </Alert.Description>
+    </Alert.Root>
   {/if}
 
-  <div class="field">
-    <label for="aiMode">AI Mode</label>
-    <select id="aiMode" bind:value={settings.aiMode} onchange={handleAiModeChange} disabled={isLitellm}>
-      <option value="direct">Direct (API key)</option>
-      <option value="server">Server (local)</option>
-    </select>
-    <div class="hint">{aiModeHint}</div>
+  <div class="space-y-1.5 mb-3">
+    <Label for="aiMode">AI Mode</Label>
+    <Select.Root type="single" bind:value={settings.aiMode} onValueChange={handleAiModeChange} disabled={isLitellm}>
+      <Select.Trigger id="aiMode" class="w-full">
+        {aiModeOptions.find((o) => o.value === settings.aiMode)?.label ?? 'Direct (API key)'}
+      </Select.Trigger>
+      <Select.Content>
+        {#each aiModeOptions as opt}
+          <Select.Item value={opt.value}>{opt.label}</Select.Item>
+        {/each}
+      </Select.Content>
+    </Select.Root>
+    <p class="text-xs text-muted-foreground m-0">{aiModeHint}</p>
   </div>
 
-  <div class="field">
-    <label for="aiProvider">AI Provider</label>
-    <select id="aiProvider" bind:value={settings.aiProvider} onchange={handleProviderChange}>
-      {#each Object.values(PROVIDERS) as provider}
-        <option value={provider.id}>{provider.label}</option>
-      {/each}
-    </select>
+  <div class="space-y-1.5 mb-3">
+    <Label for="aiProvider">AI Provider</Label>
+    <Select.Root type="single" bind:value={settings.aiProvider} onValueChange={handleProviderChange}>
+      <Select.Trigger id="aiProvider" class="w-full">
+        {providerOptions.find((o) => o.value === settings.aiProvider)?.label ?? 'Gemini'}
+      </Select.Trigger>
+      <Select.Content>
+        {#each providerOptions as opt}
+          <Select.Item value={opt.value}>{opt.label}</Select.Item>
+        {/each}
+      </Select.Content>
+    </Select.Root>
   </div>
 
   {#if isLitellm}
-    <div class="field">
-      <label for="litellmModel">Model</label>
-      <div class="model-picker">
-        <select id="litellmModel" bind:value={settings.aiLitellmModel} onchange={autoSaveImmediate} class="model-select">
-          {#if litellmModels.length > 0}
-            {#each litellmModels as m}
-              <option value={m}>{m}</option>
-            {/each}
-          {:else}
-            <option value={settings.aiLitellmModel}>{settings.aiLitellmModel || LITELLM_DEFAULT_MODEL}</option>
-          {/if}
-        </select>
-        <button class="btn btn-secondary" onclick={fetchLitellmModels} disabled={litellmModelsLoading}>
-          {litellmModelsLoading ? 'Loading...' : 'Fetch Models'}
-        </button>
+    <div class="space-y-1.5 mb-3">
+      <Label for="litellmModel">Model</Label>
+      <div class="flex items-stretch gap-1.5">
+        <Select.Root type="single" bind:value={settings.aiLitellmModel} onValueChange={autoSaveImmediate}>
+          <Select.Trigger id="litellmModel" class="flex-[2] min-w-0">
+            {settings.aiLitellmModel || LITELLM_DEFAULT_MODEL}
+          </Select.Trigger>
+          <Select.Content>
+            {#if litellmModels.length > 0}
+              {#each litellmModels as m}
+                <Select.Item value={m}>{m}</Select.Item>
+              {/each}
+            {:else}
+              <Select.Item value={settings.aiLitellmModel || LITELLM_DEFAULT_MODEL}>
+                {settings.aiLitellmModel || LITELLM_DEFAULT_MODEL}
+              </Select.Item>
+            {/if}
+          </Select.Content>
+        </Select.Root>
+        <Button variant="secondary" size="sm" loading={litellmModelsLoading} disabled={litellmModelsLoading} onclick={fetchLitellmModels}>
+          {litellmModelsLoading ? 'Loading…' : 'Fetch Models'}
+        </Button>
       </div>
     </div>
 
-    <!-- LiteLLM OIDC configuration -->
-    <div class="field">
-      <label for="litellmTokenUrl">OIDC Token URL</label>
-      <input type="url" id="litellmTokenUrl" bind:value={settings.aiLitellmTokenUrl} oninput={autoSave} onblur={autoSaveImmediate} placeholder="https://auth.example.com/realms/.../token" />
-      <div class="hint">OAuth2 client_credentials token endpoint</div>
+    <div class="space-y-1.5 mb-3">
+      <Label for="litellmTokenUrl">OIDC Token URL</Label>
+      <Input
+        type="url"
+        id="litellmTokenUrl"
+        bind:value={settings.aiLitellmTokenUrl}
+        oninput={autoSave}
+        onblur={autoSaveImmediate}
+        placeholder="https://auth.example.com/realms/.../token"
+      />
+      <p class="text-xs text-muted-foreground m-0">OAuth2 client_credentials token endpoint</p>
     </div>
 
-    <div class="field">
-      <label for="litellmBaseUrl">LiteLLM Base URL</label>
-      <input type="url" id="litellmBaseUrl" bind:value={settings.aiLitellmBaseUrl} oninput={autoSave} onblur={autoSaveImmediate} placeholder="https://litellm.example.com/v1" />
-      <div class="hint">OpenAI-compatible API base URL</div>
+    <div class="space-y-1.5 mb-3">
+      <Label for="litellmBaseUrl">LiteLLM Base URL</Label>
+      <Input
+        type="url"
+        id="litellmBaseUrl"
+        bind:value={settings.aiLitellmBaseUrl}
+        oninput={autoSave}
+        onblur={autoSaveImmediate}
+        placeholder="https://litellm.example.com/v1"
+      />
+      <p class="text-xs text-muted-foreground m-0">OpenAI-compatible API base URL</p>
     </div>
 
-    <div class="field">
-      <label for="litellmClientId">Client ID</label>
-      <input type="text" id="litellmClientId" bind:value={settings.aiLitellmClientId} oninput={autoSave} onblur={autoSaveImmediate} placeholder="your-client-id" />
+    <div class="space-y-1.5 mb-3">
+      <Label for="litellmClientId">Client ID</Label>
+      <Input
+        type="text"
+        id="litellmClientId"
+        bind:value={settings.aiLitellmClientId}
+        oninput={autoSave}
+        onblur={autoSaveImmediate}
+        placeholder="your-client-id"
+      />
     </div>
 
-    <div class="field">
-      <label for="litellmClientSecret">Client Secret</label>
-      <div class="password-field">
-        <input
+    <div class="space-y-1.5 mb-3">
+      <Label for="litellmClientSecret">Client Secret</Label>
+      <div class="relative">
+        <Input
           type={showClientSecret ? 'text' : 'password'}
           id="litellmClientSecret"
           bind:value={settings.aiLitellmClientSecret}
           oninput={autoSave}
           onblur={autoSaveImmediate}
           placeholder="your-client-secret"
+          class="pr-14"
         />
-        <button class="password-toggle" onclick={() => showClientSecret = !showClientSecret}>
+        <Button
+          variant="ghost"
+          size="xs"
+          class="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
+          onclick={() => showClientSecret = !showClientSecret}
+        >
           {showClientSecret ? 'hide' : 'show'}
-        </button>
+        </Button>
       </div>
     </div>
   {:else}
-    <div class="field">
-      <label for="aiApiKey">{settings.aiMode === 'direct' ? `${activeProvider.label} API Key` : 'API Key (optional)'}</label>
-      <div class="password-field">
-        <input
+    <div class="space-y-1.5 mb-3">
+      <Label for="aiApiKey">{settings.aiMode === 'direct' ? `${activeProvider.label} API Key` : 'API Key (optional)'}</Label>
+      <div class="relative">
+        <Input
           type={showApiKey ? 'text' : 'password'}
           id="aiApiKey"
           value={currentApiKey}
           oninput={(e) => { setApiKey((e.target as HTMLInputElement).value); autoSave(); }}
           onblur={() => { autoSaveImmediate(); checkHealth(); }}
           placeholder={settings.aiMode === 'direct' ? `Paste your ${activeProvider.label} API key` : 'Optional — passed to server'}
+          class="pr-14"
         />
-        <button class="password-toggle" onclick={toggleApiKey}>
+        <Button
+          variant="ghost"
+          size="xs"
+          class="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
+          onclick={() => showApiKey = !showApiKey}
+        >
           {showApiKey ? 'hide' : 'show'}
-        </button>
+        </Button>
       </div>
       {#if settings.aiMode === 'direct'}
-        <div class="hint">
-          <button type="button" class="internal-link" onclick={() => onNavigate('help')}>How do I get an API key?</button>
-        </div>
+        <Button variant="link" size="xs" class="h-auto p-0 text-primary underline" onclick={() => onNavigate('help')}>
+          How do I get an API key?
+        </Button>
       {/if}
     </div>
   {/if}
 
   {#if settings.aiMode === 'server'}
-    <div class="field">
-      <label for="aiServerUrl">Server URL</label>
-      <input type="url" id="aiServerUrl" bind:value={settings.aiServerUrl} oninput={autoSave} onblur={() => { autoSaveImmediate(); checkHealth(); }} placeholder="http://localhost:3456" />
+    <div class="space-y-1.5 mb-3">
+      <Label for="aiServerUrl">Server URL</Label>
+      <Input
+        type="url"
+        id="aiServerUrl"
+        bind:value={settings.aiServerUrl}
+        oninput={autoSave}
+        onblur={() => { autoSaveImmediate(); checkHealth(); }}
+        placeholder="http://localhost:3456"
+      />
     </div>
   {/if}
 
-  <CollapsibleSection title="Message Style Guide" open={true}>
-    <div class="field">
-      <label for="aiAboutMe">About Me (for AI context)</label>
-      <textarea
-        id="aiAboutMe"
-        bind:value={settings.aiAboutMe}
-        oninput={autoSave}
-        onblur={autoSaveImmediate}
-        placeholder="Tell the AI about yourself..."
-        style="min-height:60px;"
-      ></textarea>
-    </div>
+  <CollapsibleSection title="Message Style Guide" bind:open={stylePromptOpen}>
+    <div class="space-y-3">
+      <div class="space-y-1.5">
+        <Label for="aiAboutMe">About Me (for AI context)</Label>
+        <Textarea
+          id="aiAboutMe"
+          bind:value={settings.aiAboutMe}
+          oninput={autoSave}
+          onblur={autoSaveImmediate}
+          placeholder="Tell the AI about yourself…"
+          class="min-h-15"
+        />
+      </div>
 
-    <div class="field">
-      <label for="messageTemplate">Message Template</label>
-      <textarea
-        id="messageTemplate"
-        bind:value={settings.messageTemplate}
-        oninput={autoSave}
-        onblur={autoSaveImmediate}
-        placeholder="Sehr geehrte(r) {'{name}'},&#10;&#10;ich interessiere mich..."
-        style="min-height:80px;"
-      ></textarea>
-      <div class="hint">Write a sample message to guide the AI's tone and style. The AI uses this as inspiration, not as the actual message. Use {'{name}'} for landlord greeting.</div>
+      <div class="space-y-1.5">
+        <Label for="messageTemplate">Message Template</Label>
+        <Textarea
+          id="messageTemplate"
+          bind:value={settings.messageTemplate}
+          oninput={autoSave}
+          onblur={autoSaveImmediate}
+          placeholder={`Sehr geehrte(r) {name},\n\nich interessiere mich…`}
+          class="min-h-20"
+        />
+        <p class="text-xs text-muted-foreground m-0">
+          Write a sample message to guide the AI's tone. Use {'{name}'} for landlord greeting.
+        </p>
+      </div>
     </div>
   </CollapsibleSection>
 
-  <CollapsibleSection title="AI Prompts (advanced)" open={false}>
-    <div class="prompt-warning">
-      ⚠ Editing these can break AI behavior. Leave empty to use the built-in default. Use <code>{'{{variableName}}'}</code> placeholders from the legend below — values are interpolated at runtime.
-    </div>
+  <CollapsibleSection title="AI Prompts (advanced)" bind:open={advancedPromptsOpen}>
+    <div class="space-y-3">
+      <Alert.Root class="border-warning/40 bg-warning/15 text-warning border-l-[3px]">
+        <Alert.Description class="text-warning">
+          ⚠ Editing these can break AI behavior. Leave empty to use the built-in default. Use
+          <code class="rounded bg-black/5 px-1 py-0.5">{'{{variableName}}'}</code> placeholders from the legend below — values are interpolated at runtime.
+        </Alert.Description>
+      </Alert.Root>
 
-    <div class="field">
-      <label for="customScoringPrompt">Scoring system prompt</label>
-      <div class="hint">System prompt the AI sees when scoring a listing 1–10.</div>
-      <textarea
-        id="customScoringPrompt"
-        class="prompt-textarea"
-        bind:value={settings.aiCustomScoringPrompt}
-        oninput={autoSave}
-        onblur={autoSaveImmediate}
-        placeholder="(empty = use default — click Load default to edit)"
-      ></textarea>
-      <div class="prompt-toolbar">
-        <button type="button" class="btn btn-secondary" onclick={() => setCustomPrompt('aiCustomScoringPrompt', DEFAULT_SCORING_TEMPLATE)}>Load default</button>
-        <button type="button" class="btn btn-secondary" onclick={() => setCustomPrompt('aiCustomScoringPrompt', '')} disabled={!settings.aiCustomScoringPrompt}>Reset</button>
-      </div>
-      <div class="placeholder-legend">
-        <span class="legend-label">Available variables:</span>
-        {#each SCORING_PLACEHOLDERS as ph}
-          <button type="button" class="placeholder-chip" class:active={activePlaceholder?.name === ph.name} title={ph.description} onclick={() => togglePlaceholder(ph)}>{`{{${ph.name}}}`}</button>
-        {/each}
-      </div>
-      <div class="placeholder-caption">These tokens get replaced at runtime. Click any to see what it stands for.</div>
-      {#if activePlaceholder && SCORING_PLACEHOLDERS.some((p) => p.name === activePlaceholder?.name)}
-        <div class="placeholder-help">
-          <div><code>{`{{${activePlaceholder.name}}}`}</code> — {activePlaceholder.description}</div>
-          <div class="placeholder-source">Source: {activePlaceholder.source}</div>
+      {#each [
+        { id: 'customScoringPrompt', label: 'Scoring system prompt', hint: 'System prompt the AI sees when scoring a listing 1–10.', field: 'aiCustomScoringPrompt' as CustomPromptField, placeholders: SCORING_PLACEHOLDERS, defaultTpl: DEFAULT_SCORING_TEMPLATE, unknown: scoringUnknown },
+        { id: 'customMessagePrompt', label: 'Message system prompt', hint: 'System prompt the AI sees when composing the outreach message.', field: 'aiCustomMessagePrompt' as CustomPromptField, placeholders: MESSAGE_PLACEHOLDERS, defaultTpl: DEFAULT_MESSAGE_TEMPLATE, unknown: messageUnknown },
+      ] as group}
+        <div class="space-y-1.5">
+          <Label for={group.id}>{group.label}</Label>
+          <p class="text-xs text-muted-foreground m-0">{group.hint}</p>
+          <Textarea
+            id={group.id}
+            bind:value={settings[group.field]}
+            oninput={autoSave}
+            onblur={autoSaveImmediate}
+            placeholder="(empty = use default — click Load default to edit)"
+            class="min-h-40 font-mono text-[11px]"
+          />
+          <div class="flex gap-1.5">
+            <Button variant="secondary" size="xs" onclick={() => setCustomPrompt(group.field, group.defaultTpl)}>
+              Load default
+            </Button>
+            <Button variant="secondary" size="xs" disabled={!settings[group.field]} onclick={() => setCustomPrompt(group.field, '')}>
+              Reset
+            </Button>
+          </div>
+          <div class="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+            <span class="mr-1 font-semibold text-foreground/80">Available variables:</span>
+            {#each group.placeholders as ph}
+              <button
+                type="button"
+                class={`rounded border px-1.5 py-0.5 font-mono text-[10px] ${activePlaceholder?.name === ph.name ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted'}`}
+                title={ph.description}
+                onclick={() => togglePlaceholder(ph)}
+              >
+                {`{{${ph.name}}}`}
+              </button>
+            {/each}
+          </div>
+          <p class="text-[10px] text-muted-foreground m-0">These tokens get replaced at runtime. Click any to see what it stands for.</p>
+          {#if activePlaceholder && group.placeholders.some((p) => p.name === activePlaceholder?.name)}
+            <div class="mt-1.5 rounded border border-border bg-muted/40 px-2 py-1.5 text-[11px]">
+              <div><code class="rounded bg-black/5 px-1 py-0.5 text-[10px]">{`{{${activePlaceholder.name}}}`}</code> — {activePlaceholder.description}</div>
+              <div class="mt-1 text-[10px] italic text-muted-foreground">Source: {activePlaceholder.source}</div>
+            </div>
+          {/if}
+          {#if group.unknown.length}
+            <Alert.Root class="border-destructive/40 bg-destructive/10 text-destructive border-l-[3px]">
+              <Alert.Description class="text-destructive">
+                Unknown variables: {group.unknown.map((n: string) => `{{${n}}}`).join(', ')} — these will appear literally in the prompt sent to the AI.
+              </Alert.Description>
+            </Alert.Root>
+          {/if}
         </div>
-      {/if}
-      {#if scoringUnknown.length}
-        <div class="prompt-warning prompt-error">
-          Unknown variables: {scoringUnknown.map((n) => `{{${n}}}`).join(', ')} — these will appear literally in the prompt sent to the AI.
-        </div>
-      {/if}
-    </div>
-
-    <div class="field">
-      <label for="customMessagePrompt">Message system prompt</label>
-      <div class="hint">System prompt the AI sees when composing the outreach message to landlords.</div>
-      <textarea
-        id="customMessagePrompt"
-        class="prompt-textarea"
-        bind:value={settings.aiCustomMessagePrompt}
-        oninput={autoSave}
-        onblur={autoSaveImmediate}
-        placeholder="(empty = use default — click Load default to edit)"
-      ></textarea>
-      <div class="prompt-toolbar">
-        <button type="button" class="btn btn-secondary" onclick={() => setCustomPrompt('aiCustomMessagePrompt', DEFAULT_MESSAGE_TEMPLATE)}>Load default</button>
-        <button type="button" class="btn btn-secondary" onclick={() => setCustomPrompt('aiCustomMessagePrompt', '')} disabled={!settings.aiCustomMessagePrompt}>Reset</button>
-      </div>
-      <div class="placeholder-legend">
-        <span class="legend-label">Available variables:</span>
-        {#each MESSAGE_PLACEHOLDERS as ph}
-          <button type="button" class="placeholder-chip" class:active={activePlaceholder?.name === ph.name} title={ph.description} onclick={() => togglePlaceholder(ph)}>{`{{${ph.name}}}`}</button>
-        {/each}
-      </div>
-      <div class="placeholder-caption">These tokens get replaced at runtime. Click any to see what it stands for.</div>
-      {#if activePlaceholder && MESSAGE_PLACEHOLDERS.some((p) => p.name === activePlaceholder?.name)}
-        <div class="placeholder-help">
-          <div><code>{`{{${activePlaceholder.name}}}`}</code> — {activePlaceholder.description}</div>
-          <div class="placeholder-source">Source: {activePlaceholder.source}</div>
-        </div>
-      {/if}
-      {#if messageUnknown.length}
-        <div class="prompt-warning prompt-error">
-          Unknown variables: {messageUnknown.map((n) => `{{${n}}}`).join(', ')} — these will appear literally in the prompt sent to the AI.
-        </div>
-      {/if}
+      {/each}
     </div>
   </CollapsibleSection>
+</Section>
 
-  <div class="section-title">AI Usage</div>
-
-  <div class="ai-stats-grid">
-    <div class="ai-stat">
-      <span class="ai-stat-label">Scored</span>
-      <span class="ai-stat-value">{aiStatsScored}</span>
+<Section title="AI Usage">
+  <div class="mb-2 flex gap-4">
+    <div class="flex flex-col items-center">
+      <span class="text-[10px] uppercase text-muted-foreground">Scored</span>
+      <span class="text-lg font-semibold text-foreground">{aiStatsScored}</span>
     </div>
-    <div class="ai-stat">
-      <span class="ai-stat-label">Skipped</span>
-      <span class="ai-stat-value">{aiStatsSkipped}</span>
+    <div class="flex flex-col items-center">
+      <span class="text-[10px] uppercase text-muted-foreground">Skipped</span>
+      <span class="text-lg font-semibold text-foreground">{aiStatsSkipped}</span>
     </div>
   </div>
-
-  <div class="ai-tokens">
+  <div class="mb-2 text-[11px] leading-relaxed text-foreground/70">
     <div>Prompt tokens: <strong>{aiPromptTokens.toLocaleString()}</strong></div>
     <div>Completion tokens: <strong>{aiCompletionTokens.toLocaleString()}</strong></div>
     <div>Estimated cost: <strong>{aiCost}</strong></div>
   </div>
+  <Button variant="secondary" size="xs" onclick={handleResetUsage}>Reset Usage Stats</Button>
+</Section>
 
-  <button class="btn btn-secondary" onclick={handleResetUsage} style="font-size:11px;">Reset Usage Stats</button>
-</div>
-
-<CollapsibleSection title="Notifications" open={false}>
-  <div class="notif-prefs">
+<CollapsibleSection title="Notifications" bind:open={notificationsOpen}>
+  <div class="flex flex-col gap-1.5">
     {#each Object.entries(NOTIFICATION_LABELS) as [event, label]}
-      <label class="toggle-label">
+      <label class="flex cursor-pointer items-center gap-2 text-xs text-foreground">
         <input
           type="checkbox"
+          class="size-4 cursor-pointer accent-primary"
           checked={notifPrefs[event as NotificationEvent]}
           onchange={() => handleNotifToggle(event as NotificationEvent)}
           disabled={!notifPrefsLoaded}
@@ -715,217 +721,25 @@ async function handleImport(e: Event) {
   </div>
 </CollapsibleSection>
 
-<div class="section-title">Data</div>
+<Section title="Data">
+  <Button variant="ghost" class="text-destructive hover:bg-destructive/10" onclick={handleClearSeen}>
+    Clear Seen Listings ({stats.seenCount})
+  </Button>
+</Section>
 
-<button class="btn btn-danger" onclick={handleClearSeen}>
-  Clear Seen Listings ({stats.seenCount})
-</button>
-
-<div class="section-title">Backup & Restore</div>
-
-<div style="display:flex; gap:8px; margin-bottom:8px;">
-  <button class="btn btn-test" onclick={handleExport}>Export All Data</button>
-  <button class="btn btn-test" onclick={() => fileInput?.click()}>Import Data</button>
-  <input type="file" accept=".json" bind:this={fileInput} onchange={handleImport} style="display:none;" />
-</div>
-<div class="hint">Export downloads a JSON backup of all settings, profile, and seen listings. Import merges the backup into current storage.</div>
-
-<style>
-  .ai-stats-grid {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 8px;
-  }
-
-  .ai-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .ai-stat-label {
-    font-size: 10px;
-    color: #888;
-    text-transform: uppercase;
-  }
-
-  .ai-stat-value {
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-  }
-
-  .ai-tokens {
-    font-size: 11px;
-    color: #555;
-    margin-bottom: 8px;
-    line-height: 1.6;
-  }
-
-  .internal-link {
-    all: unset;
-    color: #3dbda8;
-    cursor: pointer;
-    text-decoration: underline;
-    font-size: 11px;
-    font-family: inherit;
-  }
-
-  .internal-link:hover {
-    color: #2a9d8f;
-  }
-
-  .notif-prefs {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .toggle-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: #333;
-    cursor: pointer;
-  }
-
-  .toggle-label input[type='checkbox'] {
-    margin: 0;
-    cursor: pointer;
-  }
-
-  .model-picker {
-    display: flex;
-    gap: 6px;
-    align-items: stretch;
-  }
-
-  .model-select {
-    flex: 2;
-    min-width: 0;
-  }
-
-  .model-picker :global(.btn) {
-    flex: 1;
-    flex-shrink: 0;
-    font-size: 11px;
-    white-space: nowrap;
-    width: auto;
-    margin-top: 0;
-  }
-
-  .prompt-textarea {
-    min-height: 160px;
-    font-family: ui-monospace, Menlo, Consolas, monospace;
-    font-size: 11px;
-  }
-
-  .prompt-warning {
-    font-size: var(--text-xs);
-    color: var(--color-warning-fg);
-    background: var(--color-warning-bg);
-    border: 1px solid #f0d97c;
-    border-left: 3px solid #d4a017;
-    border-radius: var(--radius-sm);
-    padding: var(--space-2) 10px;
-    margin-bottom: var(--space-2);
-    line-height: 1.4;
-  }
-
-  .prompt-warning code {
-    background: rgba(0, 0, 0, 0.05);
-    padding: 1px 4px;
-    border-radius: 3px;
-  }
-
-  .prompt-error {
-    color: #842029;
-    background: #f8d7da;
-    border-color: #f1aeb5;
-    margin-top: 6px;
-    margin-bottom: 0;
-  }
-
-  .prompt-toolbar {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
-
-  .prompt-toolbar :global(.btn) {
-    flex: 0 0 auto;
-    width: auto;
-    font-size: 11px;
-    margin-top: 0;
-    padding: 4px 10px;
-  }
-
-  .placeholder-legend {
-    margin-top: 8px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
-    font-size: 11px;
-    color: #555;
-  }
-
-  .legend-label {
-    font-weight: 600;
-    color: #444;
-    margin-right: 4px;
-  }
-
-  .placeholder-chip {
-    background: #eef3f6;
-    border: 1px solid #d4dde3;
-    border-radius: 3px;
-    padding: 1px 5px;
-    font-size: 10px;
-    font-family: ui-monospace, Menlo, Consolas, monospace;
-    color: inherit;
-    cursor: help;
-  }
-
-  .placeholder-chip:hover {
-    background: #dfeaf1;
-  }
-
-  .placeholder-chip.active {
-    background: #4a90e2;
-    border-color: #357abd;
-    color: #fff;
-  }
-
-  .placeholder-help {
-    margin-top: 6px;
-    padding: 6px 8px;
-    background: #f4f8fb;
-    border: 1px solid #d4dde3;
-    border-radius: 4px;
-    font-size: 11px;
-    line-height: 1.4;
-    color: #333;
-  }
-
-  .placeholder-help code {
-    background: rgba(0, 0, 0, 0.06);
-    padding: 1px 4px;
-    border-radius: 3px;
-    font-size: 10px;
-  }
-
-  .placeholder-source {
-    margin-top: 4px;
-    font-size: 10px;
-    color: #666;
-    font-style: italic;
-  }
-
-  .placeholder-caption {
-    margin-top: 4px;
-    font-size: 10px;
-    color: var(--color-text-subtle);
-  }
-</style>
+<Section title="Backup & Restore">
+  <div class="mb-2 flex gap-2">
+    <Button class="flex-1" onclick={handleExport}>Export All Data</Button>
+    <Button class="flex-1" onclick={() => fileInput?.click()}>Import Data</Button>
+    <input
+      type="file"
+      accept=".json"
+      bind:this={fileInput}
+      onchange={handleImport}
+      class="hidden"
+    />
+  </div>
+  <p class="text-xs text-muted-foreground m-0">
+    Export downloads a JSON backup of all settings, profile, and seen listings. Import merges the backup into current storage.
+  </p>
+</Section>

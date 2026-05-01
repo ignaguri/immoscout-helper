@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import tailwindcss from '@tailwindcss/vite';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { cpSync } from 'fs';
@@ -68,7 +69,12 @@ function buildExtensionScripts(mode: string) {
 export default defineConfig(({ mode }) => ({
   base: './',
   define: { __DEV__: JSON.stringify(mode !== 'production') },
-  plugins: [svelte(), buildExtensionScripts(mode)],
+  plugins: [tailwindcss(), svelte(), buildExtensionScripts(mode)],
+  resolve: {
+    alias: {
+      $lib: resolve(__dirname, 'src/popup/lib'),
+    },
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

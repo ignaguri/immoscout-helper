@@ -1,6 +1,10 @@
 <script lang="ts">
+import X from '@lucide/svelte/icons/x';
 import type { ManualReviewData } from '../../shared/types';
 import { dismissManualReview, refineManualMessage } from '../lib/messages';
+import { Button } from '$lib/components/ui/button';
+import { Textarea } from '$lib/components/ui/textarea';
+import { Badge } from '$lib/components/ui/badge';
 
 let {
   review,
@@ -53,175 +57,61 @@ function handleFocusTab() {
 }
 </script>
 
-<div class="review-panel">
-  <div class="review-header">
-    <div class="review-title">Message Ready for Review</div>
-    <button class="review-dismiss" onclick={handleDismiss} title="Dismiss">×</button>
+<div class="mb-2.5 rounded-lg border border-warning/40 bg-warning/10 p-2.5" role="region" aria-label="Manual review">
+  <div class="mb-1.5 flex items-center justify-between">
+    <h3 class="m-0 text-[11px] font-bold uppercase tracking-wider text-warning">Message Ready for Review</h3>
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      aria-label="Dismiss review"
+      onclick={handleDismiss}
+    >
+      <X aria-hidden="true" />
+    </Button>
   </div>
-  <div class="review-meta">
-    <span class="review-landlord">{review.landlordTitle} {review.landlordName}</span>
+
+  <div class="mb-1 flex items-center gap-2">
+    <span class="text-[11px] font-semibold text-foreground">{review.landlordTitle} {review.landlordName}</span>
     {#if review.aiScore}
-      <span class="review-score">Score: {review.aiScore}/10</span>
+      <Badge variant="secondary" class="text-[10px]">Score: {review.aiScore}/10</Badge>
     {/if}
   </div>
+
   {#if review.listingTitle}
-    <div class="review-listing">{review.listingTitle}</div>
+    <div class="mb-1.5 truncate text-[10px] text-muted-foreground">{review.listingTitle}</div>
   {/if}
-  <textarea
-    class="review-message"
-    readonly
-    value={messageText}
-    rows="4"
-  ></textarea>
-  <div class="review-buttons">
-    <button class="review-btn focus" onclick={handleFocusTab}>Show Tab</button>
-    <button
-      class="review-btn refine-toggle"
+
+  <Textarea readonly value={messageText} rows={4} class="text-[11px]" />
+
+  <div class="mt-1.5 flex gap-1.5">
+    <Button variant="secondary" size="sm" onclick={handleFocusTab}>Show Tab</Button>
+    <Button
+      size="sm"
+      class="flex-1"
+      aria-expanded={showRefine}
       onclick={() => { showRefine = !showRefine; }}
-    >{showRefine ? 'Cancel' : 'Refine'}</button>
+    >
+      {showRefine ? 'Cancel' : 'Refine'}
+    </Button>
   </div>
+
   {#if showRefine}
-    <div class="refine-area">
-      <textarea
-        class="refine-textarea"
+    <div class="mt-1.5 flex flex-col gap-1.5">
+      <Textarea
         bind:value={refineInput}
         placeholder="e.g., use Sie form, be more formal, shorter, mention my dog..."
-        rows="2"
-      ></textarea>
-      <button
-        class="review-btn refine-apply"
+        rows={2}
+        class="text-[11px]"
+      />
+      <Button
+        size="sm"
+        class="self-end"
+        loading={refineBtnDisabled}
         disabled={refineBtnDisabled || !refineInput.trim()}
         onclick={handleRefine}
-      >{refineBtnText}</button>
+      >
+        {refineBtnText}
+      </Button>
     </div>
   {/if}
 </div>
-
-<style>
-  .review-panel {
-    background: #fffbe6;
-    border: 1px solid #ffe066;
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 10px;
-  }
-
-  .review-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-  }
-
-  .review-title {
-    font-size: 11px;
-    font-weight: 700;
-    color: #996600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .review-dismiss {
-    background: none;
-    border: none;
-    font-size: 16px;
-    cursor: pointer;
-    color: #999;
-    padding: 0 4px;
-    line-height: 1;
-  }
-
-  .review-meta {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 4px;
-  }
-
-  .review-landlord {
-    font-size: 11px;
-    font-weight: 600;
-    color: #333;
-  }
-
-  .review-score {
-    font-size: 10px;
-    color: #666;
-    background: #f0f0f0;
-    padding: 1px 6px;
-    border-radius: 10px;
-  }
-
-  .review-listing {
-    font-size: 10px;
-    color: #888;
-    margin-bottom: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .review-message {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #e0d9c0;
-    border-radius: 6px;
-    font-size: 11px;
-    font-family: inherit;
-    resize: vertical;
-    background: #fff;
-    color: #333;
-  }
-
-  .review-buttons {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
-
-  .review-btn {
-    padding: 6px 12px;
-    border: none;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .review-btn.focus {
-    background: #f0f0f0;
-    color: #333;
-  }
-
-  .review-btn.refine-toggle {
-    background: #83F1DC;
-    color: #1a1a1a;
-    flex: 1;
-  }
-
-  .review-btn:disabled { opacity: 0.6; }
-
-  .refine-area {
-    margin-top: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .refine-textarea {
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 11px;
-    font-family: inherit;
-    resize: vertical;
-  }
-
-  .review-btn.refine-apply {
-    background: #83F1DC;
-    color: #1a1a1a;
-    align-self: flex-end;
-    padding: 6px 16px;
-  }
-</style>

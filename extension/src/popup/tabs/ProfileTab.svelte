@@ -2,10 +2,17 @@
 import type { PopupSettings } from '../lib/storage';
 import { saveAllSettings } from '../lib/storage';
 import { Input } from '$lib/components/ui/input';
-import { Label } from '$lib/components/ui/label';
 import * as Select from '$lib/components/ui/select';
+import { Progress } from '$lib/components/ui/progress';
 import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
 import Section from '$lib/components/Section.svelte';
+import FormField from '$lib/components/FormField.svelte';
+import {
+  REQUIRED_FIELDS,
+  isFilled,
+  validateField as validateFieldSchema,
+  type ValidatedField,
+} from '../lib/profile-schema';
 
 let {
   settings = $bindable(),
@@ -16,6 +23,7 @@ let {
 } = $props();
 
 const SAVED_FLASH_MS = 1200;
+const REQUIRED_SET = new Set<keyof PopupSettings>(REQUIRED_FIELDS);
 
 type SectionKey = 'about' | 'doc' | 'form';
 
@@ -35,11 +43,6 @@ const FORM_FIELDS: (keyof PopupSettings)[] = [
   'formHouseholdSize', 'formDocuments',
 ];
 
-function isFilled(v: unknown): boolean {
-  if (v === undefined || v === null) return false;
-  if (typeof v === 'number') return true;
-  return String(v).trim() !== '';
-}
 function filledCount(keys: (keyof PopupSettings)[]): number {
   return keys.filter((k) => isFilled(settings[k])).length;
 }
@@ -47,6 +50,8 @@ function filledCount(keys: (keyof PopupSettings)[]): number {
 let aboutFilled = $derived(filledCount(ABOUT_FIELDS));
 let docFilled = $derived(filledCount(DOC_FIELDS));
 let formFilled = $derived(filledCount(FORM_FIELDS));
+
+let requiredFilled = $derived(REQUIRED_FIELDS.filter((k) => isFilled(settings[k])).length);
 
 let docOpen = $state(true);
 let formOpen = $state(true);
@@ -63,6 +68,17 @@ let currentSection: SectionKey = $state('about');
 let savedFlashSection: SectionKey | null = $state(null);
 let flashTimer: ReturnType<typeof setTimeout> | undefined;
 $effect(() => () => clearTimeout(flashTimer));
+
+let errors = $state<Partial<Record<ValidatedField, string>>>({});
+
+function validateOnBlur(field: ValidatedField) {
+  const msg = validateFieldSchema(field, settings[field as keyof PopupSettings]);
+  if (msg) {
+    errors[field] = msg;
+  } else {
+    delete errors[field];
+  }
+}
 
 async function autoSave() {
   if (!settingsLoaded) return;
@@ -124,7 +140,17 @@ const documentsOptions = [
 function selectLabel(opts: { value: string; label: string }[], v: string): string {
   return opts.find((o) => o.value === v)?.label ?? v ?? '';
 }
+
+const isReq = (k: keyof PopupSettings) => REQUIRED_SET.has(k);
 </script>
+
+<div class="mb-3 rounded-md border border-border bg-muted/40 p-2.5">
+  <div class="mb-1.5 flex items-center justify-between text-[11px]">
+    <span class="font-semibold text-foreground">Profile completeness</span>
+    <span class="text-muted-foreground">{requiredFilled} / {REQUIRED_FIELDS.length} critical fields</span>
+  </div>
+  <Progress value={requiredFilled} max={REQUIRED_FIELDS.length} />
+</div>
 
 <div onfocusin={() => currentSection = 'about'}>
   <Section title={`About You (${aboutFilled}/${ABOUT_FIELDS.length} filled)`}>
@@ -135,56 +161,55 @@ function selectLabel(opts: { value: string; label: string }[], v: string): strin
     {/snippet}
 
     <div class="grid grid-cols-2 gap-3">
-      <div class="space-y-1.5">
-        <Label for="profileName">Name</Label>
+      <FormField id="profileName" label="Name" required={isReq('profileName')}>
         <Input id="profileName" type="text" bind:value={settings.profileName} oninput={autoSave} onblur={autoSave} placeholder="Max Mustermann" />
-      </div>
-      <div class="space-y-1.5">
-        <Label for="profileAge">Age</Label>
+      </FormField>
+      <FormField id="profileAge" label="Age">
         <Input id="profileAge" type="number" bind:value={settings.profileAge} oninput={autoSave} onblur={autoSave} placeholder="30" />
-      </div>
+      </FormField>
     </div>
 
-    <div class="mt-3 space-y-1.5">
-      <Label for="profileOccupation">Occupation</Label>
+    <FormField id="profileOccupation" label="Occupation" required={isReq('profileOccupation')} class="mt-3">
       <Input id="profileOccupation" type="text" bind:value={settings.profileOccupation} oninput={autoSave} onblur={autoSave} placeholder="Software Engineer" />
-    </div>
+    </FormField>
 
-    <div class="mt-3 space-y-1.5">
-      <Label for="profileLanguages">Languages (comma-separated)</Label>
+    <FormField id="profileLanguages" label="Languages (comma-separated)" class="mt-3">
       <Input id="profileLanguages" type="text" bind:value={settings.profileLanguages} oninput={autoSave} onblur={autoSave} placeholder="Deutsch, English" />
-    </div>
+    </FormField>
 
-    <div class="mt-3 space-y-1.5">
-      <Label for="profileMovingReason">Reason for Moving</Label>
+    <FormField id="profileMovingReason" label="Reason for Moving" required={isReq('profileMovingReason')} class="mt-3">
       <Input id="profileMovingReason" type="text" bind:value={settings.profileMovingReason} oninput={autoSave} onblur={autoSave} placeholder="Relocating for work" />
-    </div>
+    </FormField>
 
-    <div class="mt-3 space-y-1.5">
-      <Label for="profileCurrentNeighborhood">Current Neighborhood</Label>
+    <FormField id="profileCurrentNeighborhood" label="Current Neighborhood" class="mt-3">
       <Input id="profileCurrentNeighborhood" type="text" bind:value={settings.profileCurrentNeighborhood} oninput={autoSave} onblur={autoSave} placeholder="Kreuzberg" />
-    </div>
+    </FormField>
 
-    <div class="mt-3 space-y-1.5">
-      <Label for="profileIdealApartment">Ideal Apartment</Label>
+    <FormField id="profileIdealApartment" label="Ideal Apartment" class="mt-3">
       <Input id="profileIdealApartment" type="text" bind:value={settings.profileIdealApartment} oninput={autoSave} onblur={autoSave} placeholder="2-room, balcony, quiet street" />
-    </div>
+    </FormField>
 
     <div class="mt-3 grid grid-cols-2 gap-3">
-      <div class="space-y-1.5">
-        <Label for="profileMaxWarmmiete">Max Warmmiete</Label>
-        <Input id="profileMaxWarmmiete" type="number" bind:value={settings.profileMaxWarmmiete} oninput={autoSave} onblur={autoSave} placeholder="1200" />
-      </div>
-      <div class="space-y-1.5">
-        <Label for="profileDealbreakers">Dealbreakers</Label>
+      <FormField id="profileMaxWarmmiete" label="Max Warmmiete" error={errors.profileMaxWarmmiete}>
+        <Input
+          id="profileMaxWarmmiete"
+          type="number"
+          bind:value={settings.profileMaxWarmmiete}
+          aria-invalid={!!errors.profileMaxWarmmiete}
+          aria-describedby={errors.profileMaxWarmmiete ? 'profileMaxWarmmiete-error' : undefined}
+          oninput={autoSave}
+          onblur={() => { autoSave(); validateOnBlur('profileMaxWarmmiete'); }}
+          placeholder="1200"
+        />
+      </FormField>
+      <FormField id="profileDealbreakers" label="Dealbreakers">
         <Input id="profileDealbreakers" type="text" bind:value={settings.profileDealbreakers} oninput={autoSave} onblur={autoSave} placeholder="no balcony, WBS" />
-      </div>
+      </FormField>
     </div>
 
-    <div class="mt-3 space-y-1.5">
-      <Label for="profileStrengths">Strengths as Tenant</Label>
+    <FormField id="profileStrengths" label="Strengths as Tenant" class="mt-3">
       <Input id="profileStrengths" type="text" bind:value={settings.profileStrengths} oninput={autoSave} onblur={autoSave} placeholder="stable income, non-smoker" />
-    </div>
+    </FormField>
   </Section>
 </div>
 
@@ -192,183 +217,220 @@ function selectLabel(opts: { value: string; label: string }[], v: string): strin
   {#snippet actions()}
     {#if savedFlashSection === 'doc'}<span class="text-[10px] text-success">✓ Saved</span>{/if}
   {/snippet}
-    <div onfocusin={() => currentSection = 'doc'}>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="space-y-1.5">
-          <Label for="profileBirthDate">Birth Date</Label>
-          <Input id="profileBirthDate" type="date" bind:value={settings.profileBirthDate} onchange={autoSave} />
-        </div>
-        <div class="space-y-1.5">
-          <Label for="profileMaritalStatus">Marital Status</Label>
-          <Select.Root type="single" bind:value={settings.profileMaritalStatus} onValueChange={autoSave}>
-            <Select.Trigger id="profileMaritalStatus" class="w-full">
-              {selectLabel(maritalOptions, settings.profileMaritalStatus)}
-            </Select.Trigger>
-            <Select.Content>
-              {#each maritalOptions as opt}
-                <Select.Item value={opt.value}>{opt.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-      </div>
-
-      <div class="mt-3 space-y-1.5">
-        <Label for="profileCurrentAddress">Current Address</Label>
-        <Input id="profileCurrentAddress" type="text" bind:value={settings.profileCurrentAddress} oninput={autoSave} onblur={autoSave} placeholder="Musterstr. 1, 80331 München" />
-      </div>
-
-      <div class="mt-3 space-y-1.5">
-        <Label for="profileEmail">Email</Label>
-        <Input id="profileEmail" type="email" bind:value={settings.profileEmail} oninput={autoSave} onblur={autoSave} placeholder="name@example.com" />
-      </div>
-
-      <div class="mt-3 space-y-1.5">
-        <Label for="profileNetIncome">Monthly Net Income (€)</Label>
-        <Input id="profileNetIncome" type="number" bind:value={settings.profileNetIncome} oninput={autoSave} onblur={autoSave} min={0} max={99999} step="0.01" placeholder="5203.97" />
-      </div>
-
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <div class="space-y-1.5">
-          <Label for="profileEmployer">Employer</Label>
-          <Input id="profileEmployer" type="text" bind:value={settings.profileEmployer} oninput={autoSave} onblur={autoSave} placeholder="Acme GmbH, Musterstr. 1, 80331 München" />
-        </div>
-        <div class="space-y-1.5">
-          <Label for="profileEmployedSince">Employed Since</Label>
-          <Input id="profileEmployedSince" type="date" bind:value={settings.profileEmployedSince} onchange={autoSave} />
-        </div>
-      </div>
-
-      <div class="mt-3 space-y-1.5">
-        <Label for="profileCurrentLandlord">Current Landlord</Label>
-        <Input id="profileCurrentLandlord" type="text" bind:value={settings.profileCurrentLandlord} oninput={autoSave} onblur={autoSave} placeholder="Name of current landlord" />
-      </div>
-
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <div class="space-y-1.5">
-          <Label for="profileLandlordPhone">Landlord Phone</Label>
-          <Input id="profileLandlordPhone" type="tel" bind:value={settings.profileLandlordPhone} oninput={autoSave} onblur={autoSave} placeholder="+49 179 …" />
-        </div>
-        <div class="space-y-1.5">
-          <Label for="profileLandlordEmail">Landlord Email</Label>
-          <Input id="profileLandlordEmail" type="email" bind:value={settings.profileLandlordEmail} oninput={autoSave} onblur={autoSave} placeholder="landlord@example.com" />
-        </div>
-      </div>
+  <div onfocusin={() => currentSection = 'doc'}>
+    <div class="grid grid-cols-2 gap-3">
+      <FormField id="profileBirthDate" label="Birth Date" required={isReq('profileBirthDate')}>
+        <Input id="profileBirthDate" type="date" bind:value={settings.profileBirthDate} onchange={autoSave} />
+      </FormField>
+      <FormField id="profileMaritalStatus" label="Marital Status">
+        <Select.Root type="single" bind:value={settings.profileMaritalStatus} onValueChange={autoSave}>
+          <Select.Trigger id="profileMaritalStatus" class="w-full">
+            {selectLabel(maritalOptions, settings.profileMaritalStatus)}
+          </Select.Trigger>
+          <Select.Content>
+            {#each maritalOptions as opt}
+              <Select.Item value={opt.value}>{opt.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </FormField>
     </div>
+
+    <FormField id="profileCurrentAddress" label="Current Address" required={isReq('profileCurrentAddress')} class="mt-3">
+      <Input id="profileCurrentAddress" type="text" bind:value={settings.profileCurrentAddress} oninput={autoSave} onblur={autoSave} placeholder="Musterstr. 1, 80331 München" />
+    </FormField>
+
+    <FormField id="profileEmail" label="Email" required={isReq('profileEmail')} error={errors.profileEmail} class="mt-3">
+      <Input
+        id="profileEmail"
+        type="email"
+        bind:value={settings.profileEmail}
+        aria-invalid={!!errors.profileEmail}
+        aria-describedby={errors.profileEmail ? 'profileEmail-error' : undefined}
+        oninput={autoSave}
+        onblur={() => { autoSave(); validateOnBlur('profileEmail'); }}
+        placeholder="name@example.com"
+      />
+    </FormField>
+
+    <FormField id="profileNetIncome" label="Monthly Net Income (€)" required={isReq('profileNetIncome')} error={errors.profileNetIncome} class="mt-3">
+      <Input
+        id="profileNetIncome"
+        type="number"
+        bind:value={settings.profileNetIncome}
+        aria-invalid={!!errors.profileNetIncome}
+        aria-describedby={errors.profileNetIncome ? 'profileNetIncome-error' : undefined}
+        oninput={autoSave}
+        onblur={() => { autoSave(); validateOnBlur('profileNetIncome'); }}
+        min={0}
+        max={99999}
+        step="0.01"
+        placeholder="5203.97"
+      />
+    </FormField>
+
+    <div class="mt-3 grid grid-cols-2 gap-3">
+      <FormField id="profileEmployer" label="Employer" required={isReq('profileEmployer')}>
+        <Input id="profileEmployer" type="text" bind:value={settings.profileEmployer} oninput={autoSave} onblur={autoSave} placeholder="Acme GmbH, Musterstr. 1, 80331 München" />
+      </FormField>
+      <FormField id="profileEmployedSince" label="Employed Since">
+        <Input id="profileEmployedSince" type="date" bind:value={settings.profileEmployedSince} onchange={autoSave} />
+      </FormField>
+    </div>
+
+    <FormField id="profileCurrentLandlord" label="Current Landlord" class="mt-3">
+      <Input id="profileCurrentLandlord" type="text" bind:value={settings.profileCurrentLandlord} oninput={autoSave} onblur={autoSave} placeholder="Name of current landlord" />
+    </FormField>
+
+    <div class="mt-3 grid grid-cols-2 gap-3">
+      <FormField id="profileLandlordPhone" label="Landlord Phone" error={errors.profileLandlordPhone}>
+        <Input
+          id="profileLandlordPhone"
+          type="tel"
+          bind:value={settings.profileLandlordPhone}
+          aria-invalid={!!errors.profileLandlordPhone}
+          aria-describedby={errors.profileLandlordPhone ? 'profileLandlordPhone-error' : undefined}
+          oninput={autoSave}
+          onblur={() => { autoSave(); validateOnBlur('profileLandlordPhone'); }}
+          placeholder="+49 179 …"
+        />
+      </FormField>
+      <FormField id="profileLandlordEmail" label="Landlord Email" error={errors.profileLandlordEmail}>
+        <Input
+          id="profileLandlordEmail"
+          type="email"
+          bind:value={settings.profileLandlordEmail}
+          aria-invalid={!!errors.profileLandlordEmail}
+          aria-describedby={errors.profileLandlordEmail ? 'profileLandlordEmail-error' : undefined}
+          oninput={autoSave}
+          onblur={() => { autoSave(); validateOnBlur('profileLandlordEmail'); }}
+          placeholder="landlord@example.com"
+        />
+      </FormField>
+    </div>
+  </div>
 </CollapsibleSection>
 
 <CollapsibleSection title="Form Auto-Fill ({formFilled}/{FORM_FIELDS.length})" bind:open={formOpen}>
   {#snippet actions()}
     {#if savedFlashSection === 'form'}<span class="text-[10px] text-success">✓ Saved</span>{/if}
   {/snippet}
-    <div onfocusin={() => currentSection = 'form'}>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="space-y-1.5">
-          <Label for="formSalutation">Salutation</Label>
-          <Select.Root type="single" bind:value={settings.formSalutation} onValueChange={autoSave}>
-            <Select.Trigger id="formSalutation" class="w-full">{selectLabel(salutationOptions, settings.formSalutation)}</Select.Trigger>
-            <Select.Content>
-              {#each salutationOptions as opt}
-                <Select.Item value={opt.value}>{opt.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-        <div class="space-y-1.5">
-          <Label for="formPhone">Phone</Label>
-          <Input id="formPhone" type="tel" bind:value={settings.formPhone} oninput={autoSave} onblur={autoSave} placeholder="+49 170 1234567" />
-        </div>
-      </div>
-
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <div class="space-y-1.5">
-          <Label for="formAdults">Adults</Label>
-          <Input id="formAdults" type="number" bind:value={settings.formAdults} oninput={autoSave} onblur={autoSave} min={1} max={10} />
-        </div>
-        <div class="space-y-1.5">
-          <Label for="formChildren">Children</Label>
-          <Input id="formChildren" type="number" bind:value={settings.formChildren} oninput={autoSave} onblur={autoSave} min={0} max={10} />
-        </div>
-      </div>
-
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <div class="space-y-1.5">
-          <Label for="formPets">Pets</Label>
-          <Select.Root type="single" bind:value={settings.formPets} onValueChange={autoSave}>
-            <Select.Trigger id="formPets" class="w-full">{selectLabel(yesNoOptions, settings.formPets)}</Select.Trigger>
-            <Select.Content>
-              {#each yesNoOptions as opt}
-                <Select.Item value={opt.value}>{opt.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-        <div class="space-y-1.5">
-          <Label for="formSmoker">Smoker</Label>
-          <Select.Root type="single" bind:value={settings.formSmoker} onValueChange={autoSave}>
-            <Select.Trigger id="formSmoker" class="w-full">{selectLabel(yesNoOptions, settings.formSmoker)}</Select.Trigger>
-            <Select.Content>
-              {#each yesNoOptions as opt}
-                <Select.Item value={opt.value}>{opt.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-      </div>
-
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <div class="space-y-1.5">
-          <Label for="formEmployment">Employment</Label>
-          <Select.Root type="single" bind:value={settings.formEmployment} onValueChange={autoSave}>
-            <Select.Trigger id="formEmployment" class="w-full">{selectLabel(employmentOptions, settings.formEmployment)}</Select.Trigger>
-            <Select.Content>
-              {#each employmentOptions as opt}
-                <Select.Item value={opt.value}>{opt.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-        <div class="space-y-1.5">
-          <Label for="formIncomeRange">Income Range</Label>
-          <Select.Root type="single" bind:value={settings.formIncomeRange} onValueChange={autoSave}>
-            <Select.Trigger id="formIncomeRange" class="w-full">{selectLabel(incomeRangeOptions, settings.formIncomeRange)}</Select.Trigger>
-            <Select.Content>
-              {#each incomeRangeOptions as opt}
-                <Select.Item value={opt.value}>{opt.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-      </div>
-
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <div class="space-y-1.5">
-          <Label for="formIncome">Income (net)</Label>
-          <Input id="formIncome" type="number" bind:value={settings.formIncome} oninput={autoSave} onblur={autoSave} min={0} max={50000} />
-        </div>
-        <div class="space-y-1.5">
-          <Label for="formHouseholdSize">Household Size</Label>
-          <Select.Root type="single" bind:value={settings.formHouseholdSize} onValueChange={autoSave}>
-            <Select.Trigger id="formHouseholdSize" class="w-full">{selectLabel(householdOptions, settings.formHouseholdSize)}</Select.Trigger>
-            <Select.Content>
-              {#each householdOptions as opt}
-                <Select.Item value={opt.value}>{opt.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-      </div>
-
-      <div class="mt-3 space-y-1.5">
-        <Label for="formDocuments">Documents</Label>
-        <Select.Root type="single" bind:value={settings.formDocuments} onValueChange={autoSave}>
-          <Select.Trigger id="formDocuments" class="w-full">{selectLabel(documentsOptions, settings.formDocuments)}</Select.Trigger>
+  <div onfocusin={() => currentSection = 'form'}>
+    <div class="grid grid-cols-2 gap-3">
+      <FormField id="formSalutation" label="Salutation" required={isReq('formSalutation')}>
+        <Select.Root type="single" bind:value={settings.formSalutation} onValueChange={autoSave}>
+          <Select.Trigger id="formSalutation" class="w-full">{selectLabel(salutationOptions, settings.formSalutation)}</Select.Trigger>
           <Select.Content>
-            {#each documentsOptions as opt}
+            {#each salutationOptions as opt}
               <Select.Item value={opt.value}>{opt.label}</Select.Item>
             {/each}
           </Select.Content>
         </Select.Root>
-      </div>
+      </FormField>
+      <FormField id="formPhone" label="Phone" required={isReq('formPhone')} error={errors.formPhone}>
+        <Input
+          id="formPhone"
+          type="tel"
+          bind:value={settings.formPhone}
+          aria-invalid={!!errors.formPhone}
+          aria-describedby={errors.formPhone ? 'formPhone-error' : undefined}
+          oninput={autoSave}
+          onblur={() => { autoSave(); validateOnBlur('formPhone'); }}
+          placeholder="+49 170 1234567"
+        />
+      </FormField>
     </div>
+
+    <div class="mt-3 grid grid-cols-2 gap-3">
+      <FormField id="formAdults" label="Adults" required={isReq('formAdults')}>
+        <Input id="formAdults" type="number" bind:value={settings.formAdults} oninput={autoSave} onblur={autoSave} min={1} max={10} />
+      </FormField>
+      <FormField id="formChildren" label="Children">
+        <Input id="formChildren" type="number" bind:value={settings.formChildren} oninput={autoSave} onblur={autoSave} min={0} max={10} />
+      </FormField>
+    </div>
+
+    <div class="mt-3 grid grid-cols-2 gap-3">
+      <FormField id="formPets" label="Pets">
+        <Select.Root type="single" bind:value={settings.formPets} onValueChange={autoSave}>
+          <Select.Trigger id="formPets" class="w-full">{selectLabel(yesNoOptions, settings.formPets)}</Select.Trigger>
+          <Select.Content>
+            {#each yesNoOptions as opt}
+              <Select.Item value={opt.value}>{opt.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </FormField>
+      <FormField id="formSmoker" label="Smoker">
+        <Select.Root type="single" bind:value={settings.formSmoker} onValueChange={autoSave}>
+          <Select.Trigger id="formSmoker" class="w-full">{selectLabel(yesNoOptions, settings.formSmoker)}</Select.Trigger>
+          <Select.Content>
+            {#each yesNoOptions as opt}
+              <Select.Item value={opt.value}>{opt.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </FormField>
+    </div>
+
+    <div class="mt-3 grid grid-cols-2 gap-3">
+      <FormField id="formEmployment" label="Employment" required={isReq('formEmployment')}>
+        <Select.Root type="single" bind:value={settings.formEmployment} onValueChange={autoSave}>
+          <Select.Trigger id="formEmployment" class="w-full">{selectLabel(employmentOptions, settings.formEmployment)}</Select.Trigger>
+          <Select.Content>
+            {#each employmentOptions as opt}
+              <Select.Item value={opt.value}>{opt.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </FormField>
+      <FormField id="formIncomeRange" label="Income Range" required={isReq('formIncomeRange')}>
+        <Select.Root type="single" bind:value={settings.formIncomeRange} onValueChange={autoSave}>
+          <Select.Trigger id="formIncomeRange" class="w-full">{selectLabel(incomeRangeOptions, settings.formIncomeRange)}</Select.Trigger>
+          <Select.Content>
+            {#each incomeRangeOptions as opt}
+              <Select.Item value={opt.value}>{opt.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </FormField>
+    </div>
+
+    <div class="mt-3 grid grid-cols-2 gap-3">
+      <FormField id="formIncome" label="Income (net)" error={errors.formIncome}>
+        <Input
+          id="formIncome"
+          type="number"
+          bind:value={settings.formIncome}
+          aria-invalid={!!errors.formIncome}
+          aria-describedby={errors.formIncome ? 'formIncome-error' : undefined}
+          oninput={autoSave}
+          onblur={() => { autoSave(); validateOnBlur('formIncome'); }}
+          min={0}
+          max={50000}
+        />
+      </FormField>
+      <FormField id="formHouseholdSize" label="Household Size" required={isReq('formHouseholdSize')}>
+        <Select.Root type="single" bind:value={settings.formHouseholdSize} onValueChange={autoSave}>
+          <Select.Trigger id="formHouseholdSize" class="w-full">{selectLabel(householdOptions, settings.formHouseholdSize)}</Select.Trigger>
+          <Select.Content>
+            {#each householdOptions as opt}
+              <Select.Item value={opt.value}>{opt.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </FormField>
+    </div>
+
+    <FormField id="formDocuments" label="Documents" class="mt-3">
+      <Select.Root type="single" bind:value={settings.formDocuments} onValueChange={autoSave}>
+        <Select.Trigger id="formDocuments" class="w-full">{selectLabel(documentsOptions, settings.formDocuments)}</Select.Trigger>
+        <Select.Content>
+          {#each documentsOptions as opt}
+            <Select.Item value={opt.value}>{opt.label}</Select.Item>
+          {/each}
+        </Select.Content>
+      </Select.Root>
+    </FormField>
+  </div>
 </CollapsibleSection>

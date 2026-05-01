@@ -1,5 +1,7 @@
 <script lang="ts">
 import Trash2 from '@lucide/svelte/icons/trash-2';
+import Download from '@lucide/svelte/icons/download';
+import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
 import { error } from '../../shared/logger';
 import type { ConversationEntry, ExportFormat, SavedSnapshotMeta } from '../../shared/types';
 import {
@@ -14,6 +16,7 @@ import DraftReplySection from './DraftReplySection.svelte';
 import { APPOINTMENT_STATUS_TONES } from '../lib/tone';
 import { Button } from '$lib/components/ui/button';
 import { Badge } from '$lib/components/ui/badge';
+import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 import { cn } from '$lib/utils';
 
 let {
@@ -205,20 +208,44 @@ let timeStr = $derived(
           {#if snapshot}
             <span class="mr-1 text-[11px] text-muted-foreground">📦 {snapshot.imageCount} images · {snapshotDateStr(snapshot)}</span>
             <Button variant="outline" size="xs" onclick={handleView}>View</Button>
-            <Button variant="outline" size="xs" disabled={exportBusy} onclick={(e) => handleExport(e, 'html')}>HTML</Button>
-            <Button variant="outline" size="xs" disabled={exportBusy} onclick={(e) => handleExport(e, 'pdf')}>PDF</Button>
-            <Button variant="outline" size="xs" disabled={exportBusy} onclick={(e) => handleExport(e, 'zip')}>ZIP</Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              class="text-destructive hover:bg-destructive/10"
-              disabled={deleteBusy}
-              aria-label="Delete snapshot"
-              title="Delete snapshot"
-              onclick={handleDelete}
-            >
-              <Trash2 aria-hidden="true" />
-            </Button>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label="More snapshot actions"
+                    title="More actions"
+                    {...props}
+                  >
+                    <MoreHorizontal aria-hidden="true" />
+                  </Button>
+                {/snippet}
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content align="end">
+                <DropdownMenu.Item disabled={exportBusy} onSelect={(e: Event) => handleExport(e, 'html')}>
+                  <Download aria-hidden="true" />
+                  Export HTML
+                </DropdownMenu.Item>
+                <DropdownMenu.Item disabled={exportBusy} onSelect={(e: Event) => handleExport(e, 'pdf')}>
+                  <Download aria-hidden="true" />
+                  Export PDF
+                </DropdownMenu.Item>
+                <DropdownMenu.Item disabled={exportBusy} onSelect={(e: Event) => handleExport(e, 'zip')}>
+                  <Download aria-hidden="true" />
+                  Export ZIP
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item
+                  variant="destructive"
+                  disabled={deleteBusy}
+                  onSelect={(e: Event) => handleDelete(e)}
+                >
+                  <Trash2 aria-hidden="true" />
+                  Delete snapshot
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
           {:else}
             <Button size="xs" loading={saveBusy} disabled={saveBusy} onclick={handleSaveSnapshot}>
               {saveBusy ? 'Saving…' : '📦 Save snapshot'}

@@ -103,38 +103,6 @@ function handleBadgeDecrement() {
 }
 </script>
 
-<div class="conv-controls">
-  <button class="btn btn-test" disabled={checkBtnDisabled} onclick={handleCheckNow}>
-    {checkBtnText}
-  </button>
-  <button
-    class="btn-filter"
-    class:active={unreadOnly}
-    onclick={() => { unreadOnly = !unreadOnly; displayLimit = PAGE_SIZE; }}
-    title="Show only unread conversations"
-  >
-    Unread{#if unreadFilterCount > 0} ({unreadFilterCount}){/if}
-  </button>
-  <button
-    class="btn-filter"
-    class:active={repliedOnly}
-    onclick={() => { repliedOnly = !repliedOnly; displayLimit = PAGE_SIZE; }}
-    title="Show only conversations where the landlord replied"
-  >
-    Replied{#if repliedFilterCount > 0} ({repliedFilterCount}){/if}
-  </button>
-  <button
-    class="btn-filter"
-    class:active={appointmentsOnly}
-    onclick={() => { appointmentsOnly = !appointmentsOnly; displayLimit = PAGE_SIZE; }}
-    title="Show only conversations with appointments"
-  >
-    📅{#if appointmentCount > 0} ({appointmentCount}){/if}
-  </button>
-  {#if lastCheckStr}
-    <span class="last-check">{lastCheckStr}</span>
-  {/if}
-</div>
 <div class="search-wrap">
   <input
     type="text"
@@ -145,6 +113,39 @@ function handleBadgeDecrement() {
   />
   {#if searchQuery}
     <button class="search-clear" aria-label="Clear search" title="Clear search" onclick={() => { searchQuery = ''; displayLimit = PAGE_SIZE; }}>×</button>
+  {/if}
+</div>
+
+<div class="conv-controls">
+  <button class="btn btn-test" disabled={checkBtnDisabled} onclick={handleCheckNow}>
+    {checkBtnText}
+  </button>
+  <button
+    class="btn-filter"
+    class:active={unreadOnly}
+    onclick={() => { unreadOnly = !unreadOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only unread conversations"
+  >
+    {#if unreadOnly}<span class="filter-check">✓</span>{/if}Unread{#if unreadFilterCount > 0} ({unreadFilterCount}){/if}
+  </button>
+  <button
+    class="btn-filter"
+    class:active={repliedOnly}
+    onclick={() => { repliedOnly = !repliedOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only conversations where the landlord replied"
+  >
+    {#if repliedOnly}<span class="filter-check">✓</span>{/if}Replied{#if repliedFilterCount > 0} ({repliedFilterCount}){/if}
+  </button>
+  <button
+    class="btn-filter"
+    class:active={appointmentsOnly}
+    onclick={() => { appointmentsOnly = !appointmentsOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only conversations with appointments"
+  >
+    {#if appointmentsOnly}<span class="filter-check">✓</span>{/if}📅{#if appointmentCount > 0} ({appointmentCount}){/if}
+  </button>
+  {#if lastCheckStr}
+    <span class="last-check">{lastCheckStr}</span>
   {/if}
 </div>
 
@@ -202,27 +203,34 @@ function handleBadgeDecrement() {
 
   .btn-filter {
     padding: 6px 10px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
     background: #fff;
-    font-size: 12px;
+    font-size: var(--text-sm);
     cursor: pointer;
-    color: #555;
+    color: var(--color-text-muted);
     white-space: nowrap;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
   }
 
   .btn-filter.active {
-    background: #e8eaff;
-    border-color: #aab0ff;
-    color: #333;
+    background: var(--color-brand);
+    border-color: var(--color-brand-strong);
+    color: var(--color-text);
+    font-weight: 600;
   }
 
   .btn-filter:hover {
-    background: #f5f5f5;
+    background: var(--color-bg-subtle);
   }
 
   .btn-filter.active:hover {
-    background: #d8daff;
+    background: var(--color-brand-hover);
+  }
+
+  .filter-check {
+    margin-right: 4px;
+    font-weight: 700;
   }
 
   .last-check {

@@ -126,10 +126,10 @@ const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;'
       <button
         class="error-info-btn"
         onclick={() => showErrorDetail = !showErrorDetail}
-        aria-label={showErrorDetail ? 'Hide error details' : 'Show error details'}
         aria-expanded={showErrorDetail}
       >
-        {showErrorDetail ? '▾' : 'ⓘ'}
+        {showErrorDetail ? 'Hide details' : 'Show details'}
+        <span class="chev" class:open={showErrorDetail}>{'›'}</span>
       </button>
     {/if}
   </div>
@@ -144,13 +144,13 @@ const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;'
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    margin-left: 4px;
-    font-size: 12px;
+    gap: 2px;
+    margin-left: 6px;
+    padding: 1px 6px;
+    font-size: var(--text-xs);
+    font-weight: 500;
     color: #c0392b;
-    border-radius: 50%;
+    border-radius: var(--radius-sm);
     vertical-align: middle;
   }
 
@@ -160,38 +160,51 @@ const tsStyle = 'color:#aaa; font-weight:400; font-size:11px; margin-right:4px;'
     outline: 1px solid #c0392b;
   }
 
+  .error-info-btn .chev {
+    display: inline-block;
+    transition: transform var(--transition-fast);
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .error-info-btn .chev.open {
+    transform: rotate(90deg);
+  }
+
   .duplicate-decision-actions {
     display: flex;
-    gap: 6px;
-    margin: 4px 0 4px 8px;
+    gap: var(--space-2);
+    margin: 6px 0 6px 8px;
   }
 
   .btn-decision {
     all: unset;
     cursor: pointer;
-    padding: 3px 10px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 500;
-    transition: background 0.15s;
+    padding: 6px 14px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    transition: background var(--transition-fast);
   }
 
   .btn-send-anyway {
-    background: #83f1dc;
-    color: #1a1a1a;
+    background: var(--color-brand);
+    color: var(--color-text);
   }
 
   .btn-send-anyway:hover {
-    background: #6de8d0;
+    background: var(--color-brand-hover);
   }
 
   .btn-skip-dup {
-    background: #f0f0f0;
-    color: #333;
+    background: transparent;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    font-weight: 500;
   }
 
   .btn-skip-dup:hover {
-    background: #e0e0e0;
+    background: var(--color-bg-subtle);
   }
 
   .btn-decision:disabled {

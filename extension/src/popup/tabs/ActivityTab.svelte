@@ -80,12 +80,21 @@ let queueOpen = $derived(queue.length > 0);
 let queueTitle = $derived(`Queue (${queue.length} pending)`);
 let newUrlInput = $state('');
 
-// Auto-scroll activity log when entries change
+// Auto-scroll activity log when entries change, but only if user is already at the bottom.
+// If they've scrolled up to read older entries, leave them alone.
+let stickToBottom = true;
 $effect(() => {
-  if (activityLog.length && logBoxEl) {
+  // Track entry count so this effect re-runs on append.
+  void activityLog.length;
+  if (logBoxEl && stickToBottom) {
     logBoxEl.scrollTop = logBoxEl.scrollHeight;
   }
 });
+
+function handleLogScroll() {
+  if (!logBoxEl) return;
+  stickToBottom = logBoxEl.scrollTop + logBoxEl.clientHeight >= logBoxEl.scrollHeight - 10;
+}
 
 async function autoSave() {
   if (!settingsLoaded) return;
@@ -175,7 +184,7 @@ async function handleCapture() {
 
     if (listings.length === 0) {
       captureStatus = 'No listings found on this page.';
-      captureStatusColor = '#888';
+      captureStatusColor = 'var(--color-text-muted)';
       captureBtnDisabled = false;
       captureBtnText = 'Capture';
       return;
@@ -290,15 +299,17 @@ async function handleClearActivity() {
 <!-- Pending Approval Section -->
 {#if pendingApproval.length > 0}
 <CollapsibleSection title={`Needs Approval (${pendingApproval.length})`} open={true}>
-  <div class="queue-list">
-    {#each pendingApproval as item, i}
+  <div class="pending-list">
+    {#each pendingApproval as item}
       {@const url = item.url || `https://www.immobilienscout24.de/expose/${item.id}`}
-      <div class="queue-item" class:bordered={i < pendingApproval.length - 1}>
-        <a href={url} target="_blank" rel="noopener noreferrer" style="color:#888; text-decoration:none;" title="Open listing">({item.id})</a>
-        {' '}{item.title || '—'}
+      <div class="pending-item">
+        <div class="pending-title">
+          <a href={url} target="_blank" rel="noopener noreferrer" class="pending-id" title="Open listing">#{item.id}</a>
+          {item.title || '—'}
+        </div>
         <div class="pending-actions">
-          <button class="btn btn-test btn-pending-sm" onclick={() => handleApprove(item)}>Approve</button>
-          <button class="btn btn-secondary btn-pending-sm" onclick={() => handleSkipPending(item.id)}>Skip</button>
+          <button class="btn-approve" onclick={() => handleApprove(item)}>Approve</button>
+          <button class="btn-skip" onclick={() => handleSkipPending(item.id)}>Skip</button>
         </div>
       </div>
     {/each}
@@ -312,6 +323,7 @@ async function handleClearActivity() {
     <button
       class="btn btn-test btn-capture"
       disabled={captureBtnDisabled || isQueueProcessing}
+      aria-busy={captureBtnDisabled}
       onclick={handleCapture}
     >
       + {captureBtnText}
@@ -322,10 +334,13 @@ async function handleClearActivity() {
     <div class="capture-status" style="color: {captureStatusColor};">{captureStatus}</div>
   {/if}
 
-  <div class="queue-list">
-    {#if queue.length === 0}
-      <span style="color:#999;">No listings in queue.</span>
-    {:else}
+  {#if queue.length === 0}
+    <div class="empty-state">
+      <div class="empty-state-headline">Queue is empty</div>
+      <div class="empty-state-sub">Capture listings from a search page to add them here.</div>
+    </div>
+  {:else}
+    <div class="queue-list">
       {#each queue as item, i}
         {@const title = item.title ? (item.title.length > 45 ? item.title.substring(0, 45) + '...' : item.title) : 'Untitled'}
         {@const id = item.id || '?'}
@@ -339,8 +354,8 @@ async function handleClearActivity() {
           {/if}
         </div>
       {/each}
-    {/if}
-  </div>
+    </div>
+  {/if}
 
   {#if queueProgressLines.length > 0}
     <div class="queue-progress">
@@ -369,15 +384,18 @@ async function handleClearActivity() {
   <button class="btn-clear-log" onclick={handleClearActivity}>Clear</button>
 </div>
 
-<div class="activity-log-box" bind:this={logBoxEl}>
-  {#if activityLog.length === 0}
-    <span style="color:#999;">No activity yet.</span>
-  {:else}
+{#if activityLog.length === 0}
+  <div class="empty-state">
+    <div class="empty-state-headline">No activity yet</div>
+    <div class="empty-state-sub">Listings the extension processes will show up here.</div>
+  </div>
+{:else}
+  <div class="activity-log-box" bind:this={logBoxEl} onscroll={handleLogScroll}>
     {#each activityLog as entry}
       <ActivityLogEntry {entry} />
     {/each}
-  {/if}
-</div>
+  </div>
+{/if}
 
 <!-- Analyze Current Listing -->
 <CollapsibleSection title="Analyze Current Listing">
@@ -586,16 +604,72 @@ async function handleClearActivity() {
     margin-top: 0;
   }
 
-  .pending-actions {
-    margin-top: 4px;
+  .pending-list {
     display: flex;
-    gap: 6px;
+    flex-direction: column;
+    gap: var(--space-2);
   }
 
-  .btn-pending-sm {
-    width: auto;
-    padding: 3px 10px;
-    font-size: 11px;
-    margin-top: 0;
+  .pending-item {
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+  }
+
+  .pending-title {
+    font-size: var(--text-sm);
+    line-height: 1.4;
+    color: var(--color-text);
+    margin-bottom: var(--space-2);
+    word-break: break-word;
+  }
+
+  .pending-id {
+    color: var(--color-text-subtle);
+    text-decoration: none;
+    margin-right: 4px;
+  }
+
+  .pending-id:hover {
+    text-decoration: underline;
+  }
+
+  .pending-actions {
+    display: flex;
+    gap: var(--space-2);
+    align-items: stretch;
+  }
+
+  .btn-approve {
+    flex: 1;
+    background: var(--color-brand);
+    color: var(--color-text);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 10px;
+    font-size: var(--text-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+
+  .btn-approve:hover {
+    background: var(--color-brand-hover);
+  }
+
+  .btn-skip {
+    background: none;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 10px var(--space-4);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+
+  .btn-skip:hover {
+    background: var(--color-bg-subtle);
   }
 </style>

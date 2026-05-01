@@ -445,8 +445,15 @@ async function handleImport(e: Event) {
 <div class="ai-settings-group">
   <div class="ai-status" class:connected={aiServerConnected} class:disconnected={!aiServerConnected}>
     <span class="dot"></span>
-    <span>{aiServerConnected ? 'Connected' : (settings.aiMode === 'direct' ? (currentApiKey ? 'Invalid API key or unreachable' : 'Paste your API key to get started') : 'Server unreachable')}</span>
+    <span>{aiServerConnected ? 'Connected' : 'Disconnected'}</span>
   </div>
+  {#if !aiServerConnected}
+    <div class="ai-status-reason">
+      {settings.aiMode === 'direct'
+        ? (currentApiKey ? 'Invalid API key or provider unreachable.' : 'Paste your API key to get started.')
+        : 'Server unreachable — check the URL or start the local server.'}
+    </div>
+  {/if}
 
   {#if !aiServerConnected && settings.aiMode === 'server'}
     <div class="setup-box">
@@ -612,6 +619,7 @@ async function handleImport(e: Event) {
           <button type="button" class="placeholder-chip" class:active={activePlaceholder?.name === ph.name} title={ph.description} onclick={() => togglePlaceholder(ph)}>{`{{${ph.name}}}`}</button>
         {/each}
       </div>
+      <div class="placeholder-caption">These tokens get replaced at runtime. Click any to see what it stands for.</div>
       {#if activePlaceholder && SCORING_PLACEHOLDERS.some((p) => p.name === activePlaceholder?.name)}
         <div class="placeholder-help">
           <div><code>{`{{${activePlaceholder.name}}}`}</code> — {activePlaceholder.description}</div>
@@ -646,6 +654,7 @@ async function handleImport(e: Event) {
           <button type="button" class="placeholder-chip" class:active={activePlaceholder?.name === ph.name} title={ph.description} onclick={() => togglePlaceholder(ph)}>{`{{${ph.name}}}`}</button>
         {/each}
       </div>
+      <div class="placeholder-caption">These tokens get replaced at runtime. Click any to see what it stands for.</div>
       {#if activePlaceholder && MESSAGE_PLACEHOLDERS.some((p) => p.name === activePlaceholder?.name)}
         <div class="placeholder-help">
           <div><code>{`{{${activePlaceholder.name}}}`}</code> — {activePlaceholder.description}</div>
@@ -805,13 +814,14 @@ async function handleImport(e: Event) {
   }
 
   .prompt-warning {
-    font-size: 11px;
-    color: #7a5b00;
-    background: #fff7d9;
+    font-size: var(--text-xs);
+    color: var(--color-warning-fg);
+    background: var(--color-warning-bg);
     border: 1px solid #f0d97c;
-    border-radius: 4px;
-    padding: 6px 8px;
-    margin-bottom: 8px;
+    border-left: 3px solid #d4a017;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) 10px;
+    margin-bottom: var(--space-2);
     line-height: 1.4;
   }
 
@@ -903,5 +913,11 @@ async function handleImport(e: Event) {
     font-size: 10px;
     color: #666;
     font-style: italic;
+  }
+
+  .placeholder-caption {
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--color-text-subtle);
   }
 </style>

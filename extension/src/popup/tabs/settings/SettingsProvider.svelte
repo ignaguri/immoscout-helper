@@ -53,13 +53,18 @@ async function handleProviderChange() {
   ctx.checkHealth();
 }
 
+function flashCopyText(text: string) {
+  copySetupText = text;
+  setTimeout(() => {
+    copySetupText = 'Copy command';
+  }, 1500);
+}
+
 function handleCopySetup() {
-  navigator.clipboard.writeText('cd server && npm install && npm start').then(() => {
-    copySetupText = 'Copied!';
-    setTimeout(() => {
-      copySetupText = 'Copy command';
-    }, 1500);
-  });
+  navigator.clipboard
+    .writeText('cd server && npm install && npm start')
+    .then(() => flashCopyText('Copied!'))
+    .catch(() => flashCopyText('Copy failed'));
 }
 </script>
 

@@ -14,5 +14,11 @@ export function setSettingsContext(ctx: SettingsContext): void {
 }
 
 export function getSettingsContext(): SettingsContext {
-  return getContext<SettingsContext>(KEY);
+  const ctx = getContext<SettingsContext | undefined>(KEY);
+  if (!ctx) {
+    throw new Error(
+      'Settings context is not available. Ensure this component is rendered within SettingsTab after setSettingsContext() has been called.',
+    );
+  }
+  return ctx;
 }

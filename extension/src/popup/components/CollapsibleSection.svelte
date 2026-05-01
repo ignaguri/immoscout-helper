@@ -40,7 +40,7 @@ function handleKeydown(e: KeyboardEvent) {
     tabindex="0"
   >
     <span class="section-title" style="margin:0; padding:0; border:none;">{title}</span>
-    <span class="chevron">{isOpen ? '\u25BE' : '\u25B8'}</span>
+    <span class="chevron" class:open={isOpen}>{'\u203A'}</span>
   </div>
   {#if isOpen}
     <div class="collapsible-body open">

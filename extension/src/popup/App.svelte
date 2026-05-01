@@ -72,6 +72,8 @@ let settings: PopupSettings = $state({
   aiServerUrl: 'http://localhost:3456',
   aiMinScore: 5,
   aiAboutMe: '',
+  aiCustomScoringPrompt: '',
+  aiCustomMessagePrompt: '',
 });
 
 let settingsLoaded = $state(false);
@@ -419,6 +421,9 @@ onMount(() => {
     <span>{isMonitoring ? '\u23F9' : '\u25B6'}</span>
     <span>{isMonitoring ? 'Stop' : 'Start'}</span>
   </button>
+  {#if !isMonitoring && !aiServerConnected}
+    <div class="toggle-disabled-reason">{'AI not connected \u2014 open Settings to configure.'}</div>
+  {/if}
 
   <!-- Stats Bar -->
   <div class="stats-bar">
@@ -519,6 +524,41 @@ onMount(() => {
 <style>
   :global(*) { box-sizing: border-box; }
 
+  :global(:root) {
+    --color-brand: #83F1DC;
+    --color-brand-hover: #6de8d0;
+    --color-brand-strong: #3dbda8;
+    --color-text: #1a1a1a;
+    --color-text-muted: #555;
+    --color-text-subtle: #888;
+    --color-border: #e2e2e2;
+    --color-bg: #ffffff;
+    --color-bg-subtle: #f5f7f9;
+    --color-success-bg: #e6fff5;
+    --color-success-fg: #0d7a4e;
+    --color-warning-bg: #fff7d9;
+    --color-warning-fg: #7a5a00;
+    --color-danger-bg: #fff5f5;
+    --color-danger-fg: #a02424;
+    --color-info-bg: #eef6ff;
+    --color-info-fg: #1f5fb6;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --text-xs: 11px;
+    --text-sm: 12px;
+    --text-base: 13px;
+    --text-md: 14px;
+    --text-lg: 16px;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --transition-fast: 0.15s ease;
+  }
+
   :global(body) {
     width: 100%;
     min-width: 320px;
@@ -541,9 +581,9 @@ onMount(() => {
 
   /* Header */
   .header {
-    background: linear-gradient(135deg, #83F1DC 0%, #5ce0c8 100%);
-    color: #1a1a1a;
-    padding: 16px 20px;
+    background: linear-gradient(135deg, var(--color-brand) 0%, #5ce0c8 100%);
+    color: var(--color-text);
+    padding: var(--space-4) var(--space-5);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -555,27 +595,27 @@ onMount(() => {
   }
 
   .header h1 {
-    font-size: 16px;
+    font-size: var(--text-lg);
     margin: 0;
     font-weight: 600;
   }
 
   .header .subtitle {
-    font-size: 11px;
+    font-size: var(--text-xs);
     opacity: 0.7;
     margin-top: 2px;
   }
 
   .status-badge {
-    font-size: 11px;
-    padding: 4px 10px;
+    font-size: var(--text-xs);
+    padding: var(--space-1) 10px;
     border-radius: 12px;
     font-weight: 500;
   }
 
   .status-badge.active {
     background: rgba(255,255,255,0.5);
-    color: #1a1a1a;
+    color: var(--color-text);
   }
 
   .status-badge.inactive {
@@ -586,10 +626,10 @@ onMount(() => {
   /* Toggle Button */
   .toggle-btn {
     width: calc(100% - 40px);
-    margin: 16px 20px;
+    margin: var(--space-4) var(--space-5) var(--space-1);
     padding: 14px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
@@ -597,16 +637,16 @@ onMount(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .toggle-btn.start {
-    background: #83F1DC;
-    color: #1a1a1a;
+    background: var(--color-brand);
+    color: var(--color-text);
   }
 
   .toggle-btn.start:hover {
-    background: #6de8d0;
+    background: var(--color-brand-hover);
   }
 
   .toggle-btn.stop {
@@ -620,7 +660,7 @@ onMount(() => {
 
   .toggle-btn:disabled {
     background: #ccc;
-    color: #888;
+    color: var(--color-text-subtle);
     cursor: not-allowed;
     opacity: 0.7;
   }
@@ -629,24 +669,31 @@ onMount(() => {
     background: #ccc;
   }
 
+  .toggle-disabled-reason {
+    margin: 0 var(--space-5) var(--space-3);
+    font-size: var(--text-xs);
+    color: var(--color-warning-fg);
+    text-align: center;
+  }
+
   /* Stats Bar */
   .stats-bar {
     display: flex;
     justify-content: space-around;
-    padding: 8px 20px 6px;
+    padding: var(--space-3) var(--space-5) var(--space-2);
     background: white;
   }
 
   .stats-bar-secondary {
     justify-content: center;
-    gap: 12px;
-    padding: 0 20px 8px;
-    border-bottom: 1px solid #eee;
+    gap: var(--space-3);
+    padding: 0 var(--space-5) var(--space-2);
+    border-bottom: 1px solid var(--color-border);
   }
 
   .stat-secondary {
-    font-size: 10px;
-    color: #999;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
   }
 
   .stat {
@@ -656,15 +703,14 @@ onMount(() => {
   }
 
   .stat-value {
-    font-size: 14px;
+    font-size: var(--text-md);
     font-weight: 600;
     color: #333;
   }
 
   .stat-label {
-    font-size: 9px;
-    color: #999;
-    text-transform: uppercase;
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
   }
 
   /* Tabs */
@@ -676,10 +722,10 @@ onMount(() => {
 
   .tab {
     flex: 1;
-    padding: 12px 8px;
+    padding: var(--space-3) var(--space-2);
     border: none;
     background: none;
-    font-size: 12px;
+    font-size: var(--text-sm);
     font-weight: 500;
     color: #666;
     cursor: pointer;
@@ -694,8 +740,8 @@ onMount(() => {
   }
 
   .tab.active {
-    color: #3dbda8;
-    border-bottom-color: #83F1DC;
+    color: var(--color-brand-strong);
+    border-bottom-color: var(--color-brand);
     background: white;
   }
 
@@ -706,8 +752,8 @@ onMount(() => {
     font-size: 9px;
     font-weight: 600;
     padding: 1px 5px;
-    border-radius: 8px;
-    margin-left: 4px;
+    border-radius: var(--radius-lg);
+    margin-left: var(--space-1);
     vertical-align: top;
   }
 
@@ -718,7 +764,7 @@ onMount(() => {
   }
 
   .tab-content {
-    padding: 16px 20px;
+    padding: var(--space-4) var(--space-5);
     background: white;
     height: 100%;
     overflow-y: auto;
@@ -735,10 +781,10 @@ onMount(() => {
 
   :global(label) {
     display: block;
-    font-size: 12px;
+    font-size: var(--text-sm);
     font-weight: 500;
-    color: #555;
-    margin-bottom: 4px;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-1);
   }
 
   :global(input[type="text"]),
@@ -751,10 +797,10 @@ onMount(() => {
   :global(select),
   :global(textarea) {
     width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 13px;
+    padding: 10px var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
     font-family: inherit;
     transition: border-color 0.2s;
   }
@@ -763,7 +809,7 @@ onMount(() => {
   :global(select:focus),
   :global(textarea:focus) {
     outline: none;
-    border-color: #83F1DC;
+    border-color: var(--color-brand);
   }
 
   :global(textarea) {
@@ -772,15 +818,21 @@ onMount(() => {
   }
 
   :global(.hint) {
-    font-size: 11px;
-    color: #888;
-    margin-top: 4px;
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    margin-top: var(--space-1);
   }
 
   :global(.grid-2) {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: var(--space-3);
+  }
+
+  :global(.grid-2 .field label) {
+    display: flex;
+    align-items: flex-end;
+    min-height: 2.6em;
   }
 
   /* Buttons */
@@ -788,11 +840,11 @@ onMount(() => {
     width: 100%;
     padding: 10px;
     border: none;
-    border-radius: 6px;
-    font-size: 13px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
     font-weight: 500;
     cursor: pointer;
-    margin-top: 8px;
+    margin-top: var(--space-2);
   }
 
   :global(.btn-secondary) {
@@ -805,22 +857,22 @@ onMount(() => {
   }
 
   :global(.btn-test) {
-    background: #83F1DC;
-    color: #1a1a1a;
+    background: var(--color-brand);
+    color: var(--color-text);
   }
 
   :global(.btn-test:hover) {
-    background: #6de8d0;
+    background: var(--color-brand-hover);
   }
 
   :global(.btn-danger) {
     background: none;
     color: #dc3545;
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 
   :global(.btn-danger:hover) {
-    background: #fff5f5;
+    background: var(--color-danger-bg);
   }
 
   :global(.btn:disabled) {
@@ -830,20 +882,41 @@ onMount(() => {
 
   /* Section titles */
   :global(.section-title) {
-    font-size: 11px;
+    font-size: var(--text-xs);
     font-weight: 600;
     color: #999;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin: 16px 0 10px 0;
-    padding-top: 12px;
-    border-top: 1px solid #eee;
+    margin: var(--space-4) 0 10px 0;
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-border);
   }
 
   :global(.section-title:first-child) {
     margin-top: 0;
     padding-top: 0;
     border-top: none;
+  }
+
+  /* Empty state */
+  :global(.empty-state) {
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-5);
+    text-align: center;
+    background: var(--color-bg-subtle);
+  }
+
+  :global(.empty-state-headline) {
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  :global(.empty-state-sub) {
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    margin-top: var(--space-1);
   }
 
   /* Toggle row */
@@ -857,12 +930,12 @@ onMount(() => {
   :global(.toggle-row input[type="checkbox"]) {
     width: 18px;
     height: 18px;
-    accent-color: #83F1DC;
+    accent-color: var(--color-brand);
   }
 
   :global(.toggle-row label) {
     margin-bottom: 0;
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 600;
     color: #333;
   }
@@ -872,19 +945,19 @@ onMount(() => {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
-    padding: 4px 10px;
+    font-size: var(--text-xs);
+    padding: var(--space-1) 10px;
     border-radius: 12px;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
   }
 
   :global(.ai-status.connected) {
-    background: #e6fff5;
-    color: #0d7a4e;
+    background: var(--color-success-bg);
+    color: var(--color-success-fg);
   }
 
   :global(.ai-status.disconnected) {
-    background: #fff5f5;
+    background: var(--color-danger-bg);
     color: #dc3545;
   }
 
@@ -901,6 +974,13 @@ onMount(() => {
 
   :global(.ai-status.disconnected .dot) {
     background: #dc3545;
+  }
+
+  :global(.ai-status-reason) {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+    margin: -8px 0 var(--space-3);
   }
 
   /* AI settings group */
@@ -920,18 +1000,31 @@ onMount(() => {
     justify-content: space-between;
     cursor: pointer;
     user-select: none;
-    padding: 12px 0;
-    border-top: 1px solid #eee;
-    margin-top: 16px;
+    padding: var(--space-3) var(--space-2);
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--space-4);
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast);
+  }
+
+  :global(.collapsible-header:hover) {
+    background: var(--color-bg-subtle);
   }
 
   :global(.collapsible-header .chevron) {
-    font-size: 10px;
-    color: #999;
+    display: inline-block;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--color-text-muted);
+    transition: transform var(--transition-fast);
+  }
+
+  :global(.collapsible-header .chevron.open) {
+    transform: rotate(90deg);
   }
 
   :global(.collapsible-body) {
-    padding-top: 8px;
+    padding-top: var(--space-2);
   }
 
   /* Password field */

@@ -11,6 +11,15 @@ import type {
   ScoreResult,
   UserProfile,
 } from '@repo/shared-types';
+import {
+  DEFAULT_MESSAGE_TEMPLATE,
+  DEFAULT_SCORING_TEMPLATE,
+  MESSAGE_PLACEHOLDERS,
+  renderTemplate,
+  SCORING_PLACEHOLDERS,
+  validateTemplate,
+} from './templates';
+import type { PlaceholderInfo } from './templates';
 
 export type {
   ListingDetails,
@@ -25,6 +34,16 @@ export type {
 
 export { computeFinancialAnalysis, formatFinancialAnalysis, formatListingWithAnalysis, parseGermanNumber } from './financial-analysis';
 export type { BudgetComparison, FinancialAnalysis, IncomeRatio, QuickcheckData } from './financial-analysis';
+
+export {
+  DEFAULT_MESSAGE_TEMPLATE,
+  DEFAULT_SCORING_TEMPLATE,
+  MESSAGE_PLACEHOLDERS,
+  renderTemplate,
+  SCORING_PLACEHOLDERS,
+  validateTemplate,
+};
+export type { PlaceholderInfo };
 
 // ── Format listing details into readable text ──
 
@@ -80,7 +99,11 @@ export function formatListingForPrompt(details: ListingDetails): string {
 
 // ── Scoring prompt ──
 
-export function buildScoringPrompt(userProfile: UserProfile, profile?: Profile, _examples?: Example[]): string {
+export function buildScoringPrompt(
+  userProfile: UserProfile,
+  profile?: Profile,
+  customTemplate?: string,
+): string {
   const p = profile || {};
   const profileSection = [
     p.occupation ? `Beruf: ${p.occupation}` : null,
@@ -110,72 +133,18 @@ export function buildScoringPrompt(userProfile: UserProfile, profile?: Profile, 
    - Always state the actual Warmmiete vs the budget in the reason/summary.`
     : `   - Warmmiete should be under 33-40% of net income.`;
 
-  return `You are an expert Munich real estate consultant. Analyze an apartment listing for how well it matches the user's profile. Provide a score, a concise summary of pros and cons, and flag any red flags.
+  const dealbreakersList = p.dealbreakers?.length
+    ? p.dealbreakers.map((d) => `- ${d}`).join('\n')
+    : '- None specified';
 
-TODAY'S DATE: ${today}
-
-USER PROFILE:
-${profileSection}
-
-ANALYSIS FRAMEWORK:
-
-1. FINANCIAL REALITY:
-   - IMPORTANT: A PRE-COMPUTED FINANCIAL ANALYSIS section is provided with the listing data. USE those exact numbers for all price comparisons, €/m² values, and budget assessments. Do NOT recalculate or re-parse prices yourself. The pre-computed values are authoritative.
-   - If location-specific price data is provided (from ImmoScout24), use THAT range to classify bargain/fair/overpriced. Otherwise fall back to Munich averages (under 15 = bargain, 15-22 = fair, over 22 = overpriced).
-   - Report both Kaltmiete €/m² and Warmmiete €/m² in the summary, using the pre-computed values.
-${budgetRule}
-   - Energy classes F-H mean significant hidden heating costs — factor into true affordability.
-
-2. CONTRACT & MOVE-IN:
-   - Is it truly permanent (unbefristet)? The user wants a long-term home.
-   - Flag "befristet" (fixed-term) or "zeitlich begrenzt" contracts.
-   - Flag "Mindestmietdauer" (minimum rental period) — less flexible.
-   - Flag "Indexmiete" (index-linked rent) — rent increases tied to inflation, can rise significantly.
-   - Move-in date: Use today's date to judge if "bezugsfrei ab" is immediate, soon, or far away. Immediate or within 1-2 months is ideal. Dates in the past mean it's available now.
-
-3. SIZE & LAYOUT:
-   - Suitable for household size (~30m² per person minimum).
-   - User prefers 2-3 rooms.
-   - Restrictions: pet policy, smoking restrictions.
-
-4. LOCATION & PROXIMITY:
-   - The user currently lives in ${p.currentNeighborhood || 'Munich'}. Nearby locations are a plus (shorter move, familiar area, "neighbor advantage").
-   - Good public transport access.
-   - Neighborhood quality and commute.
-
-5. AMENITIES & QUALITY:
-   - Balcony, fitted kitchen (Einbauküche), elevator, etc.
-   - Building quality: Baujahr before 1970 without renovation may mean noise/insulation issues.
-   - Renovation status: "saniert" = good, "unrenoviert" = potential issues.
-
-RED FLAGS (flag and penalize):
-- Tauschwohnung: Flat swap (Wohnungstausch) — score 1, dealbreaker. Flag "swap-only".
-- Ablöse/furniture buyout: Outgoing tenant or private landlord demands payment for furniture/kitchen. Under 2,000€ for a quality Einbauküche may be reasonable. Over 3,000€ for basic items = flag "ablöse-risk" (hidden entry fee). Analyze if the cost seems justified by what's included.
-- Suspicious price: A 50m²+ flat in Schwabing/Maxvorstadt/Glockenbachviertel under 900€ warm, or any listing with €/m² under 10 in central areas — flag "suspicious-price" (likely scam or WBS).
-- WBS required: If WBS/Wohnberechtigungsschein is mentioned — flag "wbs-required".
-- Befristet: Fixed-term contract — flag "befristet".
-- Indexmiete: Index-linked rent — flag "indexmiete".
-- High energy costs: Energy class F-H or Energieverbrauch >200 kWh/m² — flag "high-energy-costs".
-- Unrenovated: Old building (pre-1970) without renovation — flag "unrenovated".
-
-DEALBREAKERS:
-${p.dealbreakers?.length ? p.dealbreakers.map((d) => `- ${d}`).join('\n') : '- None specified'}
-
-RESPONSE FORMAT:
-Reply with a JSON object only:
-{"score": <1-10>, "reason": "<1 sentence, the key takeaway>", "summary": "<3-5 sentence pros/cons analysis in English>", "flags": ["flag1", "flag2"]}
-
-- score 1-3: Poor match (dealbreaker, red flag, too expensive, or wrong size)
-- score 4-5: Mediocre (significant compromises needed)
-- score 6-7: Good match (mostly fits, minor compromises)
-- score 8-10: Great match (nearly ideal)
-- When data is missing: Neutral (5-6)
-- reason: One-sentence key takeaway (used in logs and automated pipeline)
-- summary: Concise pros/cons analysis. Include: price assessment (bargain/fair/overpriced with Kaltmiete €/m² and Warmmiete €/m²), contract type, location quality, key amenities present/missing, and any concerns. Be specific with numbers.
-- flags: Array of detected red flag identifiers. Empty array [] if none.
-  Valid flags: "ablöse-risk", "swap-only", "suspicious-price", "wbs-required", "befristet", "indexmiete", "high-energy-costs", "unrenovated"
-
-No markdown, no explanations — just the JSON object.`;
+  const template = customTemplate?.trim() ? customTemplate : DEFAULT_SCORING_TEMPLATE;
+  return renderTemplate(template, {
+    today,
+    profileSection,
+    budgetRule,
+    currentNeighborhood: p.currentNeighborhood || 'Munich',
+    dealbreakersList,
+  });
 }
 
 // ── Message prompt ──
@@ -186,6 +155,7 @@ export function buildMessagePrompt(
   messageTemplate?: string,
   profile?: Profile,
   examples?: Example[],
+  customTemplate?: string,
 ): string {
   const p = profile || {};
   const ex = examples || [];
@@ -241,36 +211,15 @@ ${selected.map((e, i) => `--- Beispiel ${i + 1} ---\nInserat: ${e.listing}\nNach
 --- Ende Beispiele ---\n`;
   }
 
-  return `Du schreibst Bewerbungsnachrichten für Wohnungsinserate auf ImmoScout24.
-
-NUTZERPROFIL:
-${profileSection}
-
-${toneGuidance}
-
-STRATEGIE — Finde einen "Hook" (Anknüpfungspunkt):
-Suche nach einer konkreten Verbindung zwischen dem Inserat und dem Nutzerprofil:
-- Lage-Bezug: Liegt die Wohnung in der Nähe des Arbeitsplatzes oder aktuellen Wohnorts? Erwähne es.
-- Beruflicher Fit: Bei hochwertigen Wohnungen betone berufliche Stabilität und Einkommen. Bei kreativen/zentralen Lagen betone den ruhigen Lebensstil.
-- Ausstattung-Match: Wenn die Wohnung besondere Merkmale hat (Terrasse, Einbauküche, Parkett), zeige echte Begeisterung dafür.
-- Problem lösen: Wenn der Vermieter schnell einen Nachmieter sucht, betone Flexibilität bei Einzugsdatum und Möbelübernahme.
-Vermeide generische Floskeln wie "Ihre Wohnung hat mein Interesse geweckt" — sei spezifisch.
-
-VORLAGE DES NUTZERS (als Orientierung für Ton und Stil):
-${messageTemplate || '(keine Vorlage)'}
-${examplesSection}
-REGELN:
-1. Beginne die Nachricht mit: "${greeting}"
-2. Beziehe dich auf 2-3 konkrete Details aus dem Inserat (Lage, Ausstattung, Besonderheiten)
-3. Länge: 120-180 Wörter (MAXIMAL 2000 Zeichen — das ist ein hartes Limit des Kontaktformulars)
-4. Nenne NICHT das genaue Einkommen — verwende nur allgemeine Formulierungen wie "gesichertes Einkommen" oder "finanziell abgesichert"
-5. Kein Markdown, keine Formatierung — nur Fließtext
-6. Ende mit exakt diesem Abschluss (jede Zeile in einer neuen Zeile):\n${signOff}
-7. Schreibe auf Deutsch
-8. Erwähne relevante Stärken des Nutzers, die zum Inserat passen
-9. Klingt nicht wie ein KI-Text — variiere Satzlänge, vermeide Aufzählungen, schreibe natürlich
-
-Schreibe NUR die Nachricht, nichts anderes.`;
+  const template = customTemplate?.trim() ? customTemplate : DEFAULT_MESSAGE_TEMPLATE;
+  return renderTemplate(template, {
+    profileSection,
+    toneGuidance,
+    greeting,
+    signOff,
+    messageTemplate: messageTemplate || '(keine Vorlage)',
+    examplesSection,
+  });
 }
 
 // ── Reply prompt ──

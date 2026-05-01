@@ -741,7 +741,6 @@ export function registerMessageHandler(): void {
             };
             const userContext = `CURRENT MESSAGE:\n${review.message}\n\nREFINEMENT INSTRUCTIONS:\n${instructions}`;
 
-            // Load user profile from storage (same keys as initial message generation)
             const formKeys = [
               C.AI_ABOUT_ME_KEY,
               C.FORM_ADULTS_KEY,
@@ -751,6 +750,7 @@ export function registerMessageHandler(): void {
               C.FORM_INCOME_KEY,
               C.FORM_INCOME_RANGE_KEY,
               C.FORM_PHONE_KEY,
+              C.AI_CUSTOM_MESSAGE_PROMPT_KEY,
             ];
             const formData: Record<string, any> = await chrome.storage.local.get(formKeys);
             const userProfile = {
@@ -763,10 +763,10 @@ export function registerMessageHandler(): void {
               aboutMe: formData[C.AI_ABOUT_ME_KEY],
               phone: formData[C.FORM_PHONE_KEY],
             };
+            const customMessagePrompt: string | undefined = formData[C.AI_CUSTOM_MESSAGE_PROMPT_KEY] || undefined;
 
-            // Build prompt using the same AI pipeline as initial message generation
             const { buildMessagePrompt } = await import('../shared/prompts');
-            const systemPrompt = buildMessagePrompt(userProfile, landlordInfo, undefined, profile);
+            const systemPrompt = buildMessagePrompt(userProfile, landlordInfo, undefined, profile, undefined, customMessagePrompt);
 
             let newMessage: string | null = null;
 
@@ -793,6 +793,7 @@ export function registerMessageHandler(): void {
                   profile,
                   userProfile,
                   isTenantNetwork: review.isTenantNetwork,
+                  customMessagePrompt,
                   ...litellmPayload(aiConfig),
                 }),
               });

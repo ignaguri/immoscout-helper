@@ -103,38 +103,6 @@ function handleBadgeDecrement() {
 }
 </script>
 
-<div class="conv-controls">
-  <button class="btn btn-test" disabled={checkBtnDisabled} onclick={handleCheckNow}>
-    {checkBtnText}
-  </button>
-  <button
-    class="btn-filter"
-    class:active={unreadOnly}
-    onclick={() => { unreadOnly = !unreadOnly; displayLimit = PAGE_SIZE; }}
-    title="Show only unread conversations"
-  >
-    Unread{#if unreadFilterCount > 0} ({unreadFilterCount}){/if}
-  </button>
-  <button
-    class="btn-filter"
-    class:active={repliedOnly}
-    onclick={() => { repliedOnly = !repliedOnly; displayLimit = PAGE_SIZE; }}
-    title="Show only conversations where the landlord replied"
-  >
-    Replied{#if repliedFilterCount > 0} ({repliedFilterCount}){/if}
-  </button>
-  <button
-    class="btn-filter"
-    class:active={appointmentsOnly}
-    onclick={() => { appointmentsOnly = !appointmentsOnly; displayLimit = PAGE_SIZE; }}
-    title="Show only conversations with appointments"
-  >
-    📅{#if appointmentCount > 0} ({appointmentCount}){/if}
-  </button>
-  {#if lastCheckStr}
-    <span class="last-check">{lastCheckStr}</span>
-  {/if}
-</div>
 <div class="search-wrap">
   <input
     type="text"
@@ -148,14 +116,50 @@ function handleBadgeDecrement() {
   {/if}
 </div>
 
+<div class="conv-controls">
+  <button class="btn btn-test" disabled={checkBtnDisabled} onclick={handleCheckNow}>
+    {checkBtnText}
+  </button>
+  <button
+    class="btn-filter"
+    class:active={unreadOnly}
+    onclick={() => { unreadOnly = !unreadOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only unread conversations"
+  >
+    {#if unreadOnly}<span class="filter-check">✓</span>{/if}Unread{#if unreadFilterCount > 0} ({unreadFilterCount}){/if}
+  </button>
+  <button
+    class="btn-filter"
+    class:active={repliedOnly}
+    onclick={() => { repliedOnly = !repliedOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only conversations where the landlord replied"
+  >
+    {#if repliedOnly}<span class="filter-check">✓</span>{/if}Replied{#if repliedFilterCount > 0} ({repliedFilterCount}){/if}
+  </button>
+  <button
+    class="btn-filter"
+    class:active={appointmentsOnly}
+    onclick={() => { appointmentsOnly = !appointmentsOnly; displayLimit = PAGE_SIZE; }}
+    title="Show only conversations with appointments"
+  >
+    {#if appointmentsOnly}<span class="filter-check">✓</span>{/if}📅{#if appointmentCount > 0} ({appointmentCount}){/if}
+  </button>
+  {#if lastCheckStr}
+    <span class="last-check">{lastCheckStr}</span>
+  {/if}
+</div>
+
 {#if relevantConversations.length === 0}
   <div class="empty-state">
     {#if searchQuery.trim()}
-      No conversations match your search.
+      <div class="empty-state-headline">No matches</div>
+      <div class="empty-state-sub">No conversations match your search.</div>
     {:else if unreadOnly || repliedOnly || appointmentsOnly}
-      No conversations match the active filters.
+      <div class="empty-state-headline">No matches</div>
+      <div class="empty-state-sub">No conversations match the active filters.</div>
     {:else}
-      No conversations yet. Start monitoring to send messages, then they will appear here.
+      <div class="empty-state-headline">No conversations yet</div>
+      <div class="empty-state-sub">Start monitoring to send messages — replies will appear here.</div>
     {/if}
   </div>
 {:else}
@@ -202,39 +206,39 @@ function handleBadgeDecrement() {
 
   .btn-filter {
     padding: 6px 10px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
     background: #fff;
-    font-size: 12px;
+    font-size: var(--text-sm);
     cursor: pointer;
-    color: #555;
+    color: var(--color-text-muted);
     white-space: nowrap;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
   }
 
   .btn-filter.active {
-    background: #e8eaff;
-    border-color: #aab0ff;
-    color: #333;
+    background: var(--color-brand);
+    border-color: var(--color-brand-strong);
+    color: var(--color-text);
+    font-weight: 600;
   }
 
   .btn-filter:hover {
-    background: #f5f5f5;
+    background: var(--color-bg-subtle);
   }
 
   .btn-filter.active:hover {
-    background: #d8daff;
+    background: var(--color-brand-hover);
+  }
+
+  .filter-check {
+    margin-right: 4px;
+    font-weight: 700;
   }
 
   .last-check {
     font-size: 11px;
     color: #888;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 30px 20px;
-    color: #999;
-    font-size: 12px;
   }
 
   .showing-count {

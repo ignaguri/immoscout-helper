@@ -84,14 +84,14 @@ setSettingsContext({
 </script>
 
 <Tabs.Root value={activeSubTab} onValueChange={handleSubTabChange} class="w-full">
-  <Tabs.List variant="line" class="w-full overflow-x-auto">
-    <Tabs.Trigger value="provider">Provider</Tabs.Trigger>
-    <Tabs.Trigger value="credentials">Credentials</Tabs.Trigger>
-    <Tabs.Trigger value="prompts">Prompts</Tabs.Trigger>
-    <Tabs.Trigger value="usage">Usage</Tabs.Trigger>
-    <Tabs.Trigger value="notifications">Notifications</Tabs.Trigger>
-    <Tabs.Trigger value="monitoring">Monitoring</Tabs.Trigger>
-    <Tabs.Trigger value="data">Data</Tabs.Trigger>
+  <Tabs.List variant="line" class="flex w-full overflow-x-auto justify-start">
+    <Tabs.Trigger value="provider" class="flex-none px-2.5">Provider</Tabs.Trigger>
+    <Tabs.Trigger value="credentials" class="flex-none px-2.5">Credentials</Tabs.Trigger>
+    <Tabs.Trigger value="prompts" class="flex-none px-2.5">Prompts</Tabs.Trigger>
+    <Tabs.Trigger value="usage" class="flex-none px-2.5">Usage</Tabs.Trigger>
+    <Tabs.Trigger value="notifications" class="flex-none px-2.5">Notifications</Tabs.Trigger>
+    <Tabs.Trigger value="monitoring" class="flex-none px-2.5">Monitoring</Tabs.Trigger>
+    <Tabs.Trigger value="data" class="flex-none px-2.5">Data</Tabs.Trigger>
   </Tabs.List>
 
   <Tabs.Content value="provider" class="mt-4">

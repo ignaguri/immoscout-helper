@@ -129,6 +129,18 @@ async function fetchLitellmModels() {
 let scoringUnknown = $derived(validateTemplate(settings.aiCustomScoringPrompt || '', SCORING_PLACEHOLDERS).unknown);
 let messageUnknown = $derived(validateTemplate(settings.aiCustomMessagePrompt || '', MESSAGE_PLACEHOLDERS).unknown);
 
+let aiDisconnectReason = $derived.by(() => {
+  if (settings.aiMode !== 'direct') return 'Server unreachable — check the URL or start the local server.';
+  return currentApiKey ? 'Invalid API key or provider unreachable.' : 'Paste your API key to get started.';
+});
+
+let aiModeHint = $derived.by(() => {
+  if (isLitellm) return 'LiteLLM requires server mode (OIDC token exchange)';
+  return settings.aiMode === 'direct'
+    ? 'Calls the AI provider directly — no server needed'
+    : 'Uses local Express server for AI calls';
+});
+
 type CustomPromptField = 'aiCustomScoringPrompt' | 'aiCustomMessagePrompt';
 function setCustomPrompt(field: CustomPromptField, value: string) {
   settings[field] = value;
@@ -448,11 +460,7 @@ async function handleImport(e: Event) {
     <span>{aiServerConnected ? 'Connected' : 'Disconnected'}</span>
   </div>
   {#if !aiServerConnected}
-    <div class="ai-status-reason">
-      {settings.aiMode === 'direct'
-        ? (currentApiKey ? 'Invalid API key or provider unreachable.' : 'Paste your API key to get started.')
-        : 'Server unreachable — check the URL or start the local server.'}
-    </div>
+    <div class="ai-status-reason">{aiDisconnectReason}</div>
   {/if}
 
   {#if !aiServerConnected && settings.aiMode === 'server'}
@@ -470,7 +478,7 @@ async function handleImport(e: Event) {
       <option value="direct">Direct (API key)</option>
       <option value="server">Server (local)</option>
     </select>
-    <div class="hint">{isLitellm ? 'LiteLLM requires server mode (OIDC token exchange)' : settings.aiMode === 'direct' ? 'Calls the AI provider directly — no server needed' : 'Uses local Express server for AI calls'}</div>
+    <div class="hint">{aiModeHint}</div>
   </div>
 
   <div class="field">

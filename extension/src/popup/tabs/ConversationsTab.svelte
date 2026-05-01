@@ -152,11 +152,14 @@ function handleBadgeDecrement() {
 {#if relevantConversations.length === 0}
   <div class="empty-state">
     {#if searchQuery.trim()}
-      No conversations match your search.
+      <div class="empty-state-headline">No matches</div>
+      <div class="empty-state-sub">No conversations match your search.</div>
     {:else if unreadOnly || repliedOnly || appointmentsOnly}
-      No conversations match the active filters.
+      <div class="empty-state-headline">No matches</div>
+      <div class="empty-state-sub">No conversations match the active filters.</div>
     {:else}
-      No conversations yet. Start monitoring to send messages, then they will appear here.
+      <div class="empty-state-headline">No conversations yet</div>
+      <div class="empty-state-sub">Start monitoring to send messages — replies will appear here.</div>
     {/if}
   </div>
 {:else}
@@ -236,13 +239,6 @@ function handleBadgeDecrement() {
   .last-check {
     font-size: 11px;
     color: #888;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 30px 20px;
-    color: #999;
-    font-size: 12px;
   }
 
   .showing-count {

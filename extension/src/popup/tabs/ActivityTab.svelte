@@ -51,6 +51,8 @@ let {
   isMonitoring: boolean;
 } = $props();
 
+const STICK_TO_BOTTOM_PX = 10;
+
 let logBoxEl: HTMLDivElement | undefined = $state();
 let manualReview = $state<ManualReviewData | null>(null);
 
@@ -72,8 +74,9 @@ onMount(() => {
 });
 
 // Queue state
+type StatusKind = '' | 'error' | 'success' | 'muted';
 let captureStatus = $state('');
-let captureStatusColor = $state('');
+let captureStatusKind: StatusKind = $state('');
 let captureBtnText = $state('Capture');
 let captureBtnDisabled = $state(false);
 let queueOpen = $derived(queue.length > 0);
@@ -93,7 +96,7 @@ $effect(() => {
 
 function handleLogScroll() {
   if (!logBoxEl) return;
-  stickToBottom = logBoxEl.scrollTop + logBoxEl.clientHeight >= logBoxEl.scrollHeight - 10;
+  stickToBottom = logBoxEl.scrollTop + logBoxEl.clientHeight >= logBoxEl.scrollHeight - STICK_TO_BOTTOM_PX;
 }
 
 async function autoSave() {
@@ -162,7 +165,7 @@ async function handleCapture() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab.url?.includes('immobilienscout24.de')) {
       captureStatus = 'Please open an ImmoScout24 search page first.';
-      captureStatusColor = '#dc3545';
+      captureStatusKind = 'error';
       return;
     }
 
@@ -176,7 +179,7 @@ async function handleCapture() {
       listings = result?.listings || [];
     } catch {
       captureStatus = 'Could not read listings. Refresh the page and try again.';
-      captureStatusColor = '#dc3545';
+      captureStatusKind = 'error';
       captureBtnDisabled = false;
       captureBtnText = 'Capture';
       return;
@@ -184,7 +187,7 @@ async function handleCapture() {
 
     if (listings.length === 0) {
       captureStatus = 'No listings found on this page.';
-      captureStatusColor = 'var(--color-text-muted)';
+      captureStatusKind = 'muted';
       captureBtnDisabled = false;
       captureBtnText = 'Capture';
       return;
@@ -196,17 +199,17 @@ async function handleCapture() {
 
     if (response?.success) {
       captureStatus = `Added ${response.added} listing${response.added !== 1 ? 's' : ''} (${response.total} total in queue)`;
-      captureStatusColor = '#28a745';
+      captureStatusKind = 'success';
       queue = await loadQueue();
     } else {
       captureStatus = `Error: ${response?.error || 'Unknown'}`;
-      captureStatusColor = '#dc3545';
+      captureStatusKind = 'error';
     }
   } catch (error: any) {
     captureBtnDisabled = isQueueProcessing;
     captureBtnText = 'Capture';
     captureStatus = `Error: ${error.message}`;
-    captureStatusColor = '#dc3545';
+    captureStatusKind = 'error';
   }
 }
 
@@ -331,7 +334,7 @@ async function handleClearActivity() {
   </div>
 
   {#if captureStatus}
-    <div class="capture-status" style="color: {captureStatusColor};">{captureStatus}</div>
+    <div class="capture-status capture-status-{captureStatusKind}">{captureStatus}</div>
   {/if}
 
   {#if queue.length === 0}
@@ -411,10 +414,7 @@ async function handleClearActivity() {
   />
 
   {#if testResultVisible}
-    <div
-      class="test-result"
-      style="border-color: {testResultIsError ? '#dc3545' : '#28a745'}; background: {testResultIsError ? '#fff5f5' : '#f0fff4'};"
-    >
+    <div class="test-result" class:test-result-error={testResultIsError} class:test-result-success={!testResultIsError}>
       <pre class="test-result-content">{testResultContent}</pre>
     </div>
   {/if}
@@ -435,11 +435,21 @@ async function handleClearActivity() {
   .test-result {
     margin-top: 12px;
     padding: 12px;
-    background: #f8f9fa;
     border-radius: 6px;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-subtle);
     max-height: 200px;
     overflow-y: auto;
+  }
+
+  .test-result-error {
+    border-color: var(--color-danger-fg);
+    background: var(--color-danger-bg);
+  }
+
+  .test-result-success {
+    border-color: var(--color-success-fg);
+    background: var(--color-success-bg);
   }
 
   .test-result-content {
@@ -463,9 +473,13 @@ async function handleClearActivity() {
   }
 
   .capture-status {
-    font-size: 12px;
-    margin-bottom: 8px;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-2);
   }
+
+  .capture-status-error { color: var(--color-danger-fg); }
+  .capture-status-success { color: var(--color-success-fg); }
+  .capture-status-muted { color: var(--color-text-muted); }
 
   .queue-list {
     background: #fafafa;

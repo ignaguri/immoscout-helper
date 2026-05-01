@@ -11,6 +11,8 @@ let {
   settingsLoaded: boolean;
 } = $props();
 
+const SAVED_FLASH_MS = 1200;
+
 type Section = 'about' | 'doc' | 'form';
 
 const ABOUT_FIELDS: (keyof PopupSettings)[] = [
@@ -70,7 +72,7 @@ async function autoSave() {
   clearTimeout(flashTimer);
   flashTimer = setTimeout(() => {
     if (savedFlashSection === sec) savedFlashSection = null;
-  }, 1200);
+  }, SAVED_FLASH_MS);
 }
 
 let aboutTitle = $derived(`About You (${aboutFilled}/${ABOUT_FIELDS.length} filled)${savedFlashSection === 'about' ? '  ✓ Saved' : ''}`);
@@ -78,7 +80,7 @@ let docTitle = $derived(`Document Profile (${docFilled}/${DOC_FIELDS.length})${s
 let formTitle = $derived(`Form Auto-Fill (${formFilled}/${FORM_FIELDS.length})${savedFlashSection === 'form' ? '  ✓ Saved' : ''}`);
 </script>
 
-<div onfocusin={() => currentSection = 'about'} role="group">
+<div onfocusin={() => currentSection = 'about'}>
   <div class="section-title" style="margin-top:0; padding-top:0; border-top:none; display:flex; justify-content:space-between; align-items:baseline;">
     <span>{aboutTitle}</span>
   </div>
@@ -137,7 +139,7 @@ let formTitle = $derived(`Form Auto-Fill (${formFilled}/${FORM_FIELDS.length})${
 </div>
 
 <CollapsibleSection title={docTitle} open={docOpenInitial}>
-  <div onfocusin={() => currentSection = 'doc'} role="group">
+  <div onfocusin={() => currentSection = 'doc'}>
     <div class="grid-2">
       <div class="field">
         <label for="profileBirthDate">Birth Date</label>
@@ -201,7 +203,7 @@ let formTitle = $derived(`Form Auto-Fill (${formFilled}/${FORM_FIELDS.length})${
 </CollapsibleSection>
 
 <CollapsibleSection title={formTitle} open={formOpenInitial}>
-  <div onfocusin={() => currentSection = 'form'} role="group">
+  <div onfocusin={() => currentSection = 'form'}>
     <div class="grid-2">
       <div class="field">
         <label for="formSalutation">Salutation</label>

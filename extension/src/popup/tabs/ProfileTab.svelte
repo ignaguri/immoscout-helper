@@ -33,8 +33,8 @@ const FORM_FIELDS: (keyof PopupSettings)[] = [
 
 function isFilled(v: unknown): boolean {
   if (v === undefined || v === null) return false;
-  const s = String(v).trim();
-  return s !== '' && s !== '0';
+  if (typeof v === 'number') return true;
+  return String(v).trim() !== '';
 }
 function filledCount(keys: (keyof PopupSettings)[]): number {
   return keys.filter((k) => isFilled(settings[k])).length;
@@ -66,8 +66,10 @@ $effect(() => () => clearTimeout(flashTimer));
 
 async function autoSave() {
   if (!settingsLoaded) return;
-  await saveAllSettings(settings);
+  // Snapshot section before the await so a focus change mid-save doesn't
+  // make the "✓ Saved" flash land on the wrong section.
   const sec = currentSection;
+  await saveAllSettings(settings);
   savedFlashSection = sec;
   clearTimeout(flashTimer);
   flashTimer = setTimeout(() => {

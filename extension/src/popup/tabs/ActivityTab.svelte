@@ -326,7 +326,7 @@ async function handleClearActivity() {
     <button
       class="btn btn-test btn-capture"
       disabled={captureBtnDisabled || isQueueProcessing}
-      aria-busy={captureBtnDisabled}
+      aria-busy={captureBtnDisabled || isQueueProcessing}
       onclick={handleCapture}
     >
       + {captureBtnText}

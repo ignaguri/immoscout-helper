@@ -11,6 +11,15 @@ import type {
   ScoreResult,
   UserProfile,
 } from '@repo/shared-types';
+import {
+  DEFAULT_MESSAGE_TEMPLATE,
+  DEFAULT_SCORING_TEMPLATE,
+  MESSAGE_PLACEHOLDERS,
+  renderTemplate,
+  SCORING_PLACEHOLDERS,
+  validateTemplate,
+} from './templates';
+import type { PlaceholderInfo } from './templates';
 
 export type {
   ListingDetails,
@@ -33,10 +42,8 @@ export {
   renderTemplate,
   SCORING_PLACEHOLDERS,
   validateTemplate,
-} from './templates';
-export type { PlaceholderInfo } from './templates';
-
-import { DEFAULT_MESSAGE_TEMPLATE, DEFAULT_SCORING_TEMPLATE, renderTemplate } from './templates';
+};
+export type { PlaceholderInfo };
 
 // ── Format listing details into readable text ──
 

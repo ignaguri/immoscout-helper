@@ -123,19 +123,23 @@ function startWatchdog() {
 }
 
 async function handleRegenerate() {
+  const previousDraft = draftText;
+  const instructions = !conversation.draftReply ? draftText.trim() : '';
   regenBtnDisabled = true;
   regenBtnText = 'Generating…';
   draftText = '';
   localDraftError = null;
   try {
-    const result = await regenerateDraft(conversation.conversationId, '');
+    const result = await regenerateDraft(conversation.conversationId, instructions);
     if (!result?.success) {
       localDraftError = result?.error || 'Failed to generate draft.';
       regenBtnText = 'Error';
+      draftText = previousDraft;
     }
   } catch (e: any) {
     localDraftError = e?.message || 'Failed to generate draft.';
     regenBtnText = 'Error';
+    draftText = previousDraft;
   }
   setTimeout(() => {
     regenBtnDisabled = false;
@@ -242,7 +246,7 @@ const sendBtnClass = $derived(
     </div>
     <Textarea
       bind:value={draftText}
-      placeholder={conversation.draftReply ? 'Edit the draft or send as-is…' : 'Type your reply or click Generate for an AI draft…'}
+      placeholder={conversation.draftReply ? 'Edit the draft or send as-is…' : 'Type your reply, or instructions for the AI then click Generate…'}
       class="min-h-20 text-[11px]"
     />
     <div class="mt-1.5 flex flex-wrap items-start gap-1.5">

@@ -205,53 +205,55 @@ let timeStr = $derived(
 
   {#if isExpanded}
     <div class="border-t border-border px-3 py-2.5">
-      {#if conversation.referenceId}
+      {#if conversation.referenceId || conversation.appointmentStatus === 'accepted'}
         <div class="mb-2 flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-muted/40 p-2">
-          {#if snapshot}
-            <span class="mr-1 text-[11px] text-muted-foreground">📦 {snapshot.imageCount} images · {snapshotDateStr(snapshot)}</span>
-            <Button variant="outline" size="xs" onclick={handleView}>View</Button>
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                {#snippet child({ props })}
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label="More snapshot actions"
-                    title="More actions"
-                    {...props}
+          {#if conversation.referenceId}
+            {#if snapshot}
+              <span class="mr-1 text-[11px] text-muted-foreground">📦 {snapshot.imageCount} images · {snapshotDateStr(snapshot)}</span>
+              <Button variant="outline" size="xs" onclick={handleView}>View</Button>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                  {#snippet child({ props })}
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label="More snapshot actions"
+                      title="More actions"
+                      {...props}
+                    >
+                      <MoreHorizontal aria-hidden="true" />
+                    </Button>
+                  {/snippet}
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content align="end">
+                  <DropdownMenu.Item disabled={exportBusy} onSelect={(e: Event) => handleExport(e, 'html')}>
+                    <Download aria-hidden="true" />
+                    Export HTML
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={exportBusy} onSelect={(e: Event) => handleExport(e, 'pdf')}>
+                    <Download aria-hidden="true" />
+                    Export PDF
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={exportBusy} onSelect={(e: Event) => handleExport(e, 'zip')}>
+                    <Download aria-hidden="true" />
+                    Export ZIP
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Separator />
+                  <DropdownMenu.Item
+                    variant="destructive"
+                    disabled={deleteBusy}
+                    onSelect={(e: Event) => handleDelete(e)}
                   >
-                    <MoreHorizontal aria-hidden="true" />
-                  </Button>
-                {/snippet}
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content align="end">
-                <DropdownMenu.Item disabled={exportBusy} onSelect={(e: Event) => handleExport(e, 'html')}>
-                  <Download aria-hidden="true" />
-                  Export HTML
-                </DropdownMenu.Item>
-                <DropdownMenu.Item disabled={exportBusy} onSelect={(e: Event) => handleExport(e, 'pdf')}>
-                  <Download aria-hidden="true" />
-                  Export PDF
-                </DropdownMenu.Item>
-                <DropdownMenu.Item disabled={exportBusy} onSelect={(e: Event) => handleExport(e, 'zip')}>
-                  <Download aria-hidden="true" />
-                  Export ZIP
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item
-                  variant="destructive"
-                  disabled={deleteBusy}
-                  onSelect={(e: Event) => handleDelete(e)}
-                >
-                  <Trash2 aria-hidden="true" />
-                  Delete snapshot
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          {:else}
-            <Button size="xs" loading={saveBusy} disabled={saveBusy} onclick={handleSaveSnapshot}>
-              {saveBusy ? 'Saving…' : '📦 Save snapshot'}
-            </Button>
+                    <Trash2 aria-hidden="true" />
+                    Delete snapshot
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+            {:else}
+              <Button size="xs" loading={saveBusy} disabled={saveBusy} onclick={handleSaveSnapshot}>
+                {saveBusy ? 'Saving…' : '📦 Save snapshot'}
+              </Button>
+            {/if}
           {/if}
           {#if conversation.appointmentStatus === 'accepted'}
             <Button

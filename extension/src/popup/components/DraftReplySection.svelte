@@ -123,6 +123,7 @@ function startWatchdog() {
 }
 
 async function handleRegenerate() {
+  const previousDraft = draftText;
   const instructions = !conversation.draftReply ? draftText.trim() : '';
   regenBtnDisabled = true;
   regenBtnText = 'Generating…';
@@ -133,10 +134,12 @@ async function handleRegenerate() {
     if (!result?.success) {
       localDraftError = result?.error || 'Failed to generate draft.';
       regenBtnText = 'Error';
+      draftText = previousDraft;
     }
   } catch (e: any) {
     localDraftError = e?.message || 'Failed to generate draft.';
     regenBtnText = 'Error';
+    draftText = previousDraft;
   }
   setTimeout(() => {
     regenBtnDisabled = false;

@@ -2,8 +2,10 @@
 import Trash2 from '@lucide/svelte/icons/trash-2';
 import Download from '@lucide/svelte/icons/download';
 import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
+import Calendar from '@lucide/svelte/icons/calendar';
 import { error } from '../../shared/logger';
 import type { ConversationEntry, ExportFormat, SavedSnapshotMeta } from '../../shared/types';
+import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
 import {
   markConversationRead,
   deleteSnapshot as rpcDeleteSnapshot,
@@ -249,6 +251,26 @@ let timeStr = $derived(
           {:else}
             <Button size="xs" loading={saveBusy} disabled={saveBusy} onclick={handleSaveSnapshot}>
               {saveBusy ? 'Saving…' : '📦 Save snapshot'}
+            </Button>
+          {/if}
+          {#if conversation.appointmentStatus === 'accepted'}
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Add to Google Calendar"
+              title="Add to Google Calendar"
+              onclick={(e: Event) => { e.stopPropagation(); window.open(buildGoogleCalendarUrl(conversation), '_blank', 'noopener,noreferrer'); }}
+            >
+              <Calendar aria-hidden="true" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Download .ics file"
+              title="Download .ics"
+              onclick={(e: Event) => { e.stopPropagation(); downloadICS(conversation); }}
+            >
+              <Download aria-hidden="true" />
             </Button>
           {/if}
           {#if saveStatus}

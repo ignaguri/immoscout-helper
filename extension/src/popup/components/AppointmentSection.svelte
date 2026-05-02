@@ -1,6 +1,5 @@
 <script lang="ts">
 import type { ConversationEntry } from '../../shared/types';
-import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
 import { respondToAppointment } from '../lib/messages';
 import { APPOINTMENT_STATUS_TONES } from '../lib/tone';
 import { Button } from '$lib/components/ui/button';
@@ -157,24 +156,4 @@ async function handleAppointmentResponse(response: string, _btnLabel: string) {
       Appointment: {STATUS_LABELS[conversation.appointmentStatus] || conversation.appointmentStatus}
     </Badge>
   </div>
-  {#if conversation.appointmentStatus === 'accepted'}
-    <div class="mt-1.5 flex gap-1.5">
-      <Button
-        variant="outline"
-        size="sm"
-        class="flex-1 text-[10px]"
-        onclick={() => window.open(buildGoogleCalendarUrl(conversation), '_blank', 'noopener,noreferrer')}
-      >
-        📅 Google Calendar
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        class="flex-1 text-[10px]"
-        onclick={() => downloadICS(conversation)}
-      >
-        ⬇ Download .ics
-      </Button>
-    </div>
-  {/if}
 {/if}

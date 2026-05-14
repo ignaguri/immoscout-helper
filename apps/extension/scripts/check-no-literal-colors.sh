@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Guard against hard-coded colors / pixel spacing creeping back into the popup.
-# Run from the extension/ directory. Exits 1 with a list of suspect lines if any
+# Run from the apps/extension/ directory. Exits 1 with a list of suspect lines if any
 # are found outside the allowed zones.
 #
 # Allowed:

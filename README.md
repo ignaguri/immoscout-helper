@@ -7,8 +7,13 @@ Built with TypeScript + Svelte 5 + Vite (extension) and Express + TypeScript (AI
 ## Project Structure
 
 ```
-extension/     Chrome extension (Manifest V3, TypeScript + Svelte 5)
-server/        AI server (Express + TypeScript)
+apps/
+  extension/   Chrome extension (Manifest V3, TypeScript + Svelte 5)
+  server/      AI server (Express + TypeScript)
+  documents/   Python helper for Mieterselbstauskunft PDF generation
+packages/
+  shared-types/    Shared TypeScript types
+  shared-prompts/  Shared AI prompt builders
 ```
 
 ## Installation
@@ -28,10 +33,10 @@ server/        AI server (Express + TypeScript)
 git clone https://github.com/ignaguri/immoscout-helper
 cd immoscout-helper
 npm install
-npm run build        # builds extension to extension/dist/
+npm run build        # builds extension to apps/extension/dist/
 ```
 
-Then load unpacked from `extension/dist/`.
+Then load unpacked from `apps/extension/dist/`.
 
 ## Quick Start
 
@@ -109,7 +114,7 @@ Monitors your ImmoScout inbox for landlord replies:
 The local server provides captcha solving and reply generation when using server mode.
 
 ```bash
-cd server
+cd apps/server
 npm install
 cp .env.example .env   # add your Gemini API key
 npm run dev             # starts on http://localhost:3456
@@ -130,7 +135,7 @@ npm run build            # production build
 npm run typecheck        # TypeScript + Svelte type check
 ```
 
-**Load unpacked:** `chrome://extensions/` → Load unpacked → `extension/dist/`
+**Load unpacked:** `chrome://extensions/` → Load unpacked → `apps/extension/dist/`
 
 **Reload after changes:**
 - Background (service worker): click the reload icon in `chrome://extensions/`

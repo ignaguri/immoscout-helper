@@ -1,11 +1,11 @@
 {
   "private": true,
-  "workspaces": ["packages/*", "extension", "server"],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w extension\"",
-    "build": "npm run build -w extension",
+    "dev": "concurrently \"npm run dev -w apps/server\" \"npm run dev -w apps/extension\"",
+    "build": "npm run build -w apps/extension",
     "test": "npm run test -w packages/shared-prompts",
-    "typecheck": "npm run check -w extension && npm run typecheck -w server",
+    "typecheck": "npm run check -w apps/extension && npm run typecheck -w apps/server",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."

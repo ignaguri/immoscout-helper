@@ -7,8 +7,8 @@
     "start": "tsx src/index.ts",
     "dev": "tsx --watch src/index.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "../node_modules/.bin/biome check .",
-    "lint:fix": "../node_modules/.bin/biome check --write ."
+    "lint": "../../node_modules/.bin/biome check .",
+    "lint:fix": "../../node_modules/.bin/biome check --write ."
   },
   "dependencies": {
     "@repo/shared-prompts": "*",

@@ -30,7 +30,7 @@ export function parseGermanNumber(raw: string | undefined): number | null {
   }
 
   const num = parseFloat(cleaned);
-  return isNaN(num) || num < 0 ? null : num;
+  return Number.isNaN(num) || num < 0 ? null : num;
 }
 
 export interface QuickcheckData {

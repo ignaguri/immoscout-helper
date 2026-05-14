@@ -76,17 +76,20 @@ No markdown, no explanations — just the JSON object.`;
 export const SCORING_PLACEHOLDERS: readonly PlaceholderInfo[] = [
   {
     name: 'today',
-    description: 'Today\'s date in German format (e.g. "5. Juni 2026"). Used so the AI can judge how soon "bezugsfrei ab" dates are.',
+    description:
+      'Today\'s date in German format (e.g. "5. Juni 2026"). Used so the AI can judge how soon "bezugsfrei ab" dates are.',
     source: 'Auto-generated at runtime',
   },
   {
     name: 'profileSection',
-    description: 'Multi-line block of your profile fields: occupation, age, languages, moving reason, current neighborhood, household size, income, ideal apartment, max Warmmiete, dealbreakers.',
+    description:
+      'Multi-line block of your profile fields: occupation, age, languages, moving reason, current neighborhood, household size, income, ideal apartment, max Warmmiete, dealbreakers.',
     source: 'Profile tab + Settings → Form Values',
   },
   {
     name: 'budgetRule',
-    description: 'Budget rule block. If max Warmmiete is set, lists penalties per overshoot tier. Otherwise the generic "33-40% of net income" rule.',
+    description:
+      'Budget rule block. If max Warmmiete is set, lists penalties per overshoot tier. Otherwise the generic "33-40% of net income" rule.',
     source: 'Profile tab → Max Warmmiete (and Settings → Income as fallback)',
   },
   {
@@ -138,7 +141,8 @@ Schreibe NUR die Nachricht, nichts anderes.`;
 export const MESSAGE_PLACEHOLDERS: readonly PlaceholderInfo[] = [
   {
     name: 'profileSection',
-    description: 'Multi-line block of your profile fields: name, occupation, age, languages, moving reason, "about me", strengths, household size, pets/non-smoker.',
+    description:
+      'Multi-line block of your profile fields: name, occupation, age, languages, moving reason, "about me", strengths, household size, pets/non-smoker.',
     source: 'Profile tab + Settings → Form Values',
   },
   {
@@ -180,10 +184,7 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
   });
 }
 
-export function validateTemplate(
-  template: string,
-  allowed: readonly PlaceholderInfo[],
-): { unknown: string[] } {
+export function validateTemplate(template: string, allowed: readonly PlaceholderInfo[]): { unknown: string[] } {
   const allowedNames = new Set(allowed.map((a) => a.name));
   const unknown = new Set<string>();
   for (const match of template.matchAll(PLACEHOLDER_REGEX)) {

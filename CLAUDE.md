@@ -4,36 +4,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Monorepo with two projects:
-1. **Chrome extension** (Manifest V3) — monitors ImmoScout24 search results and automatically sends personalized messages to landlords. Built with TypeScript + Svelte 5 (popup) + Vite.
-2. **AI server** — local Express/TypeScript server that scores listings, solves captchas, and generates reply drafts using Gemini.
+Monorepo with three apps and two shared packages:
+1. **`apps/extension`** — Chrome extension (Manifest V3) that monitors ImmoScout24 search results and auto-messages landlords. TypeScript + Svelte 5 + Vite.
+2. **`apps/server`** — Local Express/TypeScript server that scores listings, solves captchas, generates reply drafts, and fills PDF documents.
+3. **`apps/documents`** — Python helper invoked by `apps/server` to fill the Mieterselbstauskunft PDF and append attachments.
+4. **`packages/shared-types`** — TS types shared by extension + server.
+5. **`packages/shared-prompts`** — AI prompt builders shared by extension + server.
+
+npm workspaces glob: `["apps/*", "packages/*"]`.
 
 ## Project Structure
 
 ```
-extension/                ← Chrome extension source
-├── src/
-│   ├── background.ts     ← service worker entry point
-│   ├── content.ts        ← content script entry point
-│   ├── shared/
-│   │   ├── constants.ts  ← storage keys, caps, alarm names
-│   │   └── utils.ts      ← generatePersonalizedMessage, capSeenListings
-│   ├── popup/
-│   │   ├── main.ts       ← Svelte mount point
-│   │   ├── App.svelte    ← header, tabs, toggle, stats
-│   │   ├── lib/
-│   │   │   ├── storage.ts    ← chrome.storage helpers
-│   │   │   └── messages.ts   ← typed sendMessage wrappers
-│   │   ├── tabs/             ← ActivityTab, ProfileTab, QueueTab, ConversationsTab, SettingsTab
-│   │   └── components/       ← ConversationCard, CollapsibleSection, ActivityLogEntry
-│   └── types/
-├── static/               ← copied as-is to dist/ (manifest.json, icons/)
-├── dist/                 ← build output (gitignored), load unpacked from here
-├── popup.html            ← Vite HTML entry point
-├── vite.config.ts
-├── package.json
-└── tsconfig.json
-server/                   ← AI server (npm run dev)
+apps/
+├── extension/            ← Chrome extension source
+│   ├── src/
+│   │   ├── background/   ← service worker
+│   │   ├── content/      ← content scripts
+│   │   ├── shared/       ← constants, utils, types
+│   │   └── popup/        ← Svelte 5 app (App.svelte, tabs/, components/, lib/)
+│   ├── static/           ← copied as-is to dist/ (manifest.json, icons/)
+│   ├── dist/             ← build output (gitignored), load unpacked from here
+│   ├── popup.html        ← Vite HTML entry point
+│   ├── vite.config.ts
+│   ├── package.json
+│   └── tsconfig.json
+├── server/               ← AI server (`npm run dev -w apps/server`)
+│   └── src/index.ts, prompts.ts, types.ts
+└── documents/            ← Python: fill_selbstauskunft.py + templates/
+packages/
+├── shared-types/         ← @repo/shared-types
+└── shared-prompts/       ← @repo/shared-prompts
 ```
 
 ## Development
@@ -44,13 +45,13 @@ server/                   ← AI server (npm run dev)
 
 ### Extension
 
-**Build:** `cd extension && npm run build`
+**Build:** `npm run build -w apps/extension`
 
-**Watch mode:** `cd extension && npm run dev` (Vite rebuild on save)
+**Watch mode:** `npm run dev -w apps/extension` (Vite rebuild on save)
 
-**Type-check:** `cd extension && npm run check` (svelte-check)
+**Type-check:** `npm run check -w apps/extension` (svelte-check)
 
-**Load the extension:** `chrome://extensions/` → Developer mode → Load unpacked → select `extension/dist/`.
+**Load the extension:** `chrome://extensions/` → Developer mode → Load unpacked → select `apps/extension/dist/`.
 
 **Test changes:** The watcher rebuilds automatically. For service worker changes, click the reload icon in `chrome://extensions/`. For content script changes, also refresh the ImmoScout24 tab.
 
@@ -58,11 +59,15 @@ server/                   ← AI server (npm run dev)
 
 ### Server
 
-**Start:** `cd server && npm run dev` (runs on port 3456)
+**Start:** `npm run dev -w apps/server` (runs on port 3456)
 
-**Type-check:** `cd server && npx tsc --noEmit`
+**Type-check:** `npm run typecheck -w apps/server`
 
-**Endpoints:** `/analyze` (listing scoring), `/captcha` (image → text), `/reply` (conversation draft), `/health`
+**Endpoints:** `/analyze` (listing scoring), `/captcha` (image → text), `/reply` (conversation draft), `/documents/generate` (PDF), `/health`
+
+### Documents (Python)
+
+See `apps/documents/README.md`. Quick setup: `npm run setup -w @repo/documents` (macOS/Linux) creates a venv and installs deps; export `DOCUMENTS_PYTHON_PATH=<repo>/apps/documents/.venv/bin/python3` so the server uses it.
 
 ## Architecture
 
@@ -100,15 +105,17 @@ Vite builds 3 outputs:
 ### Server
 
 ```
-server/src/
+apps/server/src/
 ├── index.ts    ← Express app, endpoints
 ├── prompts.ts  ← AI prompt builders
 └── types.ts    ← TypeScript interfaces
 ```
 
+`DOCUMENTS_SCRIPT` is resolved via `__dirname/../../documents/fill_selbstauskunft.py` — works because `apps/server` and `apps/documents` are siblings.
+
 ### Key patterns
 
-- **Storage keys are centralized** in `extension/src/shared/constants.ts` — always use the constants, never string literals.
+- **Storage keys are centralized** in `apps/extension/src/shared/constants.ts` — always use the constants, never string literals.
 - **Form filling** uses `Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set` to work with React's synthetic state.
 - **Rate limit state** is persisted to storage so it survives service worker termination.
 - **Seen listings** are capped at 5,000 entries via `capSeenListings()`.

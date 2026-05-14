@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderTemplate, validateTemplate, MESSAGE_PLACEHOLDERS, SCORING_PLACEHOLDERS } from './index';
+import { MESSAGE_PLACEHOLDERS, renderTemplate, SCORING_PLACEHOLDERS, validateTemplate } from './index';
 
 describe('renderTemplate', () => {
   it('replaces a known placeholder with its value', () => {

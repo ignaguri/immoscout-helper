@@ -13,15 +13,15 @@
 node_modules/
 
 # Build output
-extension/dist/
+apps/extension/dist/
 
 # Personal documents
-documents/attachments/
+apps/documents/attachments/
 
 # Python
-documents/.venv/
-documents/__pycache__/
-documents/*.egg-info/
+apps/documents/.venv/
+apps/documents/__pycache__/
+apps/documents/*.egg-info/
 
 # Worktrees
 .worktrees/

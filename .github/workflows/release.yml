@@ -27,12 +27,12 @@ jobs:
         run: npm ci
 
       - name: Build extension
-        run: npm run build -w extension
+        run: npm run build -w apps/extension
 
       - name: Create ZIP
         run: |
-          cd extension/dist
-          zip -r ../../apartment-messenger-${{ github.ref_name }}.zip .
+          cd apps/extension/dist
+          zip -r ../../../apartment-messenger-${{ github.ref_name }}.zip .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

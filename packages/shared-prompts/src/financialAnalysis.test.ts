@@ -1,6 +1,6 @@
+import type { ListingDetails } from '@repo/shared-types';
 import { describe, expect, it } from 'vitest';
 import { computeFinancialAnalysis, formatFinancialAnalysis, formatListingWithAnalysis } from './financial-analysis';
-import type { ListingDetails } from '@repo/shared-types';
 
 function listing(overrides: Partial<ListingDetails> = {}): ListingDetails {
   return {

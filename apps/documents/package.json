@@ -1,0 +1,10 @@
+{
+  "name": "@repo/documents",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Python helper that fills the Mieterselbstauskunft PDF. Invoked by @repo/server via POST /documents/generate. See README.md for Python setup.",
+  "scripts": {
+    "setup": "python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt",
+    "fill": "./.venv/bin/python3 fill_selbstauskunft.py"
+  }
+}

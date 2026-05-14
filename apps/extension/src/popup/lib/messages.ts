@@ -88,9 +88,7 @@ export async function regenerateDraft(
   return chrome.runtime.sendMessage({ action: 'regenerateDraft', conversationId, userContext });
 }
 
-export async function dismissDraftError(
-  conversationId: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function dismissDraftError(conversationId: string): Promise<{ success: boolean; error?: string }> {
   return chrome.runtime.sendMessage({ action: 'dismissDraftError', conversationId });
 }
 

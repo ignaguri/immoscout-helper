@@ -1,20 +1,20 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import * as Collapsible from '$lib/components/ui/collapsible';
-  import { cn } from '$lib/utils';
+import ChevronRight from '@lucide/svelte/icons/chevron-right';
+import type { Snippet } from 'svelte';
+import * as Collapsible from '$lib/components/ui/collapsible';
+import { cn } from '$lib/utils';
 
-  let {
-    title,
-    open = $bindable(false),
-    actions,
-    children,
-  }: {
-    title: string;
-    open?: boolean;
-    actions?: Snippet;
-    children: Snippet;
-  } = $props();
+let {
+  title,
+  open = $bindable(false),
+  actions,
+  children,
+}: {
+  title: string;
+  open?: boolean;
+  actions?: Snippet;
+  children: Snippet;
+} = $props();
 </script>
 
 <Collapsible.Root bind:open class="mt-4 border-t border-border pt-3">

@@ -1,10 +1,10 @@
 <script lang="ts">
 import X from '@lucide/svelte/icons/x';
-import type { ManualReviewData } from '../../shared/types';
-import { dismissManualReview, refineManualMessage } from '../lib/messages';
+import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
 import { Textarea } from '$lib/components/ui/textarea';
-import { Badge } from '$lib/components/ui/badge';
+import type { ManualReviewData } from '../../shared/types';
+import { dismissManualReview, refineManualMessage } from '../lib/messages';
 
 let {
   review,

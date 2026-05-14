@@ -1,18 +1,18 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  import { cn } from '$lib/utils';
+import type { Snippet } from 'svelte';
+import { cn } from '$lib/utils';
 
-  let {
-    title,
-    actions,
-    children,
-    class: className = '',
-  }: {
-    title: string;
-    actions?: Snippet;
-    children: Snippet;
-    class?: string;
-  } = $props();
+let {
+  title,
+  actions,
+  children,
+  class: className = '',
+}: {
+  title: string;
+  actions?: Snippet;
+  children: Snippet;
+  class?: string;
+} = $props();
 </script>
 
 <section class={cn('mt-4 first:mt-0', className)}>

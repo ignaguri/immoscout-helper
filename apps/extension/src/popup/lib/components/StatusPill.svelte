@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { Badge } from '$lib/components/ui/badge';
+import { Badge } from '$lib/components/ui/badge';
 
-  let {
-    state,
-    reason,
-  }: {
-    state: 'connected' | 'disconnected';
-    reason?: string;
-  } = $props();
+let {
+  state,
+  reason,
+}: {
+  state: 'connected' | 'disconnected';
+  reason?: string;
+} = $props();
 
-  const tone = $derived(state === 'connected' ? 'success' : 'destructive');
-  const label = $derived(state === 'connected' ? 'Connected' : 'Disconnected');
+const tone = $derived(state === 'connected' ? 'success' : 'destructive');
+const label = $derived(state === 'connected' ? 'Connected' : 'Disconnected');
 </script>
 
 <div class="mb-3">

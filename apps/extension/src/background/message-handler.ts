@@ -515,7 +515,7 @@ export function registerMessageHandler(): void {
 
             // Convert YYYY-MM-DD (date input) to DD.MM.YYYY (German format)
             const formatDate = (isoDate: string | undefined): string => {
-              if (!isoDate || !isoDate.includes('-')) return isoDate || '';
+              if (!isoDate?.includes('-')) return isoDate || '';
               const [y, m, d] = isoDate.split('-');
               return `${d}.${m}.${y}`;
             };
@@ -766,7 +766,14 @@ export function registerMessageHandler(): void {
             const customMessagePrompt: string | undefined = formData[C.AI_CUSTOM_MESSAGE_PROMPT_KEY] || undefined;
 
             const { buildMessagePrompt } = await import('../shared/prompts');
-            const systemPrompt = buildMessagePrompt(userProfile, landlordInfo, undefined, profile, undefined, customMessagePrompt);
+            const systemPrompt = buildMessagePrompt(
+              userProfile,
+              landlordInfo,
+              undefined,
+              profile,
+              undefined,
+              customMessagePrompt,
+            );
 
             let newMessage: string | null = null;
 

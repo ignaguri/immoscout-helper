@@ -1,16 +1,16 @@
 <script lang="ts">
-import { onMount } from 'svelte';
 import Check from '@lucide/svelte/icons/check';
 import X from '@lucide/svelte/icons/x';
+import { onMount } from 'svelte';
+import EmptyState from '$lib/components/EmptyState.svelte';
+import { Button } from '$lib/components/ui/button';
+import { Input } from '$lib/components/ui/input';
 import { SAVED_SNAPSHOTS_KEY } from '../../shared/constants';
 import { error } from '../../shared/logger';
 import type { ConversationEntry, SavedSnapshotMeta } from '../../shared/types';
 import ConversationCard from '../components/ConversationCard.svelte';
 import { checkRepliesNow } from '../lib/messages';
 import { loadConversations as loadConvStorage, loadSavedSnapshots } from '../lib/storage';
-import { Button } from '$lib/components/ui/button';
-import { Input } from '$lib/components/ui/input';
-import EmptyState from '$lib/components/EmptyState.svelte';
 
 let {
   conversations = $bindable(),

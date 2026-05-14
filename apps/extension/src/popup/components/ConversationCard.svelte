@@ -1,8 +1,12 @@
 <script lang="ts">
-import Trash2 from '@lucide/svelte/icons/trash-2';
+import Calendar from '@lucide/svelte/icons/calendar';
 import Download from '@lucide/svelte/icons/download';
 import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
-import Calendar from '@lucide/svelte/icons/calendar';
+import Trash2 from '@lucide/svelte/icons/trash-2';
+import { Badge } from '$lib/components/ui/badge';
+import { Button } from '$lib/components/ui/button';
+import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+import { cn } from '$lib/utils';
 import { error } from '../../shared/logger';
 import type { ConversationEntry, ExportFormat, SavedSnapshotMeta } from '../../shared/types';
 import { buildGoogleCalendarUrl, downloadICS } from '../lib/calendar';
@@ -12,14 +16,10 @@ import {
   exportSnapshot as rpcExportSnapshot,
   saveSnapshot as rpcSaveSnapshot,
 } from '../lib/messages';
+import { APPOINTMENT_STATUS_TONES } from '../lib/tone';
 import AppointmentSection from './AppointmentSection.svelte';
 import ConversationMessages from './ConversationMessages.svelte';
 import DraftReplySection from './DraftReplySection.svelte';
-import { APPOINTMENT_STATUS_TONES } from '../lib/tone';
-import { Button } from '$lib/components/ui/button';
-import { Badge } from '$lib/components/ui/badge';
-import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-import { cn } from '$lib/utils';
 
 let {
   conversation,
@@ -140,7 +140,6 @@ let timeStr = $derived(
       })
     : '',
 );
-
 </script>
 
 <div

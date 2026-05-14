@@ -33,7 +33,7 @@ export async function detectCaptcha(): Promise<CaptchaDetectResult> {
   // Find the captcha image source
   const imgEl = (captchaImg ||
     document.querySelector('img[src*="captcha"], img[src*="getimage"]')) as HTMLImageElement | null;
-  if (!imgEl || !imgEl.src) {
+  if (!imgEl?.src) {
     return { hasCaptcha: true, imageBase64: null, error: 'Captcha detected but image not found' };
   }
 

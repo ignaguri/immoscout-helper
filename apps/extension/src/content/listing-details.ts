@@ -19,8 +19,7 @@ export function detectListingType(): ListingType {
   const badgeEl = document.querySelector(S.COMING_SOON_BADGE_SELECTOR);
   const notifEl = document.querySelector(S.COMING_SOON_NOTIFICATION_SELECTOR);
   const isComingSoon =
-    badgeEl?.textContent?.trim() === 'Bald verfügbar' ||
-    !!notifEl?.textContent?.includes('in Kürze veröffentlicht');
+    badgeEl?.textContent?.trim() === 'Bald verfügbar' || !!notifEl?.textContent?.includes('in Kürze veröffentlicht');
 
   if (isComingSoon) {
     return { isTenantNetwork: false, hasContactForm: false, hasTenantCTA: false, type: 'coming-soon' };

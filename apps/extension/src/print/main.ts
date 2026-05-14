@@ -89,18 +89,20 @@ async function render(): Promise<void> {
   const id = params.get('id');
   const blobUrls: string[] = [];
 
-  const data = key
-    ? await loadFromSession(key)
-    : id
-      ? await loadFromIdb(id, blobUrls)
-      : null;
+  const data = key ? await loadFromSession(key) : id ? await loadFromIdb(id, blobUrls) : null;
 
   if (!data) {
     document.getElementById('print-root')!.textContent = 'No print data found.';
     return;
   }
 
-  window.addEventListener('pagehide', () => blobUrls.forEach((u) => URL.revokeObjectURL(u)), { once: true });
+  window.addEventListener(
+    'pagehide',
+    () => {
+      for (const u of blobUrls) URL.revokeObjectURL(u);
+    },
+    { once: true },
+  );
 
   const html = buildSelfContainedHtml({ ...data, printMode: true });
   document.open();

@@ -1,7 +1,12 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
   "files": {
-    "includes": ["apps/extension/src/**", "apps/server/src/**", "packages/*/src/**"]
+    "includes": [
+      "apps/extension/src/**",
+      "apps/server/src/**",
+      "packages/*/src/**",
+      "!apps/extension/src/popup/app.css"
+    ]
   },
   "linter": {
     "enabled": true,
@@ -39,6 +44,9 @@
         "rules": {
           "correctness": {
             "noUnusedImports": "off"
+          },
+          "style": {
+            "useImportType": "off"
           }
         }
       }

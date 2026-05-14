@@ -1,18 +1,18 @@
 <script lang="ts">
 import { onMount } from 'svelte';
+import * as Tabs from '$lib/components/ui/tabs';
 import { SETTINGS_ACTIVE_SUBTAB_KEY } from '../../shared/constants';
 import { checkAiHealth } from '../lib/ai-health';
 import type { PopupSettings } from '../lib/storage';
 import { saveAllSettings } from '../lib/storage';
-import * as Tabs from '$lib/components/ui/tabs';
-import { setSettingsContext } from './settings/settings-context';
-import SettingsProvider from './settings/SettingsProvider.svelte';
 import SettingsCredentials from './settings/SettingsCredentials.svelte';
-import SettingsPrompts from './settings/SettingsPrompts.svelte';
-import SettingsUsage from './settings/SettingsUsage.svelte';
-import SettingsNotifications from './settings/SettingsNotifications.svelte';
-import SettingsMonitoring from './settings/SettingsMonitoring.svelte';
 import SettingsData from './settings/SettingsData.svelte';
+import SettingsMonitoring from './settings/SettingsMonitoring.svelte';
+import SettingsNotifications from './settings/SettingsNotifications.svelte';
+import SettingsPrompts from './settings/SettingsPrompts.svelte';
+import SettingsProvider from './settings/SettingsProvider.svelte';
+import SettingsUsage from './settings/SettingsUsage.svelte';
+import { setSettingsContext } from './settings/settings-context';
 
 let {
   settings = $bindable(),

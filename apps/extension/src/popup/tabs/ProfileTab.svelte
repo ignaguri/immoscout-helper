@@ -1,19 +1,19 @@
 <script lang="ts">
-import type { PopupSettings } from '../lib/storage';
-import { saveAllSettings } from '../lib/storage';
-import { Input } from '$lib/components/ui/input';
-import * as Select from '$lib/components/ui/select';
-import { Progress } from '$lib/components/ui/progress';
 import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
-import Section from '$lib/components/Section.svelte';
 import FormField from '$lib/components/FormField.svelte';
+import Section from '$lib/components/Section.svelte';
+import { Input } from '$lib/components/ui/input';
+import { Progress } from '$lib/components/ui/progress';
+import * as Select from '$lib/components/ui/select';
 import {
-  REQUIRED_FIELDS,
   errorAria,
   isFilled,
-  validateField as validateFieldSchema,
+  REQUIRED_FIELDS,
   type ValidatedField,
+  validateField as validateFieldSchema,
 } from '../lib/profile-schema';
+import type { PopupSettings } from '../lib/storage';
+import { saveAllSettings } from '../lib/storage';
 
 let {
   settings = $bindable(),
@@ -30,19 +30,41 @@ const REQUIRED_SET = new Set<keyof PopupSettings>(REQUIRED_FIELDS);
 type SectionKey = 'about' | 'doc' | 'form';
 
 const ABOUT_FIELDS: (keyof PopupSettings)[] = [
-  'profileName', 'profileAge', 'profileOccupation', 'profileLanguages',
-  'profileMovingReason', 'profileCurrentNeighborhood', 'profileIdealApartment',
-  'profileMaxWarmmiete', 'profileDealbreakers', 'profileStrengths',
+  'profileName',
+  'profileAge',
+  'profileOccupation',
+  'profileLanguages',
+  'profileMovingReason',
+  'profileCurrentNeighborhood',
+  'profileIdealApartment',
+  'profileMaxWarmmiete',
+  'profileDealbreakers',
+  'profileStrengths',
 ];
 const DOC_FIELDS: (keyof PopupSettings)[] = [
-  'profileBirthDate', 'profileMaritalStatus', 'profileCurrentAddress', 'profileEmail',
-  'profileNetIncome', 'profileEmployer', 'profileEmployedSince',
-  'profileCurrentLandlord', 'profileLandlordPhone', 'profileLandlordEmail',
+  'profileBirthDate',
+  'profileMaritalStatus',
+  'profileCurrentAddress',
+  'profileEmail',
+  'profileNetIncome',
+  'profileEmployer',
+  'profileEmployedSince',
+  'profileCurrentLandlord',
+  'profileLandlordPhone',
+  'profileLandlordEmail',
 ];
 const FORM_FIELDS: (keyof PopupSettings)[] = [
-  'formSalutation', 'formPhone', 'formAdults', 'formChildren', 'formPets',
-  'formSmoker', 'formEmployment', 'formIncomeRange', 'formIncome',
-  'formHouseholdSize', 'formDocuments',
+  'formSalutation',
+  'formPhone',
+  'formAdults',
+  'formChildren',
+  'formPets',
+  'formSmoker',
+  'formEmployment',
+  'formIncomeRange',
+  'formIncome',
+  'formHouseholdSize',
+  'formDocuments',
 ];
 
 function filledCount(keys: (keyof PopupSettings)[]): number {

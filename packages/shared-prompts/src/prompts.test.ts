@@ -1,15 +1,15 @@
+import type { ConversationMessage, LandlordInfo, ListingDetails, Profile, UserProfile } from '@repo/shared-types';
 import { describe, expect, it } from 'vitest';
 import {
-  formatListingForPrompt,
-  buildScoringPrompt,
+  buildConversationText,
   buildMessagePrompt,
   buildReplyPrompt,
+  buildScoringPrompt,
   buildShortenPrompt,
-  buildConversationText,
   CAPTCHA_SYSTEM_PROMPT,
   CAPTCHA_USER_PROMPT,
+  formatListingForPrompt,
 } from './index';
-import type { ListingDetails, LandlordInfo, UserProfile, Profile, ConversationMessage } from '@repo/shared-types';
 
 // ── formatListingForPrompt ──
 

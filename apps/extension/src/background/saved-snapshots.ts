@@ -76,7 +76,7 @@ export async function saveSnapshotById(listingId: string, url: string): Promise<
     if (!ready) return { success: false, error: 'Content script not ready' };
 
     const payload: any = await chrome.tabs.sendMessage(tabId, { action: 'extractForArchive' });
-    if (!payload || !payload.listingId) {
+    if (!payload?.listingId) {
       return { success: false, error: 'Could not extract listing on the page' };
     }
 

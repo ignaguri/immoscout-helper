@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGoogleGenerativeAI, google } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
+import { LITELLM_DEFAULT_MODEL } from '@repo/shared-types';
 import { generateText } from 'ai';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
@@ -20,7 +21,6 @@ import {
   formatListingWithAnalysis,
   parseScoreJSON,
 } from './prompts.js';
-import { LITELLM_DEFAULT_MODEL } from '@repo/shared-types';
 import type {
   AnalyzeRequestBody,
   CaptchaRequestBody,
@@ -61,12 +61,19 @@ async function getOIDCToken(tokenUrl: string, clientId: string, clientSecret: st
   const existing = tokenInflight.get(cacheKey);
   if (existing) return existing;
 
-  const promise = fetchOIDCToken(tokenUrl, clientId, clientSecret, cacheKey).finally(() => tokenInflight.delete(cacheKey));
+  const promise = fetchOIDCToken(tokenUrl, clientId, clientSecret, cacheKey).finally(() =>
+    tokenInflight.delete(cacheKey),
+  );
   tokenInflight.set(cacheKey, promise);
   return promise;
 }
 
-async function fetchOIDCToken(tokenUrl: string, clientId: string, clientSecret: string, cacheKey: string): Promise<string> {
+async function fetchOIDCToken(
+  tokenUrl: string,
+  clientId: string,
+  clientSecret: string,
+  cacheKey: string,
+): Promise<string> {
   const res = await fetch(tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -142,7 +149,10 @@ app.post('/litellm/models', async (req: Request, res: Response) => {
       return res.status(response.status).json({ error: `LiteLLM API error: ${response.status}` });
     }
     const data = await response.json();
-    const models: string[] = (data.data || []).map((m: any) => m.id).filter(Boolean).sort();
+    const models: string[] = (data.data || [])
+      .map((m: any) => m.id)
+      .filter(Boolean)
+      .sort();
     res.json({ models });
   } catch (e) {
     res.status(502).json({ error: (e as Error).message });
@@ -176,7 +186,12 @@ app.post('/analyze', async (req: Request<Record<string, never>, unknown, Analyze
   } catch (e) {
     return res.status(400).json({ error: (e as Error).message });
   }
-  const listingText = formatListingWithAnalysis(formatListingForPrompt(listingDetails), listingDetails, profile?.maxWarmmiete, userProfile?.income);
+  const listingText = formatListingWithAnalysis(
+    formatListingForPrompt(listingDetails),
+    listingDetails,
+    profile?.maxWarmmiete,
+    userProfile?.income,
+  );
 
   // Step 1: Score the listing
   let score: number | undefined;
@@ -234,7 +249,14 @@ app.post('/analyze', async (req: Request<Record<string, never>, unknown, Analyze
   // Step 2: Generate personalized message
   let message: string | null = null;
   try {
-    const messagePrompt = buildMessagePrompt(userProfile || {}, landlordInfo || {}, messageTemplate, profile, examples, customMessagePrompt);
+    const messagePrompt = buildMessagePrompt(
+      userProfile || {},
+      landlordInfo || {},
+      messageTemplate,
+      profile,
+      examples,
+      customMessagePrompt,
+    );
     const { text, usage: msgUsage } = await generateText({
       model,
       system: messagePrompt,
@@ -410,7 +432,7 @@ app.post('/reply', async (req: Request<Record<string, never>, unknown, ReplyRequ
     userContext,
   } = req.body;
 
-  if (!conversationHistory || !conversationHistory.length) {
+  if (!conversationHistory?.length) {
     return res.status(400).json({ error: 'conversationHistory is required and must not be empty' });
   }
 

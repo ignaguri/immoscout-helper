@@ -53,9 +53,7 @@ function isOnCooldown(model: string): boolean {
  * Returns available fallback models in chain order, filtering out those
  * on cooldown or whose provider lacks an API key.
  */
-export function getAvailableFallbacks(
-  allApiKeys: Partial<Record<ProviderId, string>>,
-): FallbackModel[] {
+export function getAvailableFallbacks(allApiKeys: Partial<Record<ProviderId, string>>): FallbackModel[] {
   return FALLBACK_CHAIN.filter(
     (fb) => fb.provider !== 'litellm' && !!allApiKeys[fb.provider] && !isOnCooldown(fb.model),
   );

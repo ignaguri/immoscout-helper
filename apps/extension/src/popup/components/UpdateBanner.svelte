@@ -1,15 +1,15 @@
 <script lang="ts">
-import { onMount } from 'svelte';
 import X from '@lucide/svelte/icons/x';
+import { onMount } from 'svelte';
+import { Button } from '$lib/components/ui/button';
 import { UPDATE_AVAILABLE_KEY, UPDATE_DISMISSED_KEY } from '../../shared/constants';
 import type { UpdateInfo } from '../../shared/types';
-import { Button } from '$lib/components/ui/button';
 
 let updateInfo: UpdateInfo | null = $state(null);
 let dismissed = $state(false);
 
 function applyState(info: UpdateInfo | undefined, dismissedVersion: string | undefined) {
-  if (info && info.version) {
+  if (info?.version) {
     updateInfo = info;
     dismissed = dismissedVersion === info.version;
   } else {

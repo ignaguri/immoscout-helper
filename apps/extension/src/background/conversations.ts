@@ -396,27 +396,19 @@ export async function generateDraftReply(
         log(`[Conversations] Draft reply generated for ${conversation.conversationId} (${reply.length} chars)`);
       } else {
         // User dismissed or started another generation; discard this result.
-        log(`[Conversations] Draft reply for ${conversation.conversationId} discarded (state changed during generation)`);
+        log(
+          `[Conversations] Draft reply for ${conversation.conversationId} discarded (state changed during generation)`,
+        );
       }
     } else {
-      await finalizeDraft(
-        conversation.conversationId,
-        null,
-        'error',
-        'AI returned an empty reply. Try again.',
-      );
+      await finalizeDraft(conversation.conversationId, null, 'error', 'AI returned an empty reply. Try again.');
       errorReported = true;
       throw new Error('AI returned an empty reply');
     }
   } catch (err: any) {
     error(`[Conversations] Error generating draft:`, err);
     if (!errorReported) {
-      await finalizeDraft(
-        conversation.conversationId,
-        null,
-        'error',
-        err?.message || 'Unknown error generating draft',
-      );
+      await finalizeDraft(conversation.conversationId, null, 'error', err?.message || 'Unknown error generating draft');
     }
     throw err;
   }

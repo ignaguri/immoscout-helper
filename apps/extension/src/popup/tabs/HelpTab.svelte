@@ -1,7 +1,7 @@
 <script lang="ts">
 import Section from '$lib/components/Section.svelte';
-import { Button } from '$lib/components/ui/button';
 import * as Alert from '$lib/components/ui/alert';
+import { Button } from '$lib/components/ui/button';
 
 const version = chrome.runtime.getManifest().version;
 
@@ -11,7 +11,7 @@ let bugReportGenerating = $state(false);
 function maskKey(key: string | undefined | null): string {
   if (!key) return '(not set)';
   if (key.length <= 8) return '***';
-  return key.slice(0, 4) + '...' + key.slice(-4);
+  return `${key.slice(0, 4)}...${key.slice(-4)}`;
 }
 
 async function generateBugReport() {
@@ -148,18 +148,49 @@ const steps1 = [
 const apiSteps = [
   { title: 'Pick a provider', body: 'Go to Settings → AI Provider and select Gemini or OpenAI.' },
   { title: 'Get your API key', body: 'Follow the provider link above to create a key. Copy it to your clipboard.' },
-  { title: 'Paste it in Settings', body: 'Go to Settings → paste the key in the API Key field. The green dot confirms it works.' },
+  {
+    title: 'Paste it in Settings',
+    body: 'Go to Settings → paste the key in the API Key field. The green dot confirms it works.',
+  },
 ];
 
 const features = [
-  ['🔍', 'Auto-Monitoring', 'Periodically scans your ImmoScout24 search for new listings. Configurable interval (default: 60s). Runs in the background via service worker.'],
-  ['🤖', 'AI Scoring', 'Each listing is scored 1-10 based on your profile and preferences. Listings below your minimum score are skipped.'],
-  ['✉', 'Auto-Messaging', 'Fills the contact form with your message, personalizes the greeting with the landlord\'s name, and submits automatically. Handles captchas with AI.'],
-  ['💬', 'Conversation Replies', 'Tracks your ImmoScout24 conversations. Detects unread landlord replies and drafts AI-powered responses.'],
+  [
+    '🔍',
+    'Auto-Monitoring',
+    'Periodically scans your ImmoScout24 search for new listings. Configurable interval (default: 60s). Runs in the background via service worker.',
+  ],
+  [
+    '🤖',
+    'AI Scoring',
+    'Each listing is scored 1-10 based on your profile and preferences. Listings below your minimum score are skipped.',
+  ],
+  [
+    '✉',
+    'Auto-Messaging',
+    "Fills the contact form with your message, personalizes the greeting with the landlord's name, and submits automatically. Handles captchas with AI.",
+  ],
+  [
+    '💬',
+    'Conversation Replies',
+    'Tracks your ImmoScout24 conversations. Detects unread landlord replies and drafts AI-powered responses.',
+  ],
   ['📋', 'Manual Queue', 'Browse listings yourself, add them to a queue, and process them in batch.'],
-  ['👤', 'Profile', 'Your personal details (name, job, income, etc.) are used by the AI to write compelling, personalized messages.'],
-  ['📄', 'Document Generation', 'Generates a Selbstauskunft (tenant self-disclosure) PDF with your profile data pre-filled. Available only in Server mode.'],
-  ['📦', 'Save & Export Listings', 'Creates full offline listing snapshots — photos included. Click the 📦 Export control on listing pages or 📦 Save snapshot in conversations.'],
+  [
+    '👤',
+    'Profile',
+    'Your personal details (name, job, income, etc.) are used by the AI to write compelling, personalized messages.',
+  ],
+  [
+    '📄',
+    'Document Generation',
+    'Generates a Selbstauskunft (tenant self-disclosure) PDF with your profile data pre-filled. Available only in Server mode.',
+  ],
+  [
+    '📦',
+    'Save & Export Listings',
+    'Creates full offline listing snapshots — photos included. Click the 📦 Export control on listing pages or 📦 Save snapshot in conversations.',
+  ],
 ];
 </script>
 

@@ -1,11 +1,11 @@
 <script lang="ts">
-import { onMount } from 'svelte';
 import ChevronRight from '@lucide/svelte/icons/chevron-right';
+import { onMount } from 'svelte';
+import { Button } from '$lib/components/ui/button';
+import { cn } from '$lib/utils';
 import { PENDING_DUPLICATE_DECISION_KEY } from '../../shared/constants';
 import type { ActivityLogEntry } from '../../shared/types';
 import { sendDuplicateLandlordDecision } from '../lib/messages';
-import { Button } from '$lib/components/ui/button';
-import { cn } from '$lib/utils';
 
 let { entry }: { entry: ActivityLogEntry } = $props();
 let showErrorDetail = $state(false);

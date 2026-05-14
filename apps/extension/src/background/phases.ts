@@ -512,7 +512,7 @@ export async function recordOutcome(params: RecordOutcomeParams): Promise<Handle
     notifPrefs,
   } = params;
 
-  if (!sendResult || !sendResult.success) {
+  if (!sendResult?.success) {
     const errorMsg = sendResult?.error || 'Unknown error';
     error(`Failed to send message to ${landlordDisplay}: ${errorMsg}`);
     await sendActivityLog({

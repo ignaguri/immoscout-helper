@@ -7,7 +7,6 @@ import { handleNewListing } from './messaging';
 import { shouldNotify } from './notifications';
 import { getPendingApprovalListings } from './pending-approval';
 import { checkRateLimit } from './rate-limit';
-import { checkListingAlreadyContacted } from './sync';
 import {
   isMonitoring,
   isProcessingQueue,
@@ -17,6 +16,7 @@ import {
   setUserTriggeredProcessing,
   userTriggeredProcessing,
 } from './state';
+import { checkListingAlreadyContacted } from './sync';
 
 // --- Coming-soon cooldown helpers ---
 
@@ -58,7 +58,10 @@ export async function enqueueListings(listings: Listing[], source: string): Prom
   }
 
   const stored: Record<string, any> = await chrome.storage.local.get([
-    C.STORAGE_KEY, C.QUEUE_KEY, C.BLACKLIST_KEY, C.COMING_SOON_COOLDOWN_KEY,
+    C.STORAGE_KEY,
+    C.QUEUE_KEY,
+    C.BLACKLIST_KEY,
+    C.COMING_SOON_COOLDOWN_KEY,
   ]);
 
   const seenSet = new Set((stored[C.STORAGE_KEY] || []).map((id: string) => String(id).toLowerCase().trim()));

@@ -1,10 +1,10 @@
 <script lang="ts">
-import { PROVIDERS } from '../../../shared/ai-router';
+import StatusPill from '$lib/components/StatusPill.svelte';
+import * as Alert from '$lib/components/ui/alert';
 import { Button } from '$lib/components/ui/button';
 import { Label } from '$lib/components/ui/label';
 import * as Select from '$lib/components/ui/select';
-import * as Alert from '$lib/components/ui/alert';
-import StatusPill from '$lib/components/StatusPill.svelte';
+import { PROVIDERS } from '../../../shared/ai-router';
 import type { PopupSettings } from '../../lib/storage';
 import { getSettingsContext } from './settings-context';
 

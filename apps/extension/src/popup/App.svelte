@@ -1,7 +1,10 @@
 <script lang="ts">
-import { onMount } from 'svelte';
 import Play from '@lucide/svelte/icons/play';
 import Square from '@lucide/svelte/icons/square';
+import { onMount } from 'svelte';
+import { Badge } from '$lib/components/ui/badge';
+import { Button } from '$lib/components/ui/button';
+import { cn } from '$lib/utils';
 import { PROVIDERS } from '../shared/ai-router';
 import { ALARM_NAME } from '../shared/constants';
 import type { ActivityLogEntry, ConversationEntry, PendingApprovalItem, QueueItem } from '../shared/types';
@@ -9,9 +12,6 @@ import UpdateBanner from './components/UpdateBanner.svelte';
 import { checkAiHealth } from './lib/ai-health';
 import { getPendingApprovalListings, getStatus, startMonitoring, stopMonitoring } from './lib/messages';
 import type { PopupSettings } from './lib/storage';
-import { Button } from '$lib/components/ui/button';
-import { Badge } from '$lib/components/ui/badge';
-import { cn } from '$lib/utils';
 import {
   loadActivityLog as loadActivityLogStorage,
   loadAllSettings,

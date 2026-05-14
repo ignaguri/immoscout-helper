@@ -1,18 +1,17 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  import type { Component } from 'svelte';
+import type { Component, Snippet } from 'svelte';
 
-  let {
-    icon: Icon,
-    title,
-    sub,
-    action,
-  }: {
-    icon?: Component;
-    title: string;
-    sub?: string;
-    action?: Snippet;
-  } = $props();
+let {
+  icon: Icon,
+  title,
+  sub,
+  action,
+}: {
+  icon?: Component;
+  title: string;
+  sub?: string;
+  action?: Snippet;
+} = $props();
 </script>
 
 <div class="rounded-md border border-dashed border-border bg-muted/40 px-4 py-5 text-center">

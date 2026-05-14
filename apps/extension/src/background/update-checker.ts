@@ -13,7 +13,7 @@ function normalizeVersion(v: string): number[] {
     .replace(/\+.*$/, '')
     .split('.')
     .map(Number)
-    .filter((n) => !isNaN(n));
+    .filter((n) => !Number.isNaN(n));
 }
 
 function isNewerVersion(remote: string, local: string): boolean {

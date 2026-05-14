@@ -1,11 +1,11 @@
 <script lang="ts">
+import { Badge } from '$lib/components/ui/badge';
+import { Button } from '$lib/components/ui/button';
+import { Textarea } from '$lib/components/ui/textarea';
+import { cn } from '$lib/utils';
 import type { ConversationEntry } from '../../shared/types';
 import { respondToAppointment } from '../lib/messages';
 import { APPOINTMENT_STATUS_TONES } from '../lib/tone';
-import { Button } from '$lib/components/ui/button';
-import { Textarea } from '$lib/components/ui/textarea';
-import { Badge } from '$lib/components/ui/badge';
-import { cn } from '$lib/utils';
 
 let {
   conversation,

@@ -93,9 +93,7 @@ export async function checkListingAlreadyContacted(listingId: string): Promise<b
     }
     const data: IS24ConversationsResponse = await response.json();
     const conversations = data.conversations || [];
-    return conversations.some(
-      (c) => c.referenceId != null && c.referenceId.toLowerCase().trim() === normalizedId,
-    );
+    return conversations.some((c) => c.referenceId != null && c.referenceId.toLowerCase().trim() === normalizedId);
   } catch (err) {
     debug('[Sync] checkListingAlreadyContacted failed:', err);
     return false;

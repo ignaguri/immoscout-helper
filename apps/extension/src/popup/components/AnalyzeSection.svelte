@@ -1,5 +1,10 @@
 <script lang="ts">
 import type { AnalyzeRequestBody, CaptchaRequestBody } from '@repo/shared-types';
+import { Badge } from '$lib/components/ui/badge';
+import { Button } from '$lib/components/ui/button';
+import { Input } from '$lib/components/ui/input';
+import { Label } from '$lib/components/ui/label';
+import { Textarea } from '$lib/components/ui/textarea';
 import { PROVIDERS, trackTokenUsage } from '../../shared/ai-router';
 import { error } from '../../shared/logger';
 import {
@@ -13,11 +18,6 @@ import {
 } from '../../shared/prompts';
 import type { PopupSettings } from '../lib/storage';
 import { scoreTone } from '../lib/tone';
-import { Button } from '$lib/components/ui/button';
-import { Input } from '$lib/components/ui/input';
-import { Textarea } from '$lib/components/ui/textarea';
-import { Badge } from '$lib/components/ui/badge';
-import { Label } from '$lib/components/ui/label';
 
 let {
   settings,
@@ -87,7 +87,6 @@ function buildProfileFromSettings() {
     maxWarmmiete: settings.profileMaxWarmmiete ? parseInt(settings.profileMaxWarmmiete, 10) : undefined,
   };
 }
-
 
 function getFormValues() {
   return {
@@ -253,7 +252,12 @@ async function handleAnalyze() {
       if (isDirect) {
         // Direct provider mode — build prompts locally
         const userProfile = { ...formValues, aboutMe };
-        const listingText = formatListingWithAnalysis(formatListingForPrompt(listingDetails), listingDetails, profile.maxWarmmiete, formValues.income);
+        const listingText = formatListingWithAnalysis(
+          formatListingForPrompt(listingDetails),
+          listingDetails,
+          profile.maxWarmmiete,
+          formValues.income,
+        );
         let totalPromptTokens = 0,
           totalCompletionTokens = 0;
         const provider = PROVIDERS[settings.aiProvider] ?? PROVIDERS.gemini;

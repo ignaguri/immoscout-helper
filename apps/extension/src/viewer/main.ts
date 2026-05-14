@@ -48,7 +48,13 @@ async function render(): Promise<void> {
     blobUrls.push(url);
     return { src: url, alt: `Image ${i + 1}` };
   });
-  window.addEventListener('pagehide', () => blobUrls.forEach((u) => URL.revokeObjectURL(u)), { once: true });
+  window.addEventListener(
+    'pagehide',
+    () => {
+      for (const u of blobUrls) URL.revokeObjectURL(u);
+    },
+    { once: true },
+  );
 
   const html = buildSelfContainedHtml({
     details: textRec.details,

@@ -1,8 +1,15 @@
 <script lang="ts">
-import { onMount } from 'svelte';
-import X from '@lucide/svelte/icons/x';
 import Inbox from '@lucide/svelte/icons/inbox';
+import X from '@lucide/svelte/icons/x';
+import { onMount } from 'svelte';
 import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
+import EmptyState from '$lib/components/EmptyState.svelte';
+import Section from '$lib/components/Section.svelte';
+import { Button } from '$lib/components/ui/button';
+import { Input } from '$lib/components/ui/input';
+import { Label } from '$lib/components/ui/label';
+import * as Select from '$lib/components/ui/select';
+import { cn } from '$lib/utils';
 import type {
   ActivityLogEntry as ActivityLogEntryType,
   ManualReviewData,
@@ -22,13 +29,6 @@ import {
 } from '../lib/messages';
 import type { PopupSettings } from '../lib/storage';
 import { clearActivityLog, clearQueue, loadQueue, saveAllSettings } from '../lib/storage';
-import { Button } from '$lib/components/ui/button';
-import { Input } from '$lib/components/ui/input';
-import { Label } from '$lib/components/ui/label';
-import * as Select from '$lib/components/ui/select';
-import EmptyState from '$lib/components/EmptyState.svelte';
-import Section from '$lib/components/Section.svelte';
-import { cn } from '$lib/utils';
 
 let {
   settings = $bindable(),

@@ -1,10 +1,10 @@
 import {
   type AIConfig,
-  PROVIDERS,
   canUseDirect,
   canUseServer,
   getAIConfig,
   litellmPayload,
+  PROVIDERS,
   trackTokenUsage,
 } from '../shared/ai-router';
 import * as C from '../shared/constants';
@@ -141,7 +141,12 @@ async function tryAIAnalysisDirect(
     return null;
   }
 
-  const listingText = formatListingWithAnalysis(formatListingForPrompt(listingDetails), listingDetails, profile.maxWarmmiete, formValues.income);
+  const listingText = formatListingWithAnalysis(
+    formatListingForPrompt(listingDetails),
+    listingDetails,
+    profile.maxWarmmiete,
+    formValues.income,
+  );
   const userProfile = { ...formValues, aboutMe: config.aboutMe };
   const scoringPrompt = buildScoringPrompt(userProfile, profile, customPrompts.scoring);
   const landlordInfo = {
@@ -150,7 +155,14 @@ async function tryAIAnalysisDirect(
     isPrivate: isPrivateLandlord,
     isTenantNetwork,
   };
-  const messagePrompt = buildMessagePrompt(userProfile, landlordInfo, messageTemplate, profile, undefined, customPrompts.message);
+  const messagePrompt = buildMessagePrompt(
+    userProfile,
+    landlordInfo,
+    messageTemplate,
+    profile,
+    undefined,
+    customPrompts.message,
+  );
 
   const fallbacks = getAvailableFallbacks(config.allApiKeys);
   if (fallbacks.length === 0) {
@@ -237,7 +249,9 @@ async function tryAIAnalysisDirect(
       });
       await trackTokenUsage(totalPromptTokens, totalCompletionTokens);
 
-      log(`[AI/Direct] Score ${score}/10 — message generated${flags.length ? ` [flags: ${flags.join(', ')}]` : ''} (model: ${fb.model})`);
+      log(
+        `[AI/Direct] Score ${score}/10 — message generated${flags.length ? ` [flags: ${flags.join(', ')}]` : ''} (model: ${fb.model})`,
+      );
       return {
         score,
         reason,

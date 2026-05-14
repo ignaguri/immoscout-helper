@@ -11,6 +11,7 @@ import type {
   ScoreResult,
   UserProfile,
 } from '@repo/shared-types';
+import type { PlaceholderInfo } from './templates';
 import {
   DEFAULT_MESSAGE_TEMPLATE,
   DEFAULT_SCORING_TEMPLATE,
@@ -19,22 +20,26 @@ import {
   SCORING_PLACEHOLDERS,
   validateTemplate,
 } from './templates';
-import type { PlaceholderInfo } from './templates';
 
-export type {
-  ListingDetails,
-  LandlordInfo,
-  UserProfile,
-  Profile,
-  Example,
-  ConversationMessage,
-  AppointmentAction,
-  ScoreResult,
-};
-
-export { computeFinancialAnalysis, formatFinancialAnalysis, formatListingWithAnalysis, parseGermanNumber } from './financial-analysis';
 export type { BudgetComparison, FinancialAnalysis, IncomeRatio, QuickcheckData } from './financial-analysis';
 
+export {
+  computeFinancialAnalysis,
+  formatFinancialAnalysis,
+  formatListingWithAnalysis,
+  parseGermanNumber,
+} from './financial-analysis';
+export type {
+  AppointmentAction,
+  ConversationMessage,
+  Example,
+  LandlordInfo,
+  ListingDetails,
+  PlaceholderInfo,
+  Profile,
+  ScoreResult,
+  UserProfile,
+};
 export {
   DEFAULT_MESSAGE_TEMPLATE,
   DEFAULT_SCORING_TEMPLATE,
@@ -43,7 +48,6 @@ export {
   SCORING_PLACEHOLDERS,
   validateTemplate,
 };
-export type { PlaceholderInfo };
 
 // ── Format listing details into readable text ──
 
@@ -99,11 +103,7 @@ export function formatListingForPrompt(details: ListingDetails): string {
 
 // ── Scoring prompt ──
 
-export function buildScoringPrompt(
-  userProfile: UserProfile,
-  profile?: Profile,
-  customTemplate?: string,
-): string {
+export function buildScoringPrompt(userProfile: UserProfile, profile?: Profile, customTemplate?: string): string {
   const p = profile || {};
   const profileSection = [
     p.occupation ? `Beruf: ${p.occupation}` : null,
@@ -133,9 +133,7 @@ export function buildScoringPrompt(
    - Always state the actual Warmmiete vs the budget in the reason/summary.`
     : `   - Warmmiete should be under 33-40% of net income.`;
 
-  const dealbreakersList = p.dealbreakers?.length
-    ? p.dealbreakers.map((d) => `- ${d}`).join('\n')
-    : '- None specified';
+  const dealbreakersList = p.dealbreakers?.length ? p.dealbreakers.map((d) => `- ${d}`).join('\n') : '- None specified';
 
   const template = customTemplate?.trim() ? customTemplate : DEFAULT_SCORING_TEMPLATE;
   return renderTemplate(template, {
@@ -359,17 +357,17 @@ export function buildConversationText(
 function stripTrailingCommas(input: string): string {
   let result = '';
   let inString = false;
-  let escape = false;
+  let escaped = false;
 
   for (let i = 0; i < input.length; i++) {
     const ch = input[i];
 
     if (inString) {
       result += ch;
-      if (escape) {
-        escape = false;
+      if (escaped) {
+        escaped = false;
       } else if (ch === '\\') {
-        escape = true;
+        escaped = true;
       } else if (ch === '"') {
         inString = false;
       }

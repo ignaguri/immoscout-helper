@@ -1,4 +1,10 @@
 <script lang="ts">
+import Section from '$lib/components/Section.svelte';
+import * as Alert from '$lib/components/ui/alert';
+import { Button } from '$lib/components/ui/button';
+import { Label } from '$lib/components/ui/label';
+import { Textarea } from '$lib/components/ui/textarea';
+import { cn } from '$lib/utils';
 import {
   DEFAULT_MESSAGE_TEMPLATE,
   DEFAULT_SCORING_TEMPLATE,
@@ -7,12 +13,6 @@ import {
   SCORING_PLACEHOLDERS,
   validateTemplate,
 } from '../../../shared/prompts';
-import { Button } from '$lib/components/ui/button';
-import { Textarea } from '$lib/components/ui/textarea';
-import { Label } from '$lib/components/ui/label';
-import * as Alert from '$lib/components/ui/alert';
-import Section from '$lib/components/Section.svelte';
-import { cn } from '$lib/utils';
 import type { PopupSettings } from '../../lib/storage';
 import { getSettingsContext } from './settings-context';
 

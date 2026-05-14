@@ -1,20 +1,15 @@
 <script lang="ts">
-import { getMessengerUrl } from '../../shared/constants';
-import type { ConversationEntry } from '../../shared/types';
-import {
-  dismissDraftError,
-  generateDocuments,
-  regenerateDraft,
-  sendConversationReply,
-} from '../lib/messages';
-import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
 import ExternalLink from '@lucide/svelte/icons/external-link';
 import FileText from '@lucide/svelte/icons/file-text';
+import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
 import { Button } from '$lib/components/ui/button';
-import { Textarea } from '$lib/components/ui/textarea';
+import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';
-import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+import { Textarea } from '$lib/components/ui/textarea';
+import { getMessengerUrl } from '../../shared/constants';
+import type { ConversationEntry } from '../../shared/types';
+import { dismissDraftError, generateDocuments, regenerateDraft, sendConversationReply } from '../lib/messages';
 
 const DRAFT_WATCHDOG_MS = 90_000;
 

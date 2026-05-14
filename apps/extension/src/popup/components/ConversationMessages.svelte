@@ -1,6 +1,6 @@
 <script lang="ts">
-import type { ConversationMessage } from '../../shared/types';
 import { cn } from '$lib/utils';
+import type { ConversationMessage } from '../../shared/types';
 
 let {
   messages,

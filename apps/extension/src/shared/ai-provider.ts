@@ -16,6 +16,7 @@ export interface AIResult {
 }
 
 import type { ProviderId } from '@repo/shared-types';
+
 export type { ProviderId };
 
 export interface AIProvider {

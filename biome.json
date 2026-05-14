@@ -1,12 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
   "files": {
-    "includes": [
-      "apps/extension/src/**",
-      "apps/server/src/**",
-      "packages/*/src/**",
-      "!apps/extension/src/popup/app.css"
-    ]
+    "includes": ["apps/extension/src/**", "apps/server/src/**", "packages/*/src/**", "!apps/extension/src/**/*.css"]
   },
   "linter": {
     "enabled": true,

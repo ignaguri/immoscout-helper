@@ -8,11 +8,13 @@ Mieterselbstauskunft PDF and append supporting attachments.
 ### macOS / Linux
 
 ```bash
-cd documents
+cd apps/documents
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+Or from the repo root: `npm run setup -w @repo/documents`.
 
 Then point the server at this interpreter so it doesn't fall back to the system `python3`:
 
@@ -22,8 +24,10 @@ export DOCUMENTS_PYTHON_PATH="$(pwd)/.venv/bin/python3"
 
 ### Windows (PowerShell)
 
+The `npm run setup` shortcut is POSIX-only — Windows users run these steps manually:
+
 ```powershell
-cd documents
+cd apps/documents
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -41,7 +45,7 @@ $env:DOCUMENTS_PYTHON_PATH = "$PWD\.venv\Scripts\python.exe"
 ### Windows (cmd.exe)
 
 ```cmd
-cd documents
+cd apps\documents
 python -m venv .venv
 .\.venv\Scripts\activate.bat
 pip install -r requirements.txt

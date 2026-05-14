@@ -1,0 +1,16 @@
+[project]
+name = "reloader-immoscout-documents"
+version = "0.1.0"
+description = "Fills the Mieterselbstauskunft PDF and appends supporting attachments. Invoked by the AI server's /documents/generate endpoint."
+requires-python = ">=3.10"
+dependencies = [
+    "reportlab>=4.0",
+    "pypdf>=4.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["fill_selbstauskunft"]

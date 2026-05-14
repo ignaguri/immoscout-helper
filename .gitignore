@@ -18,6 +18,11 @@ extension/dist/
 # Personal documents
 documents/attachments/
 
+# Python
+documents/.venv/
+documents/__pycache__/
+documents/*.egg-info/
+
 # Worktrees
 .worktrees/
 .memelord/

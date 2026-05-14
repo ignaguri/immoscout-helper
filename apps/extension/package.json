@@ -6,8 +6,8 @@
     "dev": "vite build --watch --mode development",
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "lint": "../../node_modules/.bin/biome check .",
-    "lint:fix": "../../node_modules/.bin/biome check --write ."
+    "lint": "biome check .",
+    "lint:fix": "biome check --write ."
   },
   "dependencies": {
     "@lucide/svelte": "^1.14.0",

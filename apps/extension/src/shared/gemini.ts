@@ -2,7 +2,7 @@
 import type { AIOptions, AIProvider, AIResult } from './ai-provider';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-3.5-flash';
 
 function buildGenerationConfig(opts?: AIOptions & { thinkingBudget?: number }): Record<string, any> {
   const config: Record<string, any> = {};
@@ -121,7 +121,7 @@ export const geminiProvider: AIProvider = {
   id: 'gemini',
   label: 'Gemini',
   defaultModel: DEFAULT_MODEL,
-  pricing: { input: 0.15, output: 0.6 }, // USD per 1M tokens (Gemini 2.5 Flash)
+  pricing: { input: 0.15, output: 0.6 }, // USD per 1M tokens (Gemini 3.5 Flash)
   keyUrl: 'https://aistudio.google.com/app/apikey',
   generateText,
   generateWithImage,

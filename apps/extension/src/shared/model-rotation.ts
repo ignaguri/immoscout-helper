@@ -12,10 +12,9 @@ export interface FallbackModel {
 
 /** Hardcoded fallback chain — Gemini models first, OpenAI as last resort. */
 export const FALLBACK_CHAIN: FallbackModel[] = [
+  { provider: 'gemini', model: 'gemini-3.5-flash' },
+  { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
   { provider: 'gemini', model: 'gemini-2.5-flash' },
-  { provider: 'gemini', model: 'gemini-2.0-flash' },
-  { provider: 'gemini', model: 'gemini-2.0-flash-lite' },
-  { provider: 'gemini', model: 'gemini-1.5-flash' },
   { provider: 'openai', model: 'gpt-4o-mini' },
 ];
 

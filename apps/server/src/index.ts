@@ -111,8 +111,8 @@ async function getModel(provider?: ProviderId, apiKey?: string, litellmConfig?: 
     return openai('gpt-4o-mini');
   }
   // Default: Gemini
-  if (apiKey) return createGoogleGenerativeAI({ apiKey })('gemini-2.5-flash');
-  return google('gemini-2.5-flash');
+  if (apiKey) return createGoogleGenerativeAI({ apiKey })('gemini-3.5-flash');
+  return google('gemini-3.5-flash');
 }
 
 /** Resolve model from request body. Throws on invalid config. */

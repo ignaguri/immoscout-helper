@@ -2,6 +2,7 @@
 import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
 import FormField from '$lib/components/FormField.svelte';
 import Section from '$lib/components/Section.svelte';
+import DocumentAttachments from '../components/DocumentAttachments.svelte';
 import { Input } from '$lib/components/ui/input';
 import { Progress } from '$lib/components/ui/progress';
 import * as Select from '$lib/components/ui/select';
@@ -344,6 +345,8 @@ const isReq = (k: keyof PopupSettings) => REQUIRED_SET.has(k);
         />
       </FormField>
     </div>
+
+    <DocumentAttachments />
   </div>
 </CollapsibleSection>
 

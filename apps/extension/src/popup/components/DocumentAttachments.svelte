@@ -3,9 +3,9 @@ import Trash from '@lucide/svelte/icons/trash-2';
 import Upload from '@lucide/svelte/icons/upload';
 import { onMount } from 'svelte';
 import { Button } from '$lib/components/ui/button';
-import { type AttachmentRecord, addAttachment, deleteAttachment, listAttachments } from '../../shared/idb-attachments';
+import { type AttachmentMeta, addAttachment, deleteAttachment, listAttachments } from '../../shared/idb-attachments';
 
-let attachments = $state<AttachmentRecord[]>([]);
+let attachments = $state<AttachmentMeta[]>([]);
 let fileInput = $state<HTMLInputElement | null>(null);
 
 async function refresh() {

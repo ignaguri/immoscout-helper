@@ -1,15 +1,22 @@
 // IndexedDB helpers for user-uploaded document attachments (CV, payslips, Schufa,
-// etc.) that get appended after the filled Selbstauskunft form. Mirrors the
-// idb-snapshots.ts pattern but uses an auto-increment key since attachments are
-// not tied to a listingId.
+// etc.) that get appended after the filled Selbstauskunft form.
+//
+// Two-store schema: `attachmentMeta` holds {id, filename, addedAt} and is read for
+// the list UI; `attachmentBlobs` holds {id, bytes} and is read only at generation
+// time. This keeps the popup from deserializing every PDF's bytes just to render
+// filenames. The two stores share the id assigned by the meta store.
 
 import * as C from './constants';
 
-export interface AttachmentRecord {
+export interface AttachmentMeta {
   id: number;
   filename: string;
-  bytes: ArrayBuffer;
   addedAt: number;
+}
+
+interface AttachmentBlob {
+  id: number;
+  bytes: ArrayBuffer;
 }
 
 function openAttachmentsDB(): Promise<IDBDatabase> {
@@ -17,8 +24,17 @@ function openAttachmentsDB(): Promise<IDBDatabase> {
     const req = indexedDB.open(C.ATTACHMENTS_IDB_NAME, C.ATTACHMENTS_IDB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(C.ATTACHMENTS_IDB_STORE)) {
-        db.createObjectStore(C.ATTACHMENTS_IDB_STORE, { keyPath: 'id', autoIncrement: true });
+      // v1 stored everything (incl. bytes) in a single `attachments` store. Drop
+      // it; the attachments feature is new and unreleased, so there's no data to
+      // migrate.
+      if (db.objectStoreNames.contains('attachments')) {
+        db.deleteObjectStore('attachments');
+      }
+      if (!db.objectStoreNames.contains(C.ATTACHMENTS_META_STORE)) {
+        db.createObjectStore(C.ATTACHMENTS_META_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains(C.ATTACHMENTS_BLOBS_STORE)) {
+        db.createObjectStore(C.ATTACHMENTS_BLOBS_STORE, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -29,24 +45,43 @@ function openAttachmentsDB(): Promise<IDBDatabase> {
 export async function addAttachment(filename: string, bytes: ArrayBuffer): Promise<number> {
   const db = await openAttachmentsDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(C.ATTACHMENTS_IDB_STORE, 'readwrite');
-    // id is auto-assigned by the store; omit it from the written record.
-    const record = { filename, bytes, addedAt: Date.now() };
-    const req = tx.objectStore(C.ATTACHMENTS_IDB_STORE).add(record);
-    req.onsuccess = () => resolve(req.result as number);
+    const tx = db.transaction([C.ATTACHMENTS_META_STORE, C.ATTACHMENTS_BLOBS_STORE], 'readwrite');
+    // Let the meta store assign the auto-increment id, then reuse it for the blob.
+    const metaReq = tx.objectStore(C.ATTACHMENTS_META_STORE).add({ filename, addedAt: Date.now() });
+    metaReq.onsuccess = () => {
+      const id = metaReq.result as number;
+      tx.objectStore(C.ATTACHMENTS_BLOBS_STORE).put({ id, bytes });
+    };
+    tx.oncomplete = () => resolve(metaReq.result as number);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function listAttachments(): Promise<AttachmentMeta[]> {
+  const db = await openAttachmentsDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(C.ATTACHMENTS_META_STORE, 'readonly');
+    const req = tx.objectStore(C.ATTACHMENTS_META_STORE).getAll();
+    req.onsuccess = () => {
+      const records = (req.result as AttachmentMeta[]) || [];
+      records.sort((a, b) => a.id - b.id);
+      resolve(records);
+    };
     req.onerror = () => reject(req.error);
   });
 }
 
-export async function listAttachments(): Promise<AttachmentRecord[]> {
+// Reads every attachment's bytes in insertion (id) order. Used only at PDF
+// generation time.
+export async function getAttachmentBlobs(): Promise<ArrayBuffer[]> {
   const db = await openAttachmentsDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(C.ATTACHMENTS_IDB_STORE, 'readonly');
-    const req = tx.objectStore(C.ATTACHMENTS_IDB_STORE).getAll();
+    const tx = db.transaction(C.ATTACHMENTS_BLOBS_STORE, 'readonly');
+    const req = tx.objectStore(C.ATTACHMENTS_BLOBS_STORE).getAll();
     req.onsuccess = () => {
-      const records = (req.result as AttachmentRecord[]) || [];
+      const records = (req.result as AttachmentBlob[]) || [];
       records.sort((a, b) => a.id - b.id);
-      resolve(records);
+      resolve(records.map((r) => r.bytes));
     };
     req.onerror = () => reject(req.error);
   });
@@ -55,9 +90,10 @@ export async function listAttachments(): Promise<AttachmentRecord[]> {
 export async function deleteAttachment(id: number): Promise<void> {
   const db = await openAttachmentsDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(C.ATTACHMENTS_IDB_STORE, 'readwrite');
-    const req = tx.objectStore(C.ATTACHMENTS_IDB_STORE).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
+    const tx = db.transaction([C.ATTACHMENTS_META_STORE, C.ATTACHMENTS_BLOBS_STORE], 'readwrite');
+    tx.objectStore(C.ATTACHMENTS_META_STORE).delete(id);
+    tx.objectStore(C.ATTACHMENTS_BLOBS_STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }

@@ -4,7 +4,7 @@
 // Runs entirely in the popup (DOM context) - no server, no Python.
 
 import { PDFDocument, type PDFFont, type PDFPage, StandardFonts } from 'pdf-lib';
-import { listAttachments } from '../../shared/idb-attachments';
+import { getAttachmentBlobs } from '../../shared/idb-attachments';
 import { loadAllSettings } from './storage';
 
 const TEMPLATE_URL = 'templates/Selbstauskunft____neutral.pdf';
@@ -176,16 +176,16 @@ export async function fillSelbstauskunft(data: DocumentsFormData): Promise<Uint8
   drawPage2(pdfDoc.getPage(1), helv, helvBold, data);
 
   // Append attachments in upload order. Skip any that fail to parse.
-  const attachments = await listAttachments();
-  for (const attachment of attachments) {
+  const attachmentBlobs = await getAttachmentBlobs();
+  for (const bytes of attachmentBlobs) {
     try {
-      const donor = await PDFDocument.load(attachment.bytes);
+      const donor = await PDFDocument.load(bytes);
       const copied = await pdfDoc.copyPages(donor, donor.getPageIndices());
       for (const donorPage of copied) {
         pdfDoc.addPage(donorPage);
       }
     } catch (err) {
-      console.warn(`[Documents] Skipping unreadable attachment "${attachment.filename}":`, err);
+      console.warn('[Documents] Skipping unreadable attachment:', err);
     }
   }
 

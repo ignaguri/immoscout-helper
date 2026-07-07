@@ -10,6 +10,7 @@ import { Textarea } from '$lib/components/ui/textarea';
 import { getMessengerUrl } from '../../shared/constants';
 import type { ConversationEntry } from '../../shared/types';
 import { buildDocumentData, documentFilename, fillSelbstauskunft } from '../lib/documents';
+import { downloadBlob } from '../lib/download';
 import { dismissDraftError, regenerateDraft, sendConversationReply } from '../lib/messages';
 
 const DRAFT_WATCHDOG_MS = 90_000;
@@ -195,10 +196,7 @@ async function handleGenerateDocs() {
     // Cast: pdf-lib returns Uint8Array<ArrayBufferLike>, which the DOM BlobPart
     // type does not accept directly under TS 5.7 typed-array generics.
     const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    await chrome.downloads.download({ url, filename, saveAs: true });
-    // Revoke after a tick so the download has time to start.
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    await downloadBlob(blob, filename, { saveAs: true });
 
     docsBtnText = 'Downloaded!';
     docsStatus = 'success';

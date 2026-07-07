@@ -1,6 +1,7 @@
 <script lang="ts">
 import Section from '$lib/components/Section.svelte';
 import { Button } from '$lib/components/ui/button';
+import { downloadBlob } from '../../lib/download';
 import { clearSeenListings } from '../../lib/messages';
 
 let {
@@ -48,12 +49,7 @@ async function handleExport() {
       delete data[key];
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `immoscout-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    await downloadBlob(blob, `immoscout-backup-${new Date().toISOString().slice(0, 10)}.json`);
   } catch (e: any) {
     alert(`Export failed: ${e.message}`);
   }

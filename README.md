@@ -10,7 +10,6 @@ Built with TypeScript + Svelte 5 + Vite (extension) and Express + TypeScript (AI
 apps/
   extension/   Chrome extension (Manifest V3, TypeScript + Svelte 5)
   server/      AI server (Express + TypeScript)
-  documents/   Python helper for Mieterselbstauskunft PDF generation
 packages/
   shared-types/    Shared TypeScript types
   shared-prompts/  Shared AI prompt builders
@@ -130,13 +129,10 @@ Endpoints:
 
 ```bash
 npm install              # install all workspace dependencies
-npm run setup            # npm install + Python venv for @repo/documents (POSIX only)
 npm run dev              # watch mode: extension + server
 npm run build            # production build
 npm run typecheck        # TypeScript + Svelte type check
 ```
-
-Windows contributors run `npm install` and then follow `apps/documents/README.md` to set up the Python venv manually.
 
 **Load unpacked:** `chrome://extensions/` → Load unpacked → `apps/extension/dist/`
 

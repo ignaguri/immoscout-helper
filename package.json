@@ -2,7 +2,7 @@
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "setup": "npm install && npm run setup -w @repo/documents",
+    "setup": "npm install",
     "dev": "concurrently \"npm run dev -w apps/server\" \"npm run dev -w apps/extension\"",
     "build": "npm run build -w apps/extension",
     "test": "npm run test -w packages/shared-prompts",

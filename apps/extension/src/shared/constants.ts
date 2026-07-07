@@ -149,6 +149,14 @@ export const SAVED_SNAPSHOTS_IDB_VERSION = 1;
 export const SAVED_SNAPSHOTS_IDB_IMAGES_STORE = 'images' as const;
 export const SAVED_SNAPSHOTS_IDB_FULLTEXT_STORE = 'fullText' as const;
 
+export const ATTACHMENTS_IDB_NAME = 'documentAttachments' as const;
+export const ATTACHMENTS_IDB_VERSION = 2;
+// Split schema: metadata (filename/addedAt) is read for the list UI without
+// pulling every PDF's bytes into memory; bytes live in a separate store, read
+// only at generation time.
+export const ATTACHMENTS_META_STORE = 'attachmentMeta' as const;
+export const ATTACHMENTS_BLOBS_STORE = 'attachmentBlobs' as const;
+
 // Timing constants (milliseconds)
 export const HUMAN_DELAY_MIN = 1500;
 export const HUMAN_DELAY_MAX = 4000;

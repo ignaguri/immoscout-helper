@@ -9,7 +9,9 @@ import { Label } from '$lib/components/ui/label';
 import { Textarea } from '$lib/components/ui/textarea';
 import { getMessengerUrl } from '../../shared/constants';
 import type { ConversationEntry } from '../../shared/types';
-import { dismissDraftError, generateDocuments, regenerateDraft, sendConversationReply } from '../lib/messages';
+import { buildDocumentData, documentFilename, fillSelbstauskunft } from '../lib/documents';
+import { downloadBlob } from '../lib/download';
+import { dismissDraftError, regenerateDraft, sendConversationReply } from '../lib/messages';
 
 const DRAFT_WATCHDOG_MS = 90_000;
 
@@ -40,6 +42,10 @@ let docsAddress = $state('');
 let docsBtnText = $state('Generate');
 let docsBtnDisabled = $state(false);
 let docsStatus = $state<'idle' | 'success' | 'error'>('idle');
+let docsErrorMsg = $state('Generation failed. Check your profile fields and try again.');
+
+// Thrown for missing required inputs so the catch can surface a specific message.
+class DocsValidationError extends Error {}
 
 const nextMonth = new Date();
 nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
@@ -186,16 +192,29 @@ async function handleGenerateDocs() {
   docsBtnText = 'Generating…';
   docsStatus = 'idle';
   try {
-    const result = await generateDocuments(conversation.conversationId, docsAddress || '', moveInDate || '');
-    if (result.success) {
-      docsBtnText = 'Downloaded!';
-      docsStatus = 'success';
-    } else {
-      docsBtnText = 'Failed';
-      docsStatus = 'error';
+    const address = docsAddress.trim();
+    if (!address) {
+      throw new DocsValidationError('Enter the listing address first.');
     }
-  } catch {
-    docsBtnText = 'Error';
+    const data = await buildDocumentData(address, moveInDate || '');
+    if (!data.signatureName.trim()) {
+      throw new DocsValidationError('Add your name in the profile first.');
+    }
+    const bytes = await fillSelbstauskunft(data);
+    const filename = documentFilename(address, data.signatureName);
+
+    // Cast: pdf-lib returns Uint8Array<ArrayBufferLike>, which the DOM BlobPart
+    // type does not accept directly under TS 5.7 typed-array generics.
+    const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
+    await downloadBlob(blob, filename, { saveAs: true });
+
+    docsBtnText = 'Downloaded!';
+    docsStatus = 'success';
+  } catch (err) {
+    console.error('[Documents] Generation failed:', err);
+    docsErrorMsg =
+      err instanceof DocsValidationError ? err.message : 'Generation failed. Check your profile fields and try again.';
+    docsBtnText = 'Failed';
     docsStatus = 'error';
   }
   setTimeout(() => {
@@ -287,12 +306,10 @@ const sendBtnClass = $derived(
             <ExternalLink aria-hidden="true" />
             Open in messenger
           </DropdownMenu.Item>
-          {#if aiMode === 'server'}
-            <DropdownMenu.Item onSelect={() => { showDocsForm = true; }}>
-              <FileText aria-hidden="true" />
-              Generate Docs
-            </DropdownMenu.Item>
-          {/if}
+          <DropdownMenu.Item onSelect={() => { showDocsForm = true; }}>
+            <FileText aria-hidden="true" />
+            Generate Docs
+          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
     </div>
@@ -314,7 +331,7 @@ const sendBtnClass = $derived(
         </Button>
       </div>
     {/if}
-    {#if aiMode === 'server' && showDocsForm}
+    {#if showDocsForm}
         <div class="mt-2 rounded-md border border-border bg-muted/40 p-2.5">
           <div class="mb-2 space-y-1">
             <Label for="docs-address-{conversation.conversationId}" class="text-[10px] uppercase">Address</Label>
@@ -349,7 +366,7 @@ const sendBtnClass = $derived(
             </div>
           {:else if docsStatus === 'error'}
             <div class="mt-1.5 rounded bg-destructive/10 px-2 py-1 text-[11px] text-destructive" role="status">
-              Generation failed. Is the server running?
+              {docsErrorMsg}
             </div>
           {/if}
         </div>

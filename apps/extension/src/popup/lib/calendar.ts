@@ -1,5 +1,6 @@
 import { getMessengerUrl } from '../../shared/constants';
 import type { ConversationEntry } from '../../shared/types';
+import { downloadBlob } from './download';
 
 // Parse a date string to a Date object.
 // Tries ISO format first, then German DD.MM.YYYY format.
@@ -115,7 +116,7 @@ export function buildGoogleCalendarUrl(conv: ConversationEntry): string {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
-export function downloadICS(conv: ConversationEntry): void {
+export async function downloadICS(conv: ConversationEntry): Promise<void> {
   const { title, location, description, start, end } = buildEventData(conv);
 
   const now = formatDatetimeUTC(new Date());
@@ -147,11 +148,5 @@ export function downloadICS(conv: ConversationEntry): void {
   ].join('\r\n');
 
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `besichtigung-${conv.conversationId}.ics`;
-  a.click();
-  // Delay revoke to ensure the browser has started the download
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  await downloadBlob(blob, `besichtigung-${conv.conversationId}.ics`);
 }

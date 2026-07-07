@@ -4,12 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Monorepo with three apps and two shared packages:
-1. **`apps/extension`** — Chrome extension (Manifest V3) that monitors ImmoScout24 search results and auto-messages landlords. TypeScript + Svelte 5 + Vite.
-2. **`apps/server`** — Local Express/TypeScript server that scores listings, solves captchas, generates reply drafts, and fills PDF documents.
-3. **`apps/documents`** — Python helper invoked by `apps/server` to fill the Mieterselbstauskunft PDF and append attachments.
-4. **`packages/shared-types`** — TS types shared by extension + server.
-5. **`packages/shared-prompts`** — AI prompt builders shared by extension + server.
+Monorepo with two apps and two shared packages:
+1. **`apps/extension`** — Chrome extension (Manifest V3) that monitors ImmoScout24 search results and auto-messages landlords. TypeScript + Svelte 5 + Vite. Also fills the Mieterselbstauskunft PDF client-side via pdf-lib.
+2. **`apps/server`** — Local Express/TypeScript server that scores listings, solves captchas, and generates reply drafts.
+3. **`packages/shared-types`** — TS types shared by extension + server.
+4. **`packages/shared-prompts`** — AI prompt builders shared by extension + server.
 
 npm workspaces glob: `["apps/*", "packages/*"]`.
 
@@ -29,9 +28,8 @@ apps/
 │   ├── vite.config.ts
 │   ├── package.json
 │   └── tsconfig.json
-├── server/               ← AI server (`npm run dev -w apps/server`)
-│   └── src/index.ts, prompts.ts, types.ts
-└── documents/            ← Python: fill_selbstauskunft.py + templates/
+└── server/               ← AI server (`npm run dev -w apps/server`)
+    └── src/index.ts, prompts.ts, types.ts
 packages/
 ├── shared-types/         ← @repo/shared-types
 └── shared-prompts/       ← @repo/shared-prompts
@@ -63,11 +61,11 @@ packages/
 
 **Type-check:** `npm run typecheck -w apps/server`
 
-**Endpoints:** `/analyze` (listing scoring), `/captcha` (image → text), `/reply` (conversation draft), `/documents/generate` (PDF), `/health`
+**Endpoints:** `/analyze` (listing scoring), `/captcha` (image → text), `/reply` (conversation draft), `/health`
 
-### Documents (Python)
+### Documents (Mieterselbstauskunft PDF)
 
-See `apps/documents/README.md`. Quick setup: `npm run setup -w @repo/documents` (macOS/Linux) creates a venv and installs deps; export `DOCUMENTS_PYTHON_PATH=<repo>/apps/documents/.venv/bin/python3` so the server uses it.
+Generated entirely in the popup via pdf-lib (`apps/extension/src/popup/lib/documents.ts`); no server or Python involved. The blank template is bundled at `apps/extension/static/templates/Selbstauskunft____neutral.pdf` and text is drawn at fixed coordinates. User-uploaded attachments live in IndexedDB (`shared/idb-attachments.ts`) and are appended after the filled form.
 
 ## Architecture
 
@@ -110,8 +108,6 @@ apps/server/src/
 ├── prompts.ts  ← AI prompt builders
 └── types.ts    ← TypeScript interfaces
 ```
-
-`DOCUMENTS_SCRIPT` is resolved via `__dirname/../../documents/fill_selbstauskunft.py` — works because `apps/server` and `apps/documents` are siblings.
 
 ### Key patterns
 

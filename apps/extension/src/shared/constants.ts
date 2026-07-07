@@ -149,6 +149,10 @@ export const SAVED_SNAPSHOTS_IDB_VERSION = 1;
 export const SAVED_SNAPSHOTS_IDB_IMAGES_STORE = 'images' as const;
 export const SAVED_SNAPSHOTS_IDB_FULLTEXT_STORE = 'fullText' as const;
 
+export const ATTACHMENTS_IDB_NAME = 'documentAttachments' as const;
+export const ATTACHMENTS_IDB_VERSION = 1;
+export const ATTACHMENTS_IDB_STORE = 'attachments' as const;
+
 // Timing constants (milliseconds)
 export const HUMAN_DELAY_MIN = 1500;
 export const HUMAN_DELAY_MAX = 4000;

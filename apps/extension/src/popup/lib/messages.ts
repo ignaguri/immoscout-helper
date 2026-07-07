@@ -130,19 +130,6 @@ export async function sendDuplicateLandlordDecision(
   return chrome.runtime.sendMessage({ action: 'duplicateLandlordDecision', decisionId, decision });
 }
 
-export async function generateDocuments(
-  conversationId: string,
-  address: string,
-  moveIn: string,
-): Promise<{ success: boolean; error?: string }> {
-  return chrome.runtime.sendMessage({
-    action: 'generateDocuments',
-    conversationId,
-    address,
-    moveIn,
-  });
-}
-
 export async function getManualReview(): Promise<ManualReviewData | null> {
   const result: any = await chrome.runtime.sendMessage({ action: 'getManualReview' });
   return result?.review || null;

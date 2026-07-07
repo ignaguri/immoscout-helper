@@ -1,6 +1,5 @@
 import 'dotenv/config';
-import { execFile } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGoogleGenerativeAI, google } from '@ai-sdk/google';
@@ -24,7 +23,6 @@ import {
 import type {
   AnalyzeRequestBody,
   CaptchaRequestBody,
-  DocumentsRequestBody,
   LiteLLMConfig,
   LogEntryBody,
   ProviderId,
@@ -528,79 +526,6 @@ app.post('/refine', async (req: Request, res: Response) => {
     res.status(502).json({ error: 'Refinement failed', details: (error as Error).message });
   }
 });
-
-// Documents generation endpoint
-const DOCUMENTS_SCRIPT = join(__dirname, '..', '..', 'documents', 'fill_selbstauskunft.py');
-const PYTHON_PATH = process.env.DOCUMENTS_PYTHON_PATH || 'python3';
-
-app.post(
-  '/documents/generate',
-  async (req: Request<Record<string, never>, unknown, DocumentsRequestBody>, res: Response) => {
-    const { address, name, ...rest } = req.body;
-
-    if (!address || !name) {
-      return res.status(400).json({ error: 'address and name are required' });
-    }
-
-    if (!existsSync(DOCUMENTS_SCRIPT)) {
-      return res.status(500).json({ error: 'Documents script not found', path: DOCUMENTS_SCRIPT });
-    }
-
-    const data = { address, name, ...rest };
-    // Remove non-data fields from the JSON payload
-    const { attachments, noAttach, ...formData } = data as DocumentsRequestBody;
-
-    const sanitize = (s: string) =>
-      s
-        .replace(/[/\\.]/g, '')
-        // biome-ignore lint/suspicious/noControlCharactersInRegex: strip path-traversal control chars
-        .replace(/[\x00-\x1f]/g, '')
-        .trim() || 'unknown';
-    const street = sanitize(address.split(',')[0]).replace(/\s+/g, '_');
-    const namePart = sanitize(name.split(',')[0]) || 'Tenant';
-    const outputPath = join('/tmp', `Bewerbungsunterlagen_${namePart}_${street}.pdf`);
-
-    const args = [DOCUMENTS_SCRIPT, '--json', JSON.stringify(formData), '-o', outputPath];
-    if (noAttach) args.push('--no-attach');
-    if (attachments?.length) {
-      args.push('--attach', ...attachments);
-    }
-
-    try {
-      const result = await new Promise<string>((resolve, reject) => {
-        execFile(PYTHON_PATH, args, { timeout: 30000 }, (error, stdout, stderr) => {
-          if (error) {
-            reject(new Error(stderr || error.message));
-          } else {
-            resolve(stdout.trim());
-          }
-        });
-      });
-
-      console.log(`[Documents] Generated: ${result}`);
-
-      if (!existsSync(outputPath)) {
-        return res.status(500).json({ error: 'PDF generation failed — output file not found' });
-      }
-
-      const pdfBuffer = readFileSync(outputPath);
-
-      // Clean up temp file
-      try {
-        unlinkSync(outputPath);
-      } catch {
-        /* ignore */
-      }
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="Bewerbungsunterlagen_${namePart}_${street}.pdf"`);
-      res.send(pdfBuffer);
-    } catch (error) {
-      console.error('[Documents] Error:', (error as Error).message);
-      res.status(500).json({ error: 'Document generation failed', details: (error as Error).message });
-    }
-  },
-);
 
 // Activity log endpoint
 app.post('/log', (req: Request<Record<string, never>, unknown, LogEntryBody>, res: Response) => {

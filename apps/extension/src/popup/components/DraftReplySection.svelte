@@ -9,8 +9,8 @@ import { Label } from '$lib/components/ui/label';
 import { Textarea } from '$lib/components/ui/textarea';
 import { getMessengerUrl } from '../../shared/constants';
 import type { ConversationEntry } from '../../shared/types';
-import { dismissDraftError, regenerateDraft, sendConversationReply } from '../lib/messages';
 import { buildDocumentData, documentFilename, fillSelbstauskunft } from '../lib/documents';
+import { dismissDraftError, regenerateDraft, sendConversationReply } from '../lib/messages';
 
 const DRAFT_WATCHDOG_MS = 90_000;
 

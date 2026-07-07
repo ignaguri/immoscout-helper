@@ -42,6 +42,10 @@ let docsAddress = $state('');
 let docsBtnText = $state('Generate');
 let docsBtnDisabled = $state(false);
 let docsStatus = $state<'idle' | 'success' | 'error'>('idle');
+let docsErrorMsg = $state('Generation failed. Check your profile fields and try again.');
+
+// Thrown for missing required inputs so the catch can surface a specific message.
+class DocsValidationError extends Error {}
 
 const nextMonth = new Date();
 nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
@@ -188,8 +192,14 @@ async function handleGenerateDocs() {
   docsBtnText = 'Generating…';
   docsStatus = 'idle';
   try {
-    const address = docsAddress || '';
+    const address = docsAddress.trim();
+    if (!address) {
+      throw new DocsValidationError('Enter the listing address first.');
+    }
     const data = await buildDocumentData(address, moveInDate || '');
+    if (!data.signatureName.trim()) {
+      throw new DocsValidationError('Add your name in the profile first.');
+    }
     const bytes = await fillSelbstauskunft(data);
     const filename = documentFilename(address, data.signatureName);
 
@@ -202,6 +212,8 @@ async function handleGenerateDocs() {
     docsStatus = 'success';
   } catch (err) {
     console.error('[Documents] Generation failed:', err);
+    docsErrorMsg =
+      err instanceof DocsValidationError ? err.message : 'Generation failed. Check your profile fields and try again.';
     docsBtnText = 'Failed';
     docsStatus = 'error';
   }
@@ -354,7 +366,7 @@ const sendBtnClass = $derived(
             </div>
           {:else if docsStatus === 'error'}
             <div class="mt-1.5 rounded bg-destructive/10 px-2 py-1 text-[11px] text-destructive" role="status">
-              Generation failed. Check your profile fields and try again.
+              {docsErrorMsg}
             </div>
           {/if}
         </div>

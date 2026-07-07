@@ -196,12 +196,9 @@ async function handleGenerateDocs() {
     // type does not accept directly under TS 5.7 typed-array generics.
     const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
-    try {
-      await chrome.downloads.download({ url, filename, saveAs: true });
-    } finally {
-      // Revoke after a tick so the download has time to start.
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    }
+    await chrome.downloads.download({ url, filename, saveAs: true });
+    // Revoke after a tick so the download has time to start.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
 
     docsBtnText = 'Downloaded!';
     docsStatus = 'success';

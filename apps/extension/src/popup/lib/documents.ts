@@ -4,8 +4,8 @@
 // Runs entirely in the popup (DOM context) - no server, no Python.
 
 import { PDFDocument, type PDFFont, type PDFPage, StandardFonts } from 'pdf-lib';
-import * as C from '../../shared/constants';
 import { listAttachments } from '../../shared/idb-attachments';
+import { loadAllSettings } from './storage';
 
 const TEMPLATE_URL = 'templates/Selbstauskunft____neutral.pdf';
 const COL_X = 250;
@@ -60,27 +60,21 @@ function todayGermanDate(): string {
   return `${day}.${month}.${today.getFullYear()}`;
 }
 
-// Gather profile data from chrome.storage.local and format it into the shape the
-// template filler expects. Ported from background/message-handler.ts.
-export async function buildDocumentData(address: string, moveIn: string): Promise<DocumentsFormData> {
-  const docKeys = [
-    C.PROFILE_NAME_KEY,
-    C.PROFILE_BIRTH_DATE_KEY,
-    C.PROFILE_MARITAL_STATUS_KEY,
-    C.PROFILE_CURRENT_ADDRESS_KEY,
-    C.PROFILE_EMAIL_KEY,
-    C.PROFILE_OCCUPATION_KEY,
-    C.PROFILE_NET_INCOME_KEY,
-    C.PROFILE_EMPLOYER_KEY,
-    C.PROFILE_EMPLOYED_SINCE_KEY,
-    C.PROFILE_CURRENT_LANDLORD_KEY,
-    C.PROFILE_LANDLORD_PHONE_KEY,
-    C.PROFILE_LANDLORD_EMAIL_KEY,
-    C.FORM_PHONE_KEY,
-  ];
-  const profile: Record<string, string | undefined> = await chrome.storage.local.get(docKeys);
+// Split on the first comma into up to two trimmed parts (street/city, employer/address).
+function splitFirstComma(value: string): string[] {
+  const idx = value.indexOf(',');
+  if (idx === -1) {
+    return [value];
+  }
+  return [value.slice(0, idx).trim(), value.slice(idx + 1).trim()];
+}
 
-  const nameRaw = profile[C.PROFILE_NAME_KEY] || '';
+// Gather profile data from the popup's typed settings and format it into the
+// shape the template filler expects. Ported from background/message-handler.ts.
+export async function buildDocumentData(address: string, moveIn: string): Promise<DocumentsFormData> {
+  const settings = await loadAllSettings();
+
+  const nameRaw = settings.profileName || '';
   // Convert "First Last" to "Last, First" for the form.
   const nameParts = nameRaw.split(' ').filter(Boolean);
   const formName = nameParts.length >= 2 ? `${nameParts.slice(1).join(' ')}, ${nameParts[0]}` : nameRaw;
@@ -89,18 +83,18 @@ export async function buildDocumentData(address: string, moveIn: string): Promis
     address,
     name: formName,
     moveIn: formatDate(moveIn),
-    birthDate: formatDate(profile[C.PROFILE_BIRTH_DATE_KEY]),
-    maritalStatus: profile[C.PROFILE_MARITAL_STATUS_KEY] || '',
-    currentAddress: profile[C.PROFILE_CURRENT_ADDRESS_KEY] || '',
-    phone: profile[C.FORM_PHONE_KEY] || '',
-    email: profile[C.PROFILE_EMAIL_KEY] || '',
-    profession: profile[C.PROFILE_OCCUPATION_KEY] || '',
-    netIncome: formatEurAmount(profile[C.PROFILE_NET_INCOME_KEY]),
-    employer: profile[C.PROFILE_EMPLOYER_KEY] || '',
-    employedSince: formatDate(profile[C.PROFILE_EMPLOYED_SINCE_KEY]),
-    currentLandlord: profile[C.PROFILE_CURRENT_LANDLORD_KEY] || '',
-    landlordPhone: profile[C.PROFILE_LANDLORD_PHONE_KEY] || '',
-    landlordEmail: profile[C.PROFILE_LANDLORD_EMAIL_KEY] || '',
+    birthDate: formatDate(settings.profileBirthDate),
+    maritalStatus: settings.profileMaritalStatus || '',
+    currentAddress: settings.profileCurrentAddress || '',
+    phone: settings.formPhone || '',
+    email: settings.profileEmail || '',
+    profession: settings.profileOccupation || '',
+    netIncome: formatEurAmount(settings.profileNetIncome),
+    employer: settings.profileEmployer || '',
+    employedSince: formatDate(settings.profileEmployedSince),
+    currentLandlord: settings.profileCurrentLandlord || '',
+    landlordPhone: settings.profileLandlordPhone || '',
+    landlordEmail: settings.profileLandlordEmail || '',
     signingDate: todayGermanDate(),
     signatureName: nameRaw,
   };
@@ -119,15 +113,10 @@ function drawPage1(page: PDFPage, helv: PDFFont, helvBold: PDFFont, data: Docume
   put(COL_X, 476, data.maritalStatus);
   put(COL_X, 457, data.birthDate);
 
-  const currentAddress = data.currentAddress;
-  if (currentAddress.includes(',')) {
-    const idx = currentAddress.indexOf(',');
-    const street = currentAddress.slice(0, idx).trim();
-    const city = currentAddress.slice(idx + 1).trim();
-    put(COL_X, 440, street);
-    put(COL_X, 427, city);
-  } else {
-    put(COL_X, 440, currentAddress);
+  const addressLines = splitFirstComma(data.currentAddress);
+  put(COL_X, 440, addressLines[0]);
+  if (addressLines.length > 1) {
+    put(COL_X, 427, addressLines[1]);
   }
 
   put(COL_X, 369, data.phone);
@@ -136,10 +125,7 @@ function drawPage1(page: PDFPage, helv: PDFFont, helvBold: PDFFont, data: Docume
   put(COL_X, 312, data.netIncome);
 
   // Employer (Helvetica 9), split on first comma into up to 2 lines.
-  const employer = data.employer;
-  const employerLines = employer.includes(',')
-    ? [employer.slice(0, employer.indexOf(',')).trim(), employer.slice(employer.indexOf(',') + 1).trim()]
-    : [employer];
+  const employerLines = splitFirstComma(data.employer);
   put(COL_X, 295, employerLines[0], 9);
   if (employerLines.length > 1) {
     put(COL_X, 283, employerLines[1], 9);
@@ -168,17 +154,10 @@ function drawPage2(page: PDFPage, helv: PDFFont, helvBold: PDFFont, data: Docume
   }
 
   // Ort, Datum (Helvetica 10).
-  const signingDate = data.signingDate || todayGermanDate();
-  page.drawText(`München, ${signingDate}`, { x: 40, y: 185, size: 10, font: helv });
+  page.drawText(`München, ${data.signingDate}`, { x: 40, y: 185, size: 10, font: helv });
 
-  // Signature (Helvetica 10). signatureName is always provided by buildDocumentData,
-  // but keep the Python fallback (flip "Last, First" -> "First Last") for safety.
-  let signatureName = data.signatureName || data.name.split(',')[0].trim();
-  const nameParts = data.name.split(',');
-  if (nameParts.length === 2 && !data.signatureName) {
-    signatureName = `${nameParts[1].trim()} ${nameParts[0].trim()}`;
-  }
-  page.drawText(signatureName, { x: 260, y: 185, size: 10, font: helv });
+  // Signature (Helvetica 10).
+  page.drawText(data.signatureName, { x: 260, y: 185, size: 10, font: helv });
 }
 
 // Fills the template and appends stored attachments. Returns the final PDF bytes.

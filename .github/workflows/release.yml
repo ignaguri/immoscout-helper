@@ -27,11 +27,11 @@ jobs:
         run: npm ci
 
       - name: Build extension
-        run: npm run build -w apps/extension
+        run: npm run build -w apps/extension-is24
 
       - name: Create ZIP
         run: |
-          cd apps/extension/dist
+          cd apps/extension-is24/dist
           zip -r ../../../apartment-messenger-${{ github.ref_name }}.zip .
 
       - name: Create GitHub Release

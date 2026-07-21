@@ -1,7 +1,7 @@
 // ZIP export for a saved listing snapshot.
 // Produces: index.html (relative image refs), images/NN.ext, data.json, README.txt
 
-import type { LandlordInfo, ListingDetails } from '@repo/shared-types';
+import type { LandlordInfo, ListingDetails } from '@repo/shared';
 import JSZip from 'jszip';
 import { buildSelfContainedHtml } from './export-html';
 import type { SavedImage } from './types';

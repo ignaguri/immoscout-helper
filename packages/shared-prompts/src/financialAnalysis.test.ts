@@ -1,4 +1,4 @@
-import type { ListingDetails } from '@repo/shared-types';
+import type { ListingDetails } from '@repo/shared';
 import { describe, expect, it } from 'vitest';
 import { computeFinancialAnalysis, formatFinancialAnalysis, formatListingWithAnalysis } from './financial-analysis';
 

@@ -13,7 +13,7 @@
 node_modules/
 
 # Build output
-apps/extension/dist/
+apps/extension-is24/dist/
 
 # Personal documents
 apps/documents/attachments/

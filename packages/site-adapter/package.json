@@ -1,22 +1,23 @@
 {
-  "name": "@repo/shared-prompts",
+  "name": "@repo/site-adapter",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
     "@repo/shared": "*"
   },
-  "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./dom": {
+      "types": "./src/dom.ts",
+      "default": "./src/dom.ts"
+    },
+    "./content": {
+      "types": "./src/content.ts",
+      "default": "./src/content.ts"
     }
-  },
-  "devDependencies": {
-    "vitest": "^4.1.2"
   }
 }

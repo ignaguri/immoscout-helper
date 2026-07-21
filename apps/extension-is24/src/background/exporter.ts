@@ -1,7 +1,7 @@
 // Shared image fetcher + export format dispatch for saved/exported listings.
 // Runs only in the service worker (has host_permissions for pictures.immobilienscout24.de).
 
-import type { LandlordInfo, ListingDetails } from '@repo/shared-types';
+import type { LandlordInfo, ListingDetails } from '@repo/shared';
 import * as C from '../shared/constants';
 import { buildSelfContainedHtml, type HtmlImageRef, slugForFilename } from '../shared/export-html';
 import { buildZip } from '../shared/export-zip';

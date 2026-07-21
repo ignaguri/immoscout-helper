@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What This Is
 
 Monorepo with two apps and two shared packages:
-1. **`apps/extension`** — Chrome extension (Manifest V3) that monitors ImmoScout24 search results and auto-messages landlords. TypeScript + Svelte 5 + Vite. Also fills the Mieterselbstauskunft PDF client-side via pdf-lib.
+1. **`apps/extension-is24`** — Chrome extension (Manifest V3) that monitors ImmoScout24 search results and auto-messages landlords. TypeScript + Svelte 5 + Vite. Also fills the Mieterselbstauskunft PDF client-side via pdf-lib.
 2. **`apps/server`** — Local Express/TypeScript server that scores listings, solves captchas, and generates reply drafts.
-3. **`packages/shared-types`** — TS types shared by extension + server.
+3. **`packages/shared`** — TS types shared by extension + server.
 4. **`packages/shared-prompts`** — AI prompt builders shared by extension + server.
 
 npm workspaces glob: `["apps/*", "packages/*"]`.
@@ -16,7 +16,7 @@ npm workspaces glob: `["apps/*", "packages/*"]`.
 
 ```
 apps/
-├── extension/            ← Chrome extension source
+├── extension-is24/       ← Chrome extension source
 │   ├── src/
 │   │   ├── background/   ← service worker
 │   │   ├── content/      ← content scripts
@@ -31,7 +31,7 @@ apps/
 └── server/               ← AI server (`npm run dev -w apps/server`)
     └── src/index.ts, prompts.ts, types.ts
 packages/
-├── shared-types/         ← @repo/shared-types
+├── shared/               ← @repo/shared
 └── shared-prompts/       ← @repo/shared-prompts
 ```
 
@@ -43,13 +43,13 @@ packages/
 
 ### Extension
 
-**Build:** `npm run build -w apps/extension`
+**Build:** `npm run build -w apps/extension-is24`
 
-**Watch mode:** `npm run dev -w apps/extension` (Vite rebuild on save)
+**Watch mode:** `npm run dev -w apps/extension-is24` (Vite rebuild on save)
 
-**Type-check:** `npm run check -w apps/extension` (svelte-check)
+**Type-check:** `npm run check -w apps/extension-is24` (svelte-check)
 
-**Load the extension:** `chrome://extensions/` → Developer mode → Load unpacked → select `apps/extension/dist/`.
+**Load the extension:** `chrome://extensions/` → Developer mode → Load unpacked → select `apps/extension-is24/dist/`.
 
 **Test changes:** The watcher rebuilds automatically. For service worker changes, click the reload icon in `chrome://extensions/`. For content script changes, also refresh the ImmoScout24 tab.
 
@@ -65,7 +65,7 @@ packages/
 
 ### Documents (Mieterselbstauskunft PDF)
 
-Generated entirely in the popup via pdf-lib (`apps/extension/src/popup/lib/documents.ts`); no server or Python involved. The blank template is bundled at `apps/extension/static/templates/Selbstauskunft____neutral.pdf` and text is drawn at fixed coordinates. User-uploaded attachments live in IndexedDB (`shared/idb-attachments.ts`) and are appended after the filled form.
+Generated entirely in the popup via pdf-lib (`apps/extension-is24/src/popup/lib/documents.ts`); no server or Python involved. The blank template is bundled at `apps/extension-is24/static/templates/Selbstauskunft____neutral.pdf` and text is drawn at fixed coordinates. User-uploaded attachments live in IndexedDB (`shared/idb-attachments.ts`) and are appended after the filled form.
 
 ## Architecture
 
@@ -111,7 +111,7 @@ apps/server/src/
 
 ### Key patterns
 
-- **Storage keys are centralized** in `apps/extension/src/shared/constants.ts` — always use the constants, never string literals.
+- **Storage keys are centralized** in `apps/extension-is24/src/shared/constants.ts` — always use the constants, never string literals.
 - **Form filling** uses `Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set` to work with React's synthetic state.
 - **Rate limit state** is persisted to storage so it survives service worker termination.
 - **Seen listings** are capped at 5,000 entries via `capSeenListings()`.

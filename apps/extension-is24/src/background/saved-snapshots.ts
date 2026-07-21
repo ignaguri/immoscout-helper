@@ -5,7 +5,7 @@
 // - deleteSnapshot(listingId): removes meta + IDB entries.
 // - getSnapshotsIndex(): reads the chrome.storage.local map (for popup bootstrap).
 
-import type { LandlordInfo, ListingDetails } from '@repo/shared-types';
+import type { LandlordInfo, ListingDetails } from '@repo/shared';
 import * as C from '../shared/constants';
 import { error, log, warn } from '../shared/logger';
 import type { ExportFormat, SavedSnapshotMeta } from '../shared/types';

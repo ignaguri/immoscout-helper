@@ -44,7 +44,7 @@ export const AI_LITELLM_CLIENT_SECRET_KEY = 'aiLitellmClientSecret' as const;
 export const AI_LITELLM_TOKEN_URL_KEY = 'aiLitellmTokenUrl' as const;
 export const AI_LITELLM_BASE_URL_KEY = 'aiLitellmBaseUrl' as const;
 export const AI_LITELLM_MODEL_KEY = 'aiLitellmModel' as const;
-export { LITELLM_DEFAULT_MODEL } from '@repo/shared-types';
+export { LITELLM_DEFAULT_MODEL } from '@repo/shared';
 export const AI_SERVER_URL_KEY = 'aiServerUrl' as const;
 export const AI_MIN_SCORE_KEY = 'aiMinScore' as const;
 export const AI_ABOUT_ME_KEY = 'aiAboutMe' as const;

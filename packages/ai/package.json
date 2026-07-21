@@ -1,22 +1,15 @@
 {
-  "name": "@repo/shared-prompts",
+  "name": "@repo/ai",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
     "@repo/shared": "*"
   },
-  "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     }
-  },
-  "devDependencies": {
-    "vitest": "^4.1.2"
   }
 }

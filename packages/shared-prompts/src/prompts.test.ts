@@ -1,4 +1,4 @@
-import type { ConversationMessage, LandlordInfo, ListingDetails, Profile, UserProfile } from '@repo/shared-types';
+import type { ConversationMessage, LandlordInfo, ListingDetails, Profile, UserProfile } from '@repo/shared';
 import { describe, expect, it } from 'vitest';
 import {
   buildConversationText,

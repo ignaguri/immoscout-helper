@@ -10,7 +10,7 @@ import type {
   Profile,
   ScoreResult,
   UserProfile,
-} from '@repo/shared-types';
+} from '@repo/shared';
 import type { PlaceholderInfo } from './templates';
 import {
   DEFAULT_MESSAGE_TEMPLATE,

@@ -15,7 +15,7 @@ export interface AIResult {
   usage: AIUsage;
 }
 
-import type { ProviderId } from '@repo/shared-types';
+import type { ProviderId } from '@repo/shared';
 
 export type { ProviderId };
 

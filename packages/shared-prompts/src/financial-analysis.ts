@@ -1,7 +1,7 @@
 // Pre-computed financial analysis for listing scoring.
 // Solves LLM numerical comparison errors by doing all math in code.
 
-import type { ListingDetails } from '@repo/shared-types';
+import type { ListingDetails } from '@repo/shared';
 
 export function parseGermanNumber(raw: string | undefined): number | null {
   if (!raw) return null;

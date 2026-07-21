@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGoogleGenerativeAI, google } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
-import { LITELLM_DEFAULT_MODEL } from '@repo/shared-types';
+import { LITELLM_DEFAULT_MODEL } from '@repo/shared';
 import { generateText } from 'ai';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';

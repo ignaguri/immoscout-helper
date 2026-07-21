@@ -1,6 +1,6 @@
+import { capSeenListings } from '@repo/shared';
 import * as C from '../shared/constants';
 import { debug, error, log } from '../shared/logger';
-import { capSeenListings } from '../shared/utils';
 import { humanDelay } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
 import { handleNewListing } from './messaging';

@@ -5,7 +5,7 @@
     "setup": "npm install",
     "dev": "concurrently \"npm run dev -w apps/server\" \"npm run dev -w apps/extension-is24\"",
     "build": "npm run build -w apps/extension-is24",
-    "test": "npm run test -w packages/shared-prompts",
+    "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run check -w apps/extension-is24 && npm run typecheck -w apps/server",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

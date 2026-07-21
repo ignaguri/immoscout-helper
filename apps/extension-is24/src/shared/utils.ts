@@ -1,5 +1,3 @@
-import { SEEN_LISTINGS_CAP } from './constants';
-
 export function generatePersonalizedMessage(
   template: string,
   landlordTitle: string | null,
@@ -41,11 +39,4 @@ export function generatePersonalizedMessage(
   }
 
   return message;
-}
-
-export function capSeenListings(seenList: string[]): string[] {
-  if (seenList.length > SEEN_LISTINGS_CAP) {
-    return seenList.slice(seenList.length - SEEN_LISTINGS_CAP);
-  }
-  return seenList;
 }

@@ -1,9 +1,9 @@
 // Pending approval storage for tenant-recommendation listings.
 // These listings require explicit user confirmation before a message is sent.
 
+import { capSeenListings } from '@repo/shared';
 import * as C from '../shared/constants';
 import type { PendingApprovalItem } from '../shared/types';
-import { capSeenListings } from '../shared/utils';
 
 export async function getPendingApprovalListings(): Promise<PendingApprovalItem[]> {
   const result = await chrome.storage.local.get(C.PENDING_APPROVAL_KEY);

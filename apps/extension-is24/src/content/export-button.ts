@@ -3,7 +3,7 @@
 // with the gallery and picks up the site's FAB styling. Falls back to a floating
 // bottom-right FAB if the container isn't found (e.g., logged-out or variant layouts).
 
-import { log } from '../shared/logger';
+import { log } from '@repo/shared/logger';
 import type { ExportFormat } from '../shared/types';
 import { collectGalleryImageUrls, getListingIdFromUrl } from './gallery-images';
 import { extractLandlordName, extractListingDetails } from './listing-details';

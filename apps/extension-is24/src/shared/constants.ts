@@ -136,9 +136,6 @@ export const CONVERSATIONS_CHECK_INTERVAL_KEY = 'convCheckInterval' as const;
 export const CONV_UNREAD_COUNT_KEY = 'convUnreadCount' as const;
 export const CONVERSATIONS_CAP = 200;
 
-// Caps
-export const SEEN_LISTINGS_CAP = 5000;
-
 // Saved listing snapshots (conversation-bound local archive)
 export const SAVED_SNAPSHOTS_KEY = 'savedSnapshots' as const;
 export const SAVED_SNAPSHOTS_CAP = 100;

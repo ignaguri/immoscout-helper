@@ -1,3 +1,4 @@
+import { debug, error, log, warn } from '@repo/shared/logger';
 import {
   canUseDirect,
   canUseServer,
@@ -7,7 +8,6 @@ import {
   trackTokenUsage,
 } from '../shared/ai-router';
 import * as C from '../shared/constants';
-import { debug, error, log, warn } from '../shared/logger';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ManualReviewData, PendingApprovalItem } from '../shared/types';
 import { getProfile } from './ai';

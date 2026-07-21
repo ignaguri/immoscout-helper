@@ -1,12 +1,12 @@
 <script lang="ts">
 import Check from '@lucide/svelte/icons/check';
 import X from '@lucide/svelte/icons/x';
+import { error } from '@repo/shared/logger';
 import { onMount } from 'svelte';
 import EmptyState from '$lib/components/EmptyState.svelte';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
 import { SAVED_SNAPSHOTS_KEY } from '../../shared/constants';
-import { error } from '../../shared/logger';
 import type { ConversationEntry, SavedSnapshotMeta } from '../../shared/types';
 import ConversationCard from '../components/ConversationCard.svelte';
 import { checkRepliesNow } from '../lib/messages';

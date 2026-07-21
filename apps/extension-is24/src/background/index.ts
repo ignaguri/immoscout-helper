@@ -1,6 +1,7 @@
 // Background service worker entry point for ImmoScout24 Auto Reloader
+
+import { error, log } from '@repo/shared/logger';
 import * as C from '../shared/constants';
-import { error, log } from '../shared/logger';
 import { checkForNewReplies } from './conversations';
 import { handleDuplicateLandlordAlarm } from './duplicates';
 import { scheduleNextAlarm } from './helpers';

@@ -1,7 +1,7 @@
+import { capSeenListings } from '@repo/shared';
+import { debug, error, log } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import type { IS24Conversation, IS24ConversationsResponse } from '../shared/immoscout-api';
-import { debug, error, log } from '../shared/logger';
-import { capSeenListings } from '../shared/utils';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { findOrCreateSearchTab } from './tabs';
 

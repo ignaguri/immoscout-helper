@@ -1,12 +1,12 @@
 <script lang="ts">
 import type { AnalyzeRequestBody, CaptchaRequestBody } from '@repo/shared';
+import { error } from '@repo/shared/logger';
 import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';
 import { Textarea } from '$lib/components/ui/textarea';
 import { PROVIDERS, trackTokenUsage } from '../../shared/ai-router';
-import { error } from '../../shared/logger';
 import {
   buildMessagePrompt,
   buildScoringPrompt,

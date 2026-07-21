@@ -1,6 +1,6 @@
 // Captcha detection and solving
 
-import { error, log } from '../shared/logger';
+import { error, log } from '@repo/shared/logger';
 import type { CaptchaDetectResult, CaptchaSubmitResult } from '../shared/types';
 import { setInputValue, sleep } from './dom-helpers';
 import * as S from './selectors';

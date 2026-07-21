@@ -1,5 +1,5 @@
+import { debug } from '@repo/shared/logger';
 import * as C from '../shared/constants';
-import { debug } from '../shared/logger';
 
 export async function logActivity(entry: Record<string, any>): Promise<void> {
   try {

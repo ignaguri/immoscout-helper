@@ -2,10 +2,10 @@
 // Runs only in the service worker (has host_permissions for pictures.immobilienscout24.de).
 
 import type { LandlordInfo, ListingDetails } from '@repo/shared';
+import { error, warn } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import { buildSelfContainedHtml, type HtmlImageRef, slugForFilename } from '../shared/export-html';
 import { buildZip } from '../shared/export-zip';
-import { error, warn } from '../shared/logger';
 import type { ExportFormat, SavedImage } from '../shared/types';
 
 async function blobToDataUrl(blob: Blob): Promise<string> {

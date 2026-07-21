@@ -1,8 +1,8 @@
 // Duplicate landlord detection and decision flow.
 // Handles prompting, notification, alarm timeout, and decision recording.
 
+import { log } from '@repo/shared/logger';
 import * as C from '../shared/constants';
-import { log } from '../shared/logger';
 import { logActivity } from './activity';
 import type { Listing } from './listings';
 import { sendActivityLog } from './listings';

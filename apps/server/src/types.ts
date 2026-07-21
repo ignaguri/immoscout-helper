@@ -13,7 +13,7 @@ import type {
   ScoreResult,
   ShortenRequestBody,
   UserProfile,
-} from '@repo/shared-types';
+} from '@repo/shared';
 
 export type {
   AnalyzeRequestBody,

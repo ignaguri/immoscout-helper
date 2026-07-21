@@ -1,7 +1,7 @@
 // Shared AI routing helper — determines whether to use direct or server mode,
 // and which provider to use in direct mode.
 
-import type { LiteLLMConfig } from '@repo/shared-types';
+import type { LiteLLMConfig } from '@repo/shared';
 import type { AIProvider, AIResult, ProviderId } from './ai-provider';
 import * as C from './constants';
 import { geminiProvider } from './gemini';

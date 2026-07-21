@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
-    "@repo/shared-types": "*"
+    "@repo/shared": "*"
   },
   "scripts": {
     "test": "vitest run",

@@ -7,9 +7,9 @@ export interface Listing {
   index: number;
 }
 
-import type { ConversationMessage } from '@repo/shared-types';
+import type { ConversationMessage } from '@repo/shared';
 
-export type { ConversationMessage, LandlordInfo, ListingDetails } from '@repo/shared-types';
+export type { ConversationMessage, LandlordInfo, ListingDetails } from '@repo/shared';
 
 export interface ListingType {
   isTenantNetwork: boolean;
@@ -247,8 +247,8 @@ export interface SavedImage {
 /** Full snapshot, used for view/export. Images and details live in IndexedDB, meta in chrome.storage.local. */
 export interface SavedSnapshotFull {
   meta: SavedSnapshotMeta;
-  details: import('@repo/shared-types').ListingDetails;
-  landlord: import('@repo/shared-types').LandlordInfo;
+  details: import('@repo/shared').ListingDetails;
+  landlord: import('@repo/shared').LandlordInfo;
   images: SavedImage[];
 }
 
@@ -256,7 +256,7 @@ export interface SavedSnapshotFull {
 export interface ExtractForArchiveResult {
   listingId: string;
   url: string;
-  details: import('@repo/shared-types').ListingDetails;
-  landlord: import('@repo/shared-types').LandlordInfo;
+  details: import('@repo/shared').ListingDetails;
+  landlord: import('@repo/shared').LandlordInfo;
   imageUrls: string[];
 }

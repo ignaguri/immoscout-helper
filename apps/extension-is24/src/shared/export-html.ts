@@ -3,7 +3,7 @@
 // in-extension viewer page (Blob URL images) by accepting pre-resolved image
 // src strings from the caller.
 
-import type { LandlordInfo, ListingDetails } from '@repo/shared-types';
+import type { LandlordInfo, ListingDetails } from '@repo/shared';
 
 export interface HtmlImageRef {
   /** src attribute — can be a data: URL, blob: URL, or any resolvable URL. */

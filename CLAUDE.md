@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Monorepo with two apps and two shared packages:
 1. **`apps/extension-is24`** — Chrome extension (Manifest V3) that monitors ImmoScout24 search results and auto-messages landlords. TypeScript + Svelte 5 + Vite. Also fills the Mieterselbstauskunft PDF client-side via pdf-lib.
 2. **`apps/server`** — Local Express/TypeScript server that scores listings, solves captchas, and generates reply drafts.
-3. **`packages/shared-types`** — TS types shared by extension + server.
+3. **`packages/shared`** — TS types shared by extension + server.
 4. **`packages/shared-prompts`** — AI prompt builders shared by extension + server.
 
 npm workspaces glob: `["apps/*", "packages/*"]`.
@@ -31,7 +31,7 @@ apps/
 └── server/               ← AI server (`npm run dev -w apps/server`)
     └── src/index.ts, prompts.ts, types.ts
 packages/
-├── shared-types/         ← @repo/shared-types
+├── shared/               ← @repo/shared
 └── shared-prompts/       ← @repo/shared-prompts
 ```
 

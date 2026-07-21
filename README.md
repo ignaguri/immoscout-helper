@@ -8,10 +8,10 @@ Built with TypeScript + Svelte 5 + Vite (extension) and Express + TypeScript (AI
 
 ```
 apps/
-  extension/   Chrome extension (Manifest V3, TypeScript + Svelte 5)
-  server/      AI server (Express + TypeScript)
+  extension-is24/  Chrome extension (Manifest V3, TypeScript + Svelte 5)
+  server/          AI server (Express + TypeScript)
 packages/
-  shared-types/    Shared TypeScript types
+  shared/          Shared TypeScript types
   shared-prompts/  Shared AI prompt builders
 ```
 
@@ -32,10 +32,10 @@ packages/
 git clone https://github.com/ignaguri/immoscout-helper
 cd immoscout-helper
 npm install
-npm run build        # builds extension to apps/extension/dist/
+npm run build        # builds extension to apps/extension-is24/dist/
 ```
 
-Then load unpacked from `apps/extension/dist/`.
+Then load unpacked from `apps/extension-is24/dist/`.
 
 ## Quick Start
 
@@ -134,7 +134,7 @@ npm run build            # production build
 npm run typecheck        # TypeScript + Svelte type check
 ```
 
-**Load unpacked:** `chrome://extensions/` → Load unpacked → `apps/extension/dist/`
+**Load unpacked:** `chrome://extensions/` → Load unpacked → `apps/extension-is24/dist/`
 
 **Reload after changes:**
 - Background (service worker): click the reload icon in `chrome://extensions/`

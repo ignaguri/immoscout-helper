@@ -1,0 +1,23 @@
+{
+  "name": "@repo/site-adapter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@repo/shared": "*"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./dom": {
+      "types": "./src/dom.ts",
+      "default": "./src/dom.ts"
+    },
+    "./content": {
+      "types": "./src/content.ts",
+      "default": "./src/content.ts"
+    }
+  }
+}

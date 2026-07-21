@@ -1,5 +1,5 @@
+import { debug, error, log } from '@repo/shared/logger';
 import * as C from '../shared/constants';
-import { debug, error, log } from '../shared/logger';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { enqueueListings, processQueue } from './queue';
 import { isMonitoring, setSearchTabId } from './state';

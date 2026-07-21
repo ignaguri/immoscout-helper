@@ -1,9 +1,9 @@
 // Listing processing orchestrator.
 // Chains phases from ./phases.ts with duplicate detection from ./duplicates.ts.
 
+import { debug, error, log } from '@repo/shared/logger';
 import { getAIConfig } from '../shared/ai-router';
 import * as C from '../shared/constants';
-import { debug, error, log } from '../shared/logger';
 import { checkDuplicateLandlord } from './duplicates';
 import { safeCloseTab } from './helpers';
 import type { Listing } from './listings';

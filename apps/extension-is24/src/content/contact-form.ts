@@ -1,6 +1,6 @@
 // Contact form filling and message sending
 
-import { log as logMsg } from '../shared/logger';
+import { log as logMsg } from '@repo/shared/logger';
 import type { FormValues, SendMessageResult } from '../shared/types';
 import { detectCaptchaElement } from './captcha';
 import {

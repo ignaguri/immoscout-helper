@@ -1,6 +1,6 @@
 // Listing extraction from search results pages
 
-import { log } from '../shared/logger';
+import { log } from '@repo/shared/logger';
 import type { Listing, PaginationInfo } from '../shared/types';
 import * as S from './selectors';
 

@@ -2,8 +2,8 @@
 // All logic lives in the feature modules; this file only wires up the
 // chrome.runtime.onMessage listener.
 
+import { debug, log } from '@repo/shared/logger';
 import { BLACKLIST_KEY, QUEUE_KEY, STORAGE_KEY } from '../shared/constants';
-import { debug, log } from '../shared/logger';
 import type { CheckMessageSentResult, ContentRequest } from '../shared/types';
 import { detectCaptcha, detectCaptchaElement, fillCaptchaAndSubmit } from './captcha';
 import { refillMessageOnly, sendMessageToLandlord } from './contact-form';

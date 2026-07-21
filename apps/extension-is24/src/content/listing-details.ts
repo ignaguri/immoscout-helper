@@ -1,7 +1,7 @@
 // Listing detail extraction, landlord name, and listing type detection
 
+import { log } from '@repo/shared/logger';
 import * as C from '../shared/constants';
-import { log } from '../shared/logger';
 import type { LandlordInfo, ListingDetails, ListingType } from '../shared/types';
 import { findButtonByKeywords, findElement } from './dom-helpers';
 import * as S from './selectors';

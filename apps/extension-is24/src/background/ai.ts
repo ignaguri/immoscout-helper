@@ -1,3 +1,4 @@
+import { error, log, warn } from '@repo/shared/logger';
 import {
   type AIConfig,
   canUseDirect,
@@ -8,7 +9,6 @@ import {
   trackTokenUsage,
 } from '../shared/ai-router';
 import * as C from '../shared/constants';
-import { error, log, warn } from '../shared/logger';
 import { getAvailableFallbacks, isRateLimitError, markModelCooldown } from '../shared/model-rotation';
 import {
   buildMessagePrompt,

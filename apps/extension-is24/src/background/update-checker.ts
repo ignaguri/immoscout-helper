@@ -1,10 +1,10 @@
+import { error, log } from '@repo/shared/logger';
 import {
   GITHUB_REPO,
   UPDATE_AVAILABLE_KEY,
   UPDATE_CHECK_ALARM,
   UPDATE_CHECK_INTERVAL_HOURS,
 } from '../shared/constants';
-import { error, log } from '../shared/logger';
 import type { UpdateInfo } from '../shared/types';
 
 function normalizeVersion(v: string): number[] {

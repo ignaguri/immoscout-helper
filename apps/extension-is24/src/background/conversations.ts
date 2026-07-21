@@ -1,3 +1,4 @@
+import { debug, error, log, warn } from '@repo/shared/logger';
 import {
   canUseDirect,
   canUseServer,
@@ -13,7 +14,6 @@ import type {
   IS24ConversationsResponse,
   IS24Message,
 } from '../shared/immoscout-api';
-import { debug, error, log, warn } from '../shared/logger';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';

@@ -6,8 +6,8 @@
 // - getSnapshotsIndex(): reads the chrome.storage.local map (for popup bootstrap).
 
 import type { LandlordInfo, ListingDetails } from '@repo/shared';
+import { error, log, warn } from '@repo/shared/logger';
 import * as C from '../shared/constants';
-import { error, log, warn } from '../shared/logger';
 import type { ExportFormat, SavedSnapshotMeta } from '../shared/types';
 import { fetchListingImages, exportSnapshot as runExport, splitFetchResults } from './exporter';
 import { safeCloseTab, waitForContentScript, waitForTabLoad } from './helpers';

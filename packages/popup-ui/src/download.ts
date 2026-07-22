@@ -7,7 +7,7 @@ export async function downloadBlob(blob: Blob, filename: string, opts?: { saveAs
   try {
     await chrome.downloads.download({ url, filename, saveAs: opts?.saveAs ?? false });
   } finally {
-    // Revoke after a tick so the download has time to start.
+    // Revoke after 10s so the download has time to start before the URL is freed.
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 }

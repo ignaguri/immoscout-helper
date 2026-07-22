@@ -3,6 +3,7 @@
 // The per-site app's content/index.ts registers this, then runs its own
 // site-specific page-lifecycle side-effects.
 
+import { debug } from '@repo/shared/logger';
 import type { ContentRequest, OverlayData, SiteContentAdapter } from './index';
 
 /**
@@ -24,7 +25,9 @@ export function createContentDispatcher(adapter: SiteContentAdapter): void {
 
         case 'extractListings':
           // Optional human-engagement scroll before extracting; extract either way.
-          Promise.resolve(adapter.simulateHumanEngagement?.())
+          // Defer the call into the chain so a synchronous throw becomes a rejection.
+          Promise.resolve()
+            .then(() => adapter.simulateHumanEngagement?.())
             .then(() => sendResponse({ listings: adapter.extractListings() }))
             .catch(() => sendResponse({ listings: adapter.extractListings() }));
           return true; // Keep channel open for async response
@@ -115,6 +118,11 @@ export function createContentDispatcher(adapter: SiteContentAdapter): void {
 
         case 'checkMessageSent':
           sendResponse(adapter.checkMessageSent());
+          break;
+
+        default:
+          // Preserve the original no-response behavior for unknown actions; log to aid debugging.
+          debug('[dispatcher] Unknown content action:', request.action);
           break;
       }
 

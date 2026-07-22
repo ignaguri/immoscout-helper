@@ -1,7 +1,1 @@
-import Root from './progress.svelte';
-
-export {
-  Root,
-  //
-  Root as Progress,
-};
+export * from '@repo/popup-ui/ui/progress';

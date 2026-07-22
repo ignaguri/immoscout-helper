@@ -1,5 +1,5 @@
 <script lang="ts">
-import Section from '$lib/components/Section.svelte';
+import Section from '@repo/popup-ui/Section.svelte';
 import { Button } from '$lib/components/ui/button';
 import { downloadBlob } from '../../lib/download';
 import { clearSeenListings } from '../../lib/messages';

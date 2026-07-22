@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* Scan the shared UI kit so Tailwind generates utilities used inside package components (Phase 4). */
+@source "../../../../packages/popup-ui/src";
 
 :root {
   --background: 0 0% 100%;

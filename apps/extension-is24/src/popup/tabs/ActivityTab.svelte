@@ -1,10 +1,10 @@
 <script lang="ts">
 import Inbox from '@lucide/svelte/icons/inbox';
 import X from '@lucide/svelte/icons/x';
+import CollapsibleSection from '@repo/popup-ui/CollapsibleSection.svelte';
+import EmptyState from '@repo/popup-ui/EmptyState.svelte';
+import Section from '@repo/popup-ui/Section.svelte';
 import { onMount } from 'svelte';
-import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
-import EmptyState from '$lib/components/EmptyState.svelte';
-import Section from '$lib/components/Section.svelte';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';

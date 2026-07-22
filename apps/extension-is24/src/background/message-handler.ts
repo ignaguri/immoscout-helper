@@ -1,12 +1,5 @@
+import { canUseDirect, canUseServer, getAIConfig, getProvider, litellmPayload, trackTokenUsage } from '@repo/ai';
 import { debug, error, log, warn } from '@repo/shared/logger';
-import {
-  canUseDirect,
-  canUseServer,
-  getAIConfig,
-  getProvider,
-  litellmPayload,
-  trackTokenUsage,
-} from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ManualReviewData, PendingApprovalItem } from '../shared/types';

@@ -3,8 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "dependencies": {
-    "@repo/shared": "*"
+    "@repo/shared": "*",
+    "@repo/shared-prompts": "*"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.2"
   },
   "exports": {
     ".": {

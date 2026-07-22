@@ -1,15 +1,17 @@
-import { error, log, warn } from '@repo/shared/logger';
 import {
   type AIConfig,
   canUseDirect,
   canUseServer,
   getAIConfig,
+  getAvailableFallbacks,
+  isRateLimitError,
   litellmPayload,
+  markModelCooldown,
   PROVIDERS,
   trackTokenUsage,
-} from '../shared/ai-router';
+} from '@repo/ai';
+import { error, log, warn } from '@repo/shared/logger';
 import * as C from '../shared/constants';
-import { getAvailableFallbacks, isRateLimitError, markModelCooldown } from '../shared/model-rotation';
 import {
   buildMessagePrompt,
   buildScoringPrompt,

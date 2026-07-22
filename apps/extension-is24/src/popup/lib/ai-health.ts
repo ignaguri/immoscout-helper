@@ -1,4 +1,4 @@
-import { PROVIDERS } from '../../shared/ai-router';
+import { PROVIDERS } from '@repo/ai';
 import type { PopupSettings } from './storage';
 
 const HEALTH_TIMEOUT_MS = 3000;

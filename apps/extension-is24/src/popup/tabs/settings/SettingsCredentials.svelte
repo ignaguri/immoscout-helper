@@ -1,9 +1,9 @@
 <script lang="ts">
+import { PROVIDERS } from '@repo/ai';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';
 import * as Select from '$lib/components/ui/select';
-import { PROVIDERS } from '../../../shared/ai-router';
 import { LITELLM_DEFAULT_MODEL } from '../../../shared/constants';
 import type { PopupSettings } from '../../lib/storage';
 import { getSettingsContext } from './settings-context';

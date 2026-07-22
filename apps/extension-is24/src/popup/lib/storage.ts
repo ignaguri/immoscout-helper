@@ -1,4 +1,4 @@
-import type { ProviderId } from '../../shared/ai-provider';
+import type { ProviderId } from '@repo/ai';
 import {
   ACTIVITY_LOG_KEY,
   AI_ABOUT_ME_KEY,

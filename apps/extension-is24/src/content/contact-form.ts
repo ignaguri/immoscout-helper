@@ -1,8 +1,6 @@
 // Contact form filling and message sending
 
 import { log as logMsg } from '@repo/shared/logger';
-import type { FormValues, SendMessageResult } from '../shared/types';
-import { detectCaptchaElement } from './captcha';
 import {
   findButtonByKeywords,
   findByLabel,
@@ -12,7 +10,9 @@ import {
   setReactValue,
   setSelectValue,
   sleep,
-} from './dom-helpers';
+} from '@repo/site-adapter/dom';
+import type { FormValues, SendMessageResult } from '../shared/types';
+import { detectCaptchaElement } from './captcha';
 import * as S from './selectors';
 
 // --- Form field defaults ---

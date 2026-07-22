@@ -1,9 +1,9 @@
 // Listing detail extraction, landlord name, and listing type detection
 
 import { log } from '@repo/shared/logger';
+import { findButtonByKeywords, findElement } from '@repo/site-adapter/dom';
 import * as C from '../shared/constants';
 import type { LandlordInfo, ListingDetails, ListingType } from '../shared/types';
-import { findButtonByKeywords, findElement } from './dom-helpers';
 import * as S from './selectors';
 
 /** Returns true if the extracted text is a generic placeholder, not a real landlord name. */

@@ -3,11 +3,11 @@
 // chrome.runtime.onMessage listener.
 
 import { debug, log } from '@repo/shared/logger';
+import { simulateHumanEngagement } from '@repo/site-adapter/dom';
 import { BLACKLIST_KEY, QUEUE_KEY, STORAGE_KEY } from '../shared/constants';
 import type { CheckMessageSentResult, ContentRequest } from '../shared/types';
 import { detectCaptcha, detectCaptchaElement, fillCaptchaAndSubmit } from './captcha';
 import { refillMessageOnly, sendMessageToLandlord } from './contact-form';
-import { simulateHumanEngagement } from './dom-helpers';
 import { injectExportButton } from './export-button';
 import { collectGalleryImageUrls, getListingIdFromUrl } from './gallery-images';
 import { detectListingType, extractLandlordName, extractListingDetails } from './listing-details';

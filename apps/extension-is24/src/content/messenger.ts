@@ -1,8 +1,8 @@
 // Conversation reply and appointment handling on the ImmoScout messenger page
 
 import { log } from '@repo/shared/logger';
+import { findElement, randomDelay, setReactValue, sleep } from '@repo/site-adapter/dom';
 import type { FillReplyResult, HandleAppointmentResult } from '../shared/types';
-import { findElement, randomDelay, setReactValue, sleep } from './dom-helpers';
 import * as S from './selectors';
 
 export async function fillConversationReply(message: string): Promise<FillReplyResult> {

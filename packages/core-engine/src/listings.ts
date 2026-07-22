@@ -105,10 +105,7 @@ export async function checkForNewListings(): Promise<void> {
       for (let page = 2; page <= maxPages; page++) {
         if (!isMonitoring) break;
 
-        const pageUrl = new URL(searchUrl);
-        pageUrl.searchParams.set('pagenumber', String(page));
-
-        await chrome.tabs.update(tab.id!, { url: pageUrl.toString() });
+        await chrome.tabs.update(tab.id!, { url: descriptor.buildSearchPageUrl(searchUrl, page) });
         await waitForTabLoad(tab.id!, C.TAB_LOAD_TIMEOUT);
         await new Promise((r) => setTimeout(r, humanDelay(3000, 2000)));
 

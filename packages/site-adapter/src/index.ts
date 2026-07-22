@@ -35,8 +35,11 @@ export interface MarketProfile {
 /** The object the engine holds. Constructed by the per-site app. */
 export interface SiteDescriptor {
   id: string; // 'immoscout24' | 'openrent'
-  isListingUrl(u: string): boolean;
-  buildListingUrl(id: string): string;
+  // Optional until Phase 4's content-routing seam consumes them; the engine does
+  // not reference them yet. IS24 supplies both.
+  isListingUrl?(u: string): boolean;
+  buildListingUrl?(id: string): string;
+  // Used by the engine's pagination (listings.ts).
   buildSearchPageUrl(searchUrl: string, page: number): string;
   defaultSearchUrl: string;
   updateRepo: string; // GitHub repo for the update checker

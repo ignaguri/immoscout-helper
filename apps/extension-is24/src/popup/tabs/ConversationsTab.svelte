@@ -1,9 +1,9 @@
 <script lang="ts">
 import Check from '@lucide/svelte/icons/check';
 import X from '@lucide/svelte/icons/x';
+import EmptyState from '@repo/popup-ui/EmptyState.svelte';
 import { error } from '@repo/shared/logger';
 import { onMount } from 'svelte';
-import EmptyState from '$lib/components/EmptyState.svelte';
 import { Button } from '$lib/components/ui/button';
 import { Input } from '$lib/components/ui/input';
 import { SAVED_SNAPSHOTS_KEY } from '../../shared/constants';

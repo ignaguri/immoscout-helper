@@ -1,6 +1,6 @@
 <script lang="ts">
 import { PROVIDERS } from '@repo/ai';
-import StatusPill from '$lib/components/StatusPill.svelte';
+import StatusPill from '@repo/popup-ui/StatusPill.svelte';
 import * as Alert from '$lib/components/ui/alert';
 import { Button } from '$lib/components/ui/button';
 import { Label } from '$lib/components/ui/label';

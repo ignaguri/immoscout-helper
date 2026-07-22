@@ -13,6 +13,7 @@
     "@lucide/svelte": "^1.14.0",
     "@repo/ai": "*",
     "@repo/core-engine": "*",
+    "@repo/popup-ui": "*",
     "@repo/shared-prompts": "*",
     "@repo/site-adapter": "*",
     "@repo/shared": "*",

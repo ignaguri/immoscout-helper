@@ -1,11 +1,4 @@
-// Shared types used across background, content, and popup
-
-export interface Listing {
-  id: string;
-  url: string;
-  title: string;
-  index: number;
-}
+// Shared types used across background, content, and popup.
 
 import type { ConversationMessage } from '@repo/shared';
 
@@ -17,87 +10,23 @@ export type {
   PendingApprovalItem,
 } from '@repo/shared';
 
-export interface ListingType {
-  isTenantNetwork: boolean;
-  hasContactForm: boolean;
-  hasTenantCTA: boolean;
-  type: 'tenant-recommendation' | 'tenant-network' | 'coming-soon' | 'standard';
-}
-
-export interface FormValues {
-  adults?: number | string;
-  children?: number | string;
-  pets?: string;
-  smoker?: string;
-  income?: number | string;
-  householdSize?: string;
-  employmentType?: string;
-  incomeRange?: string;
-  documents?: string;
-  salutation?: string;
-  phone?: string;
-}
-
-export interface PaginationInfo {
-  currentPage: number;
-  totalPages: number;
-}
-
-export interface CaptchaDetectResult {
-  hasCaptcha: boolean;
-  imageBase64?: string | null;
-  error?: string;
-}
-
-export interface CaptchaSubmitResult {
-  success: boolean;
-  messageSent?: boolean;
-  error?: string;
-}
-
-export interface SendMessageResult {
-  success: boolean;
-  error?: string;
-  messageSent?: string | boolean;
-  manualMode?: boolean;
-  captchaBlocked?: boolean;
-  messageTooLong?: boolean;
-  maxLength?: number | null;
-  log: string[];
-}
-
-export interface FillReplyResult {
-  success: boolean;
-  error?: string;
-  filled?: boolean;
-  charsFilled?: number;
-}
-
-export interface HandleAppointmentResult {
-  success: boolean;
-  error?: string;
-  buttonClicked?: string;
-  messageFilled?: boolean;
-}
-
-export interface CheckMessageSentResult {
-  messageSent: boolean;
-  hasContactForm: boolean;
-  hasCaptcha: boolean;
-  pageTitle: string;
-  url: string;
-}
-
-// Content script message request
-export interface ContentRequest {
-  action: string;
-  message?: string;
-  text?: string;
-  formValues?: FormValues;
-  autoSend?: boolean;
-  response?: string;
-  courtesyMessage?: string;
-}
+// Content-realm types now live in the seam package; re-exported so existing
+// `../shared/types` call sites are unchanged (Phase 4).
+export type {
+  CaptchaDetectResult,
+  CaptchaSubmitResult,
+  CheckMessageSentResult,
+  ContentRequest,
+  ExtractForArchiveResult,
+  FillReplyResult,
+  FormValues,
+  HandleAppointmentResult,
+  Listing,
+  ListingType,
+  OverlayData,
+  PaginationInfo,
+  SendMessageResult,
+} from '@repo/site-adapter';
 
 // Popup status response
 export interface StatusResponse {
@@ -222,13 +151,4 @@ export interface SavedSnapshotFull {
   details: import('@repo/shared').ListingDetails;
   landlord: import('@repo/shared').LandlordInfo;
   images: SavedImage[];
-}
-
-/** Payload sent from content script to background when archiving. */
-export interface ExtractForArchiveResult {
-  listingId: string;
-  url: string;
-  details: import('@repo/shared').ListingDetails;
-  landlord: import('@repo/shared').LandlordInfo;
-  imageUrls: string[];
 }

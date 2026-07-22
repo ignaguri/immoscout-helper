@@ -1,7 +1,7 @@
 <script lang="ts">
-import CollapsibleSection from '$lib/components/CollapsibleSection.svelte';
-import FormField from '$lib/components/FormField.svelte';
-import Section from '$lib/components/Section.svelte';
+import CollapsibleSection from '@repo/popup-ui/CollapsibleSection.svelte';
+import FormField from '@repo/popup-ui/FormField.svelte';
+import Section from '@repo/popup-ui/Section.svelte';
 import { Input } from '$lib/components/ui/input';
 import { Progress } from '$lib/components/ui/progress';
 import * as Select from '$lib/components/ui/select';

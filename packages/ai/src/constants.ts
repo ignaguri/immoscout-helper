@@ -6,7 +6,7 @@ export { LITELLM_DEFAULT_MODEL } from '@repo/shared';
 
 // AI config / storage keys
 export const AI_MODE_KEY = 'aiMode' as const; // 'direct' | 'server'
-export const AI_PROVIDER_KEY = 'aiProvider' as const; // 'gemini' | 'openai'
+export const AI_PROVIDER_KEY = 'aiProvider' as const; // 'gemini' | 'openai' | 'litellm'
 export const AI_ENABLED_KEY = 'aiEnabled' as const;
 export const AI_API_KEY_GEMINI_KEY = 'aiApiKeyGemini' as const;
 export const AI_API_KEY_OPENAI_KEY = 'aiApiKeyOpenai' as const;

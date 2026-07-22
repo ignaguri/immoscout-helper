@@ -1,13 +1,8 @@
 // Search page overlay — injects status badges and action buttons on listing cards
 
 import { log } from '@repo/shared/logger';
+import type { OverlayData } from '@repo/site-adapter';
 import * as S from './selectors';
-
-interface OverlayData {
-  seenIds: string[];
-  queuedIds: string[];
-  blacklistedIds: string[];
-}
 
 const BADGE_CLASS = 'is24-ext-badge';
 const ACTIONS_CLASS = 'is24-ext-actions';

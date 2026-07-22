@@ -1,135 +1,14 @@
-// Content script entry point — message listener dispatch
-// All logic lives in the feature modules; this file only wires up the
-// chrome.runtime.onMessage listener.
+// Content script entry point. Registers the site-agnostic message dispatcher
+// with the IS24 adapter, then runs IS24-specific page-lifecycle side-effects.
 
 import { debug, log } from '@repo/shared/logger';
-import { simulateHumanEngagement } from '@repo/site-adapter/dom';
+import { createContentDispatcher } from '@repo/site-adapter/content';
 import { BLACKLIST_KEY, QUEUE_KEY, STORAGE_KEY } from '../shared/constants';
-import type { CheckMessageSentResult, ContentRequest } from '../shared/types';
-import { detectCaptcha, detectCaptchaElement, fillCaptchaAndSubmit } from './captcha';
-import { refillMessageOnly, sendMessageToLandlord } from './contact-form';
+import { is24ContentAdapter } from './adapter';
 import { injectExportButton } from './export-button';
-import { collectGalleryImageUrls, getListingIdFromUrl } from './gallery-images';
-import { detectListingType, extractLandlordName, extractListingDetails } from './listing-details';
-import { extractListings, extractPaginationInfo } from './listings';
-import { fillConversationReply, handleAppointment } from './messenger';
 import { applyOverlay } from './overlay';
-import * as S from './selectors';
 
-chrome.runtime.onMessage.addListener(
-  (
-    request: ContentRequest,
-    _sender: chrome.runtime.MessageSender,
-    sendResponse: (response: unknown) => void,
-  ): boolean | undefined => {
-    switch (request.action) {
-      case 'ping':
-        sendResponse({ pong: true, ready: true });
-        break;
-
-      case 'extractListings':
-        simulateHumanEngagement()
-          .then(() => sendResponse({ listings: extractListings() }))
-          .catch(() => sendResponse({ listings: extractListings() }));
-        return true; // Keep channel open for async response
-
-      case 'extractLandlordName':
-        sendResponse(extractLandlordName());
-        break;
-
-      case 'extractListingDetails':
-        sendResponse(extractListingDetails());
-        break;
-
-      case 'extractForArchive': {
-        const listingId = getListingIdFromUrl();
-        sendResponse({
-          listingId,
-          url: location.href,
-          details: extractListingDetails(),
-          landlord: extractLandlordName(),
-          imageUrls: collectGalleryImageUrls(),
-        });
-        break;
-      }
-
-      case 'detectListingType':
-        sendResponse(detectListingType());
-        break;
-
-      case 'extractPaginationInfo':
-        sendResponse(extractPaginationInfo());
-        break;
-
-      case 'detectCaptcha':
-        detectCaptcha()
-          .then((result) => sendResponse(result))
-          .catch((error) => sendResponse({ hasCaptcha: false, error: (error as Error).message }));
-        return true;
-
-      case 'solveCaptcha':
-        fillCaptchaAndSubmit(request.text!)
-          .then((result) => sendResponse(result))
-          .catch((error) => sendResponse({ success: false, error: (error as Error).message }));
-        return true;
-
-      case 'sendMessage':
-        sendMessageToLandlord(request.message!, request.formValues || {}, request.autoSend !== false)
-          .then((result) => sendResponse(result))
-          .catch((error) => sendResponse({ success: false, error: (error as Error).message }));
-        return true; // Keep channel open for async response
-
-      case 'refillMessage':
-        // Re-fill only the message textarea (no form fields, no submit). Used for refinement.
-        refillMessageOnly(request.message!)
-          .then((result) => sendResponse(result))
-          .catch((error) => sendResponse({ success: false, error: (error as Error).message }));
-        return true;
-
-      case 'fillConversationReply':
-        // Fill reply textarea on ImmoScout messenger conversation page
-        fillConversationReply(request.message!)
-          .then((result) => sendResponse(result))
-          .catch((error) => sendResponse({ success: false, error: (error as Error).message }));
-        return true;
-
-      case 'handleAppointment':
-        // Click appointment button and fill courtesy message on messenger page
-        handleAppointment(request.response, request.courtesyMessage)
-          .then((result) => sendResponse(result))
-          .catch((error) => sendResponse({ success: false, error: (error as Error).message }));
-        return true;
-
-      case 'applyOverlay':
-        sendResponse(applyOverlay(request as any));
-        break;
-
-      case 'checkMessageSent':
-        // Check if the current page shows a "message sent" confirmation
-        {
-          const successEl =
-            document.querySelector(S.MESSAGE_SENT_SELECTORS) ||
-            Array.from(document.querySelectorAll('div, span, h1, h2, h3, h4, p')).find(
-              (el) =>
-                (el.textContent || '').includes(S.MESSAGE_SENT_TEXT) ||
-                (el.textContent || '').includes(S.MESSAGE_SENT_TEXT_ALT),
-            );
-          const contactForm = document.querySelector('textarea[name="message"], form[data-testid="contact-form"]');
-          const { image: captchaImg, heading: captchaHeading } = detectCaptchaElement();
-          sendResponse({
-            messageSent: !!successEl,
-            hasContactForm: !!contactForm,
-            hasCaptcha: !!(captchaImg || captchaHeading),
-            pageTitle: document.title,
-            url: location.href,
-          } as CheckMessageSentResult);
-        }
-        break;
-    }
-
-    return false;
-  },
-);
+createContentDispatcher(is24ContentAdapter);
 
 log('[IS24] Content script loaded');
 

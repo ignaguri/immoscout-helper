@@ -1,5 +1,5 @@
 import { debug, error, log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
+import * as C from './constants';
 import { waitForTabLoad } from './helpers';
 import { advanceSearchUrlIndex, searchUrlIndex } from './state';
 

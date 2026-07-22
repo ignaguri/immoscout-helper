@@ -1,9 +1,9 @@
 <script lang="ts">
 import X from '@lucide/svelte/icons/x';
+import type { UpdateInfo } from '@repo/shared';
 import { onMount } from 'svelte';
 import { Button } from '$lib/components/ui/button';
 import { UPDATE_AVAILABLE_KEY, UPDATE_DISMISSED_KEY } from '../../shared/constants';
-import type { UpdateInfo } from '../../shared/types';
 
 let updateInfo: UpdateInfo | null = $state(null);
 let dismissed = $state(false);

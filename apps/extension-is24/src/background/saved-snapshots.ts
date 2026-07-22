@@ -5,12 +5,12 @@
 // - deleteSnapshot(listingId): removes meta + IDB entries.
 // - getSnapshotsIndex(): reads the chrome.storage.local map (for popup bootstrap).
 
+import { safeCloseTab, waitForContentScript, waitForTabLoad } from '@repo/core-engine';
 import type { LandlordInfo, ListingDetails } from '@repo/shared';
 import { error, log, warn } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import type { ExportFormat, SavedSnapshotMeta } from '../shared/types';
 import { fetchListingImages, exportSnapshot as runExport, splitFetchResults } from './exporter';
-import { safeCloseTab, waitForContentScript, waitForTabLoad } from './helpers';
 import { getFullText, getImages, deleteListing as idbDeleteListing, putFullText, putImages } from './indexeddb';
 
 async function readIndex(): Promise<Record<string, SavedSnapshotMeta>> {

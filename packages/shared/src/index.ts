@@ -148,4 +148,40 @@ export interface ReplyRequestBody extends LiteLLMConfig {
   userContext?: string;
 }
 
+export interface RateLimitResult {
+  allowed: boolean;
+  waitTime?: number;
+}
+
+export interface UpdateInfo {
+  version: string;
+  url: string;
+  checkedAt: number;
+}
+
+// Tenant-recommendation listing awaiting explicit user confirmation before contact.
+export interface PendingApprovalItem {
+  id: string;
+  url: string;
+  title?: string;
+  addedAt: number;
+}
+
+// Message filled into a contact form, held for the user to review/refine/send (manual mode).
+export interface ManualReviewData {
+  message: string;
+  listingId: string;
+  listingUrl: string;
+  listingTitle: string;
+  landlordName: string;
+  landlordTitle: string;
+  isTenantNetwork: boolean;
+  isPrivateLandlord: boolean;
+  tabId: number;
+  aiScore?: number;
+  aiReason?: string;
+  notificationId?: string;
+  timestamp: number;
+}
+
 export * from './seen';

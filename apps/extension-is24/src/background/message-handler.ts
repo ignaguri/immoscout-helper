@@ -1,9 +1,32 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, litellmPayload, trackTokenUsage } from '@repo/ai';
+import {
+  approvePendingListing,
+  currentCheckInterval,
+  enqueueListings,
+  getPendingApprovalListings,
+  getProfile,
+  handleNewListing,
+  isMonitoring,
+  isProcessingQueue,
+  type Listing,
+  messageCount,
+  messageCountResetTime,
+  processQueue,
+  scheduleNextAlarm,
+  setMessageCount,
+  setMessageCountResetTime,
+  setQueueAbortRequested,
+  setUserTriggeredProcessing,
+  skipPendingListing,
+  startMonitoring,
+  stopMonitoring,
+  updateCheckInterval,
+  waitForTabLoad,
+} from '@repo/core-engine';
 import { debug, error, log, warn } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ManualReviewData, PendingApprovalItem } from '../shared/types';
-import { getProfile } from './ai';
 import type { ConversationEntry } from './conversations';
 import {
   checkForNewReplies,
@@ -12,29 +35,12 @@ import {
   updateConversationDraft,
 } from './conversations';
 import { exportSnapshot as runExportSnapshot } from './exporter';
-import { scheduleNextAlarm, waitForTabLoad } from './helpers';
-import type { Listing } from './listings';
-import { handleNewListing } from './messaging';
-import { startMonitoring, stopMonitoring, updateCheckInterval } from './monitoring';
-import { approvePendingListing, getPendingApprovalListings, skipPendingListing } from './pending-approval';
-import { enqueueListings, processQueue } from './queue';
 import {
   deleteSnapshot as deleteSavedSnapshot,
   exportSavedSnapshot,
   getSnapshotsIndex,
   saveSnapshotById,
 } from './saved-snapshots';
-import {
-  currentCheckInterval,
-  isMonitoring,
-  isProcessingQueue,
-  messageCount,
-  messageCountResetTime,
-  setMessageCount,
-  setMessageCountResetTime,
-  setQueueAbortRequested,
-  setUserTriggeredProcessing,
-} from './state';
 
 type MessageRequest = { action: string; [key: string]: any };
 

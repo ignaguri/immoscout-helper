@@ -1,9 +1,9 @@
 import { debug, error, log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
+import * as C from './constants';
+import { getDescriptor } from './descriptor-ref';
 import { humanDelay, waitForTabLoad } from './helpers';
 import { enqueueListings, processQueue } from './queue';
 import { isMonitoring, setSearchTabId } from './state';
-import { syncContactedListings } from './sync';
 import { findOrCreateSearchTab } from './tabs';
 
 export interface Listing {
@@ -39,7 +39,11 @@ export async function sendActivityLog(data: Record<string, any>): Promise<void> 
 export async function checkForNewListings(): Promise<void> {
   try {
     await sendActivityLog({ message: `[${new Date().toLocaleTimeString()}] Checking for new listings...` });
-    await syncContactedListings();
+
+    const descriptor = getDescriptor();
+    if (descriptor.capabilities.messenger && descriptor.messenger) {
+      await descriptor.messenger.syncContacted();
+    }
 
     const result = await findOrCreateSearchTab();
 
@@ -101,10 +105,7 @@ export async function checkForNewListings(): Promise<void> {
       for (let page = 2; page <= maxPages; page++) {
         if (!isMonitoring) break;
 
-        const pageUrl = new URL(searchUrl);
-        pageUrl.searchParams.set('pagenumber', String(page));
-
-        await chrome.tabs.update(tab.id!, { url: pageUrl.toString() });
+        await chrome.tabs.update(tab.id!, { url: descriptor.buildSearchPageUrl(searchUrl, page) });
         await waitForTabLoad(tab.id!, C.TAB_LOAD_TIMEOUT);
         await new Promise((r) => setTimeout(r, humanDelay(3000, 2000)));
 

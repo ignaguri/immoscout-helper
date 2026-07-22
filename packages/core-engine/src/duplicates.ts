@@ -2,8 +2,8 @@
 // Handles prompting, notification, alarm timeout, and decision recording.
 
 import { log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
 import { logActivity } from './activity';
+import * as C from './constants';
 import type { Listing } from './listings';
 import { sendActivityLog } from './listings';
 import { type NotificationPrefs, shouldNotifyWith } from './notifications';

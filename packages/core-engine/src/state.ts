@@ -1,5 +1,5 @@
 // Module-level mutable state shared across all background modules
-import * as C from '../shared/constants';
+import * as C from './constants';
 
 export const DEFAULT_CHECK_INTERVAL = 60000;
 

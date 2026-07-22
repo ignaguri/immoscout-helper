@@ -1,3 +1,5 @@
+// Template-based message builder (draft: German greeting copy rides along in the
+// engine until market parameterization in Phase 5). Used only by phases.ts.
 export function generatePersonalizedMessage(
   template: string,
   landlordTitle: string | null,

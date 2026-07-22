@@ -11,7 +11,6 @@ import {
   trackTokenUsage,
 } from '@repo/ai';
 import { error, log, warn } from '@repo/shared/logger';
-import * as C from '../shared/constants';
 import {
   buildMessagePrompt,
   buildScoringPrompt,
@@ -20,7 +19,8 @@ import {
   formatListingForPrompt,
   formatListingWithAnalysis,
   parseScoreJSON,
-} from '../shared/prompts';
+} from '@repo/shared-prompts';
+import * as C from './constants';
 import { waitForTabLoad } from './helpers';
 import { shouldNotify } from './notifications';
 

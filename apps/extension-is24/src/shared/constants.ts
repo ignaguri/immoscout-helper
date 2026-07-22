@@ -39,6 +39,7 @@ export {
   COMING_SOON_COOLDOWN_KEY,
   COMING_SOON_COOLDOWN_MS,
   CONTACTED_LANDLORDS_KEY,
+  CONVERSATIONS_ALARM_NAME,
   DEFAULT_NOTIFICATION_PREFS,
   DUPLICATE_LANDLORD_TIMEOUT_MS,
   FORM_ADULTS_KEY,
@@ -84,6 +85,7 @@ export {
   SEARCH_URL_KEY,
   SEARCH_URLS_KEY,
   STORAGE_KEY,
+  SYNCED_CONTACTED_KEY,
   TAB_LOAD_TIMEOUT,
   TOTAL_MESSAGES_SENT_KEY,
   UPDATE_AVAILABLE_KEY,
@@ -103,9 +105,6 @@ export const PROFILE_CURRENT_LANDLORD_KEY = 'profileCurrentLandlord' as const;
 export const PROFILE_LANDLORD_PHONE_KEY = 'profileLandlordPhone' as const;
 export const PROFILE_LANDLORD_EMAIL_KEY = 'profileLandlordEmail' as const;
 
-// Sync keys
-export const SYNCED_CONTACTED_KEY = 'syncedContactedCount' as const;
-
 /** Generic placeholder names that ImmoScout24 shows instead of real landlord names (lowercased). */
 export const GENERIC_LANDLORD_NAMES: ReadonlySet<string> = new Set([
   'privatangebot',
@@ -121,10 +120,9 @@ export const GENERIC_LANDLORD_PATTERNS: readonly RegExp[] = [
   /\[informationen\]/i, // anything containing "[Informationen]"
 ];
 
-// Conversation keys
+// Conversation keys (CONVERSATIONS_ALARM_NAME now lives in @repo/core-engine/constants)
 export const CONVERSATIONS_KEY = 'conversations' as const;
 export const CONVERSATIONS_LAST_CHECK_KEY = 'convLastCheck' as const;
-export const CONVERSATIONS_ALARM_NAME = 'checkConversations' as const;
 export const CONVERSATIONS_CHECK_INTERVAL_KEY = 'convCheckInterval' as const;
 export const CONV_UNREAD_COUNT_KEY = 'convUnreadCount' as const;
 export const CONVERSATIONS_CAP = 200;

@@ -2,6 +2,7 @@ export * from './activity';
 export * from './ai';
 export * from './descriptor-ref';
 export * from './duplicates';
+export * from './engine';
 export * from './helpers';
 export * from './listings';
 export * from './messaging';

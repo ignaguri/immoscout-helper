@@ -1,10 +1,13 @@
-import * as C from '../shared/constants';
+import * as C from './constants';
+import { getDescriptor } from './descriptor-ref';
 
-// Batched storage initialization — single read, single write
+// Batched storage initialization — single read, single write.
+// Seed values are draft IS24/DE defaults (German message template, form values);
+// only the default search URL is descriptor-parameterized this phase.
 export async function initializeStorage(): Promise<void> {
   const defaults: Record<string, any> = {
     [C.STORAGE_KEY]: [],
-    [C.SEARCH_URL_KEY]: 'https://www.immobilienscout24.de/Suche/de/wohnung-mieten',
+    [C.SEARCH_URL_KEY]: getDescriptor().defaultSearchUrl,
     [C.MESSAGE_TEMPLATE_KEY]:
       'Sehr geehrte Damen und Herren,\n\nich interessiere mich für diese Wohnung und würde gerne mehr Informationen erhalten.\n\nMit freundlichen Grüßen',
     [C.CHECK_INTERVAL_KEY]: 60,

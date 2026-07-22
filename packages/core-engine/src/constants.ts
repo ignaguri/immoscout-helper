@@ -129,13 +129,24 @@ export const CAPTCHA_SOLVE_TIMEOUT_MS = 15000;
 // Notification icon asset (draft: IS24-branded asset path rides along in the engine)
 export const ICON_PATH = 'icons/icon128.png';
 
-// AI stat/prompt storage keys live in @repo/ai/constants; re-exported here so the
-// moved ai.ts reaches them via `C.*` alongside the engine constants.
+// Conversation reply-check alarm. The messenger conversation storage keys stay in
+// the app; only the lifecycle alarm name is owned by createEngine (Phase 3.5).
+export const CONVERSATIONS_ALARM_NAME = 'checkConversations' as const;
+
+// Sync stats (seeded by initializeStorage, read by the app messenger)
+export const SYNCED_CONTACTED_KEY = 'syncedContactedCount' as const;
+
+// AI stat/prompt/config storage keys live in @repo/ai/constants; re-exported here
+// so the moved ai.ts + storage.ts reach them via `C.*` alongside engine constants.
 export {
+  AI_ABOUT_ME_KEY,
   AI_CUSTOM_MESSAGE_PROMPT_KEY,
   AI_CUSTOM_SCORING_PROMPT_KEY,
+  AI_ENABLED_KEY,
   AI_LISTINGS_SCORED_KEY,
   AI_LISTINGS_SKIPPED_KEY,
+  AI_MIN_SCORE_KEY,
+  AI_SERVER_URL_KEY,
   AI_USAGE_COMPLETION_TOKENS_KEY,
   AI_USAGE_PROMPT_TOKENS_KEY,
 } from '@repo/ai/constants';

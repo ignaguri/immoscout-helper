@@ -1,11 +1,12 @@
 // Duplicate landlord detection and decision flow.
 // Handles prompting, notification, alarm timeout, and decision recording.
 
-import { logActivity, type NotificationPrefs, shouldNotifyWith } from '@repo/core-engine';
 import { log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
+import { logActivity } from './activity';
+import * as C from './constants';
 import type { Listing } from './listings';
 import { sendActivityLog } from './listings';
+import { type NotificationPrefs, shouldNotifyWith } from './notifications';
 import type { QueueItem } from './queue';
 
 // Track contacted landlords after a successful send

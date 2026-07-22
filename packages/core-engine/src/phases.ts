@@ -2,33 +2,30 @@
 // Each phase is a focused function with explicit parameters.
 
 import { type AIConfig, canUseDirect, canUseServer, getProvider, litellmPayload, trackTokenUsage } from '@repo/ai';
+import type { ManualReviewData } from '@repo/shared';
+import { debug, error, log, warn } from '@repo/shared/logger';
+import { buildShortenPrompt } from '@repo/shared-prompts';
+import { logActivity } from './activity';
+import { type AIAnalysisResult, type FormValues, lastAIError, tryAIAnalysis, trySolveCaptcha } from './ai';
+import * as C from './constants';
+import { getDescriptor } from './descriptor-ref';
+import { recordContactedLandlord } from './duplicates';
+import { humanDelay, safeCloseTab, waitForContentScript, waitForTabLoad } from './helpers';
+import { type Listing, sendActivityLog } from './listings';
+import { type NotificationPrefs, shouldNotifyWith } from './notifications';
+import { addToPendingApproval } from './pending-approval';
+import { generatePersonalizedMessage } from './personalized-message';
+import type { QueueItem } from './queue';
 import {
-  humanDelay,
   incrementMessageCount,
   isMonitoring,
   isProcessingQueue,
   lastMessageTime,
-  logActivity,
   messageCount,
-  type NotificationPrefs,
   rateStateRestored,
-  safeCloseTab,
   setLastMessageTime,
-  shouldNotifyWith,
   userTriggeredProcessing,
-  waitForContentScript,
-  waitForTabLoad,
-} from '@repo/core-engine';
-import { debug, error, log, warn } from '@repo/shared/logger';
-import * as C from '../shared/constants';
-import { buildShortenPrompt } from '../shared/prompts';
-import type { ManualReviewData } from '../shared/types';
-import { generatePersonalizedMessage } from '../shared/utils';
-import { type AIAnalysisResult, type FormValues, lastAIError, tryAIAnalysis, trySolveCaptcha } from './ai';
-import { recordContactedLandlord } from './duplicates';
-import { type Listing, sendActivityLog } from './listings';
-import { addToPendingApproval } from './pending-approval';
-import type { QueueItem } from './queue';
+} from './state';
 
 // ─── Sentinel error types for flow control ───
 
@@ -107,9 +104,10 @@ export async function detectListingTypeAndRoute(tabId: number, listing: Listing 
   try {
     const listingType: any = await chrome.tabs.sendMessage(tabId, { action: 'detectListingType' });
     const isTenantNetwork = listingType?.isTenantNetwork || false;
+    const { capabilities } = getDescriptor();
 
     // Coming-soon / premium-restricted: not yet published, no real landlord info or contact form.
-    if (listingType?.type === 'coming-soon') {
+    if (capabilities.comingSoon && listingType?.type === 'coming-soon') {
       let premiumAccount = false;
       try {
         const stored = await chrome.storage.local.get([C.PREMIUM_ACCOUNT_KEY]);
@@ -130,7 +128,7 @@ export async function detectListingTypeAndRoute(tabId: number, listing: Listing 
     }
 
     // Tenant-recommendation: current tenant posted the listing with an "Interesse bekunden" CTA.
-    if (listingType?.hasTenantCTA && !userTriggeredProcessing) {
+    if (capabilities.tenantRecommendations && listingType?.hasTenantCTA && !userTriggeredProcessing) {
       log(`[PendingApproval] ${listing.id} is a tenant-recommendation listing — adding to pending approval`);
       await addToPendingApproval({
         id: listing.id,
@@ -439,7 +437,7 @@ export async function sendAndRetry(
   }
 
   // Check for captcha after form submission — only when explicitly flagged as captcha-blocked
-  if (sendResult && !sendResult.success && sendResult.captchaBlocked) {
+  if (getDescriptor().capabilities.captcha && sendResult && !sendResult.success && sendResult.captchaBlocked) {
     await sendActivityLog({ message: 'Captcha detected, solving...', type: 'wait' });
     if (aiConfig.enabled) {
       const captchaResult = await trySolveCaptcha(tabId, aiConfig.serverUrl, aiConfig.apiKey);
@@ -548,7 +546,7 @@ export async function recordOutcome(params: RecordOutcomeParams): Promise<Handle
     // Track landlord and increment rate limit counter.
     // Ensure restored state is loaded before mutating counters.
     await rateStateRestored;
-    if (landlordName) {
+    if (landlordName && getDescriptor().capabilities.duplicateLandlordDetection) {
       await recordContactedLandlord(landlordName);
     }
     incrementMessageCount();

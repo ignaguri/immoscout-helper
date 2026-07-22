@@ -1,22 +1,22 @@
+import { capSeenListings } from '@repo/shared';
+import { debug, error, log } from '@repo/shared/logger';
+import * as C from './constants';
+import { getDescriptor } from './descriptor-ref';
+import { humanDelay } from './helpers';
+import { type Listing, sendActivityLog } from './listings';
+import { handleNewListing } from './messaging';
+import { shouldNotify } from './notifications';
+import { getPendingApprovalListings } from './pending-approval';
+import { checkRateLimit } from './rate-limit';
 import {
-  checkRateLimit,
-  humanDelay,
   isMonitoring,
   isProcessingQueue,
   queueAbortRequested,
   setIsProcessingQueue,
   setQueueAbortRequested,
   setUserTriggeredProcessing,
-  shouldNotify,
   userTriggeredProcessing,
-} from '@repo/core-engine';
-import { capSeenListings } from '@repo/shared';
-import { debug, error, log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
-import { type Listing, sendActivityLog } from './listings';
-import { handleNewListing } from './messaging';
-import { getPendingApprovalListings } from './pending-approval';
-import { checkListingAlreadyContacted } from './sync';
+} from './state';
 
 // --- Coming-soon cooldown helpers ---
 
@@ -137,6 +137,8 @@ export async function processQueue(): Promise<void> {
 
   log('[Queue] Starting unified queue processing');
 
+  const descriptor = getDescriptor();
+
   let queueSentCount = 0;
   let queueFailedCount = 0;
   let queueSkippedCount = 0;
@@ -254,9 +256,9 @@ export async function processQueue(): Promise<void> {
         }
       };
 
-      // Safety net: before retrying, check ImmoScout API to see if message was already sent
-      if (item.retries > 0) {
-        const alreadySent = await checkListingAlreadyContacted(normalizedId);
+      // Safety net: before retrying, ask the site messenger if the message was already sent
+      if (item.retries > 0 && descriptor.capabilities.messenger && descriptor.messenger) {
+        const alreadySent = await descriptor.messenger.checkListingAlreadyContacted(normalizedId);
         if (alreadySent) {
           log(`[Queue] API confirms ${normalizedId} already contacted — skipping retry`);
           await markSeenAndDequeue(normalizedId);
@@ -292,7 +294,7 @@ export async function processQueue(): Promise<void> {
             lastId: item.id,
             lastTitle: item.title || '',
           });
-        } else if (result?.error === 'coming-soon') {
+        } else if (descriptor.capabilities.comingSoon && result?.error === 'coming-soon') {
           // Coming-soon: remove from queue, add to cooldown (NOT to seen list)
           const updated = await removeFromQueue(normalizedId);
           await chrome.storage.local.set({ [C.QUEUE_KEY]: updated });

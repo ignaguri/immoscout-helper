@@ -2,11 +2,13 @@
 // Chains phases from ./phases.ts with duplicate detection from ./duplicates.ts.
 
 import { getAIConfig } from '@repo/ai';
-import { loadNotificationPrefs, safeCloseTab, shouldNotifyWith } from '@repo/core-engine';
 import { debug, error, log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
+import * as C from './constants';
+import { getDescriptor } from './descriptor-ref';
 import { checkDuplicateLandlord } from './duplicates';
+import { safeCloseTab } from './helpers';
 import type { Listing } from './listings';
+import { loadNotificationPrefs, shouldNotifyWith } from './notifications';
 import {
   AbortError,
   ComposeError,
@@ -21,9 +23,6 @@ import {
   TabError,
 } from './phases';
 import type { QueueItem } from './queue';
-
-// Re-export for consumers (queue.ts, message-handler.ts)
-export type { HandleListingResult } from './phases';
 
 export async function handleNewListing(listing: Listing | QueueItem): Promise<HandleListingResult> {
   log('Processing new listing:', listing.url);
@@ -53,8 +52,10 @@ export async function handleNewListing(listing: Listing | QueueItem): Promise<Ha
     // Phase 3: Extract landlord info
     const landlord = await extractLandlordInfo(tabId);
 
-    // Phase 4: Check duplicate landlord
-    const dupDecision = await checkDuplicateLandlord(landlord.landlordName, listing, notifPrefs);
+    // Phase 4: Check duplicate landlord (site-gated)
+    const dupDecision = getDescriptor().capabilities.duplicateLandlordDetection
+      ? await checkDuplicateLandlord(landlord.landlordName, listing, notifPrefs)
+      : 'not-duplicate';
     if (dupDecision === 'skip') {
       await safeCloseTab(tabId);
       return { success: true, skipped: true, listing };

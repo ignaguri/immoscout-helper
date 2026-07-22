@@ -9,36 +9,19 @@ export interface Listing {
 
 import type { ConversationMessage } from '@repo/shared';
 
-export type { ConversationMessage, LandlordInfo, ListingDetails } from '@repo/shared';
+export type {
+  ConversationMessage,
+  LandlordInfo,
+  ListingDetails,
+  ManualReviewData,
+  PendingApprovalItem,
+} from '@repo/shared';
 
 export interface ListingType {
   isTenantNetwork: boolean;
   hasContactForm: boolean;
   hasTenantCTA: boolean;
   type: 'tenant-recommendation' | 'tenant-network' | 'coming-soon' | 'standard';
-}
-
-export interface PendingApprovalItem {
-  id: string;
-  url: string;
-  title?: string;
-  addedAt: number;
-}
-
-export interface ManualReviewData {
-  message: string;
-  listingId: string;
-  listingUrl: string;
-  listingTitle: string;
-  landlordName: string;
-  landlordTitle: string;
-  isTenantNetwork: boolean;
-  isPrivateLandlord: boolean;
-  tabId: number;
-  aiScore?: number;
-  aiReason?: string;
-  notificationId?: string;
-  timestamp: number;
 }
 
 export interface FormValues {

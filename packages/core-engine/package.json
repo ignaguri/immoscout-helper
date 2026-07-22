@@ -18,7 +18,9 @@
     }
   },
   "dependencies": {
+    "@repo/ai": "*",
     "@repo/shared": "*",
+    "@repo/shared-prompts": "*",
     "@repo/site-adapter": "*"
   },
   "devDependencies": {

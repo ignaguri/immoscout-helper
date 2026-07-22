@@ -57,3 +57,85 @@ export const NOTIFICATION_LABELS: Record<NotificationEvent, string> = {
   queueComplete: 'Queue completion',
   captchaFailed: 'Captcha failures',
 };
+
+// ── Listing-processing engine (moved from the app in Phase 3.4) ──
+// Storage keys / caps / timings the orchestration cluster (queue, messaging,
+// phases, ai, duplicates, pending-approval, listings) reads. Draft note: a few
+// carry IS24-flavoured defaults elsewhere (German form values, icon asset), but
+// the keys themselves are the engine's own storage schema.
+
+// Message template
+export const MESSAGE_TEMPLATE_KEY = 'messageTemplate' as const;
+
+// Contact-form field keys
+export const FORM_ADULTS_KEY = 'formAdults' as const;
+export const FORM_CHILDREN_KEY = 'formChildren' as const;
+export const FORM_PETS_KEY = 'formPets' as const;
+export const FORM_SMOKER_KEY = 'formSmoker' as const;
+export const FORM_INCOME_KEY = 'formIncome' as const;
+export const FORM_HOUSEHOLD_SIZE_KEY = 'formHouseholdSize' as const;
+export const FORM_EMPLOYMENT_KEY = 'formEmployment' as const;
+export const FORM_INCOME_RANGE_KEY = 'formIncomeRange' as const;
+export const FORM_DOCUMENTS_KEY = 'formDocuments' as const;
+export const FORM_SALUTATION_KEY = 'formSalutation' as const;
+export const FORM_PHONE_KEY = 'formPhone' as const;
+export const AUTO_SEND_MODE_KEY = 'autoSendMode' as const;
+export const PREMIUM_ACCOUNT_KEY = 'premiumAccount' as const;
+
+// Applicant profile keys (used by AI scoring/message prompts)
+export const PROFILE_NAME_KEY = 'profileName' as const;
+export const PROFILE_AGE_KEY = 'profileAge' as const;
+export const PROFILE_OCCUPATION_KEY = 'profileOccupation' as const;
+export const PROFILE_LANGUAGES_KEY = 'profileLanguages' as const;
+export const PROFILE_MOVING_REASON_KEY = 'profileMovingReason' as const;
+export const PROFILE_CURRENT_NEIGHBORHOOD_KEY = 'profileCurrentNeighborhood' as const;
+export const PROFILE_IDEAL_APARTMENT_KEY = 'profileIdealApartment' as const;
+export const PROFILE_DEALBREAKERS_KEY = 'profileDealbreakers' as const;
+export const PROFILE_STRENGTHS_KEY = 'profileStrengths' as const;
+export const PROFILE_MAX_WARMMIETE_KEY = 'profileMaxWarmmiete' as const;
+
+// Stats
+export const TOTAL_MESSAGES_SENT_KEY = 'totalMessagesSent' as const;
+export const LAST_CHECK_TIME_KEY = 'lastCheckTime' as const;
+
+// Landlord tracking / duplicate detection
+export const CONTACTED_LANDLORDS_KEY = 'contactedLandlords' as const;
+export const DUPLICATE_LANDLORD_TIMEOUT_MS = 300000; // 5 minutes (popup buttons provide reliable interaction)
+export const PENDING_DUPLICATE_DECISION_KEY = 'pendingDuplicateDecision' as const;
+
+// Queue
+export const QUEUE_KEY = 'manualQueue' as const;
+export const QUEUE_PROCESSING_KEY = 'isQueueProcessing' as const;
+export const QUEUE_MAX_RETRIES = 3;
+
+// Pending approval (tenant-recommendation listings requiring user confirmation)
+export const PENDING_APPROVAL_KEY = 'pendingApprovalListings' as const;
+
+// Pending manual review (message filled in form, waiting for user to review/refine/send)
+export const PENDING_MANUAL_REVIEW_KEY = 'pendingManualReview' as const;
+
+// Coming-soon cooldown (premium-restricted listings retried after cooldown expires)
+export const COMING_SOON_COOLDOWN_KEY = 'comingSoonCooldown' as const;
+export const COMING_SOON_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+// Blacklist
+export const BLACKLIST_KEY = 'blacklistedListings' as const;
+
+// Timing
+export const TAB_LOAD_TIMEOUT = 15000;
+export const AI_ANALYSIS_TIMEOUT_MS = 30000;
+export const CAPTCHA_SOLVE_TIMEOUT_MS = 15000;
+
+// Notification icon asset (draft: IS24-branded asset path rides along in the engine)
+export const ICON_PATH = 'icons/icon128.png';
+
+// AI stat/prompt storage keys live in @repo/ai/constants; re-exported here so the
+// moved ai.ts reaches them via `C.*` alongside the engine constants.
+export {
+  AI_CUSTOM_MESSAGE_PROMPT_KEY,
+  AI_CUSTOM_SCORING_PROMPT_KEY,
+  AI_LISTINGS_SCORED_KEY,
+  AI_LISTINGS_SKIPPED_KEY,
+  AI_USAGE_COMPLETION_TOKENS_KEY,
+  AI_USAGE_PROMPT_TOKENS_KEY,
+} from '@repo/ai/constants';

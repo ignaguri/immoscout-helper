@@ -1,49 +1,5 @@
 // Engine constants — defined in @repo/core-engine/constants; re-exported here so
 // existing `C.*` references in app code keep resolving.
-export {
-  ACTIVITY_LOG_CAP,
-  ACTIVITY_LOG_KEY,
-  ALARM_NAME,
-  CHECK_INTERVAL_KEY,
-  DEFAULT_NOTIFICATION_PREFS,
-  MIN_DELAY_KEY,
-  MONITORING_STATE_KEY,
-  NOTIFICATION_LABELS,
-  NOTIFICATION_PREFS_KEY,
-  type NotificationEvent,
-  RATE_COUNT_RESET_TIME_KEY,
-  RATE_LAST_MESSAGE_TIME_KEY,
-  RATE_LIMIT_KEY,
-  RATE_MESSAGE_COUNT_KEY,
-  SEARCH_URL_KEY,
-  SEARCH_URLS_KEY,
-  STORAGE_KEY,
-  UPDATE_AVAILABLE_KEY,
-  UPDATE_CHECK_ALARM,
-  UPDATE_CHECK_INTERVAL_HOURS,
-} from '@repo/core-engine/constants';
-
-// Storage keys
-export const MESSAGE_TEMPLATE_KEY = 'messageTemplate' as const;
-
-// Form field keys
-export const FORM_ADULTS_KEY = 'formAdults' as const;
-export const FORM_CHILDREN_KEY = 'formChildren' as const;
-export const FORM_PETS_KEY = 'formPets' as const;
-export const FORM_SMOKER_KEY = 'formSmoker' as const;
-export const FORM_INCOME_KEY = 'formIncome' as const;
-export const FORM_HOUSEHOLD_SIZE_KEY = 'formHouseholdSize' as const;
-export const FORM_EMPLOYMENT_KEY = 'formEmployment' as const;
-export const FORM_INCOME_RANGE_KEY = 'formIncomeRange' as const;
-export const FORM_DOCUMENTS_KEY = 'formDocuments' as const;
-export const FORM_SALUTATION_KEY = 'formSalutation' as const;
-export const FORM_PHONE_KEY = 'formPhone' as const;
-export const AUTO_SEND_MODE_KEY = 'autoSendMode' as const;
-export const PREMIUM_ACCOUNT_KEY = 'premiumAccount' as const;
-
-// Stats keys
-export const TOTAL_MESSAGES_SENT_KEY = 'totalMessagesSent' as const;
-export const LAST_CHECK_TIME_KEY = 'lastCheckTime' as const;
 
 // AI keys — defined in @repo/ai/constants; re-exported here so existing `C.AI_*`,
 // C.LITELLM_DEFAULT_MODEL, and C.AI_MODEL_COOLDOWN_* references keep resolving.
@@ -71,18 +27,69 @@ export {
   AI_USAGE_PROMPT_TOKENS_KEY,
   LITELLM_DEFAULT_MODEL,
 } from '@repo/ai/constants';
-
-// Profile keys
-export const PROFILE_NAME_KEY = 'profileName' as const;
-export const PROFILE_AGE_KEY = 'profileAge' as const;
-export const PROFILE_OCCUPATION_KEY = 'profileOccupation' as const;
-export const PROFILE_LANGUAGES_KEY = 'profileLanguages' as const;
-export const PROFILE_MOVING_REASON_KEY = 'profileMovingReason' as const;
-export const PROFILE_CURRENT_NEIGHBORHOOD_KEY = 'profileCurrentNeighborhood' as const;
-export const PROFILE_IDEAL_APARTMENT_KEY = 'profileIdealApartment' as const;
-export const PROFILE_DEALBREAKERS_KEY = 'profileDealbreakers' as const;
-export const PROFILE_STRENGTHS_KEY = 'profileStrengths' as const;
-export const PROFILE_MAX_WARMMIETE_KEY = 'profileMaxWarmmiete' as const;
+export {
+  ACTIVITY_LOG_CAP,
+  ACTIVITY_LOG_KEY,
+  AI_ANALYSIS_TIMEOUT_MS,
+  ALARM_NAME,
+  AUTO_SEND_MODE_KEY,
+  BLACKLIST_KEY,
+  CAPTCHA_SOLVE_TIMEOUT_MS,
+  CHECK_INTERVAL_KEY,
+  COMING_SOON_COOLDOWN_KEY,
+  COMING_SOON_COOLDOWN_MS,
+  CONTACTED_LANDLORDS_KEY,
+  DEFAULT_NOTIFICATION_PREFS,
+  DUPLICATE_LANDLORD_TIMEOUT_MS,
+  FORM_ADULTS_KEY,
+  FORM_CHILDREN_KEY,
+  FORM_DOCUMENTS_KEY,
+  FORM_EMPLOYMENT_KEY,
+  FORM_HOUSEHOLD_SIZE_KEY,
+  FORM_INCOME_KEY,
+  FORM_INCOME_RANGE_KEY,
+  FORM_PETS_KEY,
+  FORM_PHONE_KEY,
+  FORM_SALUTATION_KEY,
+  FORM_SMOKER_KEY,
+  ICON_PATH,
+  LAST_CHECK_TIME_KEY,
+  MESSAGE_TEMPLATE_KEY,
+  MIN_DELAY_KEY,
+  MONITORING_STATE_KEY,
+  NOTIFICATION_LABELS,
+  NOTIFICATION_PREFS_KEY,
+  type NotificationEvent,
+  PENDING_APPROVAL_KEY,
+  PENDING_DUPLICATE_DECISION_KEY,
+  PENDING_MANUAL_REVIEW_KEY,
+  PREMIUM_ACCOUNT_KEY,
+  PROFILE_AGE_KEY,
+  PROFILE_CURRENT_NEIGHBORHOOD_KEY,
+  PROFILE_DEALBREAKERS_KEY,
+  PROFILE_IDEAL_APARTMENT_KEY,
+  PROFILE_LANGUAGES_KEY,
+  PROFILE_MAX_WARMMIETE_KEY,
+  PROFILE_MOVING_REASON_KEY,
+  PROFILE_NAME_KEY,
+  PROFILE_OCCUPATION_KEY,
+  PROFILE_STRENGTHS_KEY,
+  QUEUE_KEY,
+  QUEUE_MAX_RETRIES,
+  QUEUE_PROCESSING_KEY,
+  RATE_COUNT_RESET_TIME_KEY,
+  RATE_LAST_MESSAGE_TIME_KEY,
+  RATE_LIMIT_KEY,
+  RATE_MESSAGE_COUNT_KEY,
+  SEARCH_URL_KEY,
+  SEARCH_URLS_KEY,
+  STORAGE_KEY,
+  TAB_LOAD_TIMEOUT,
+  TOTAL_MESSAGES_SENT_KEY,
+  UPDATE_AVAILABLE_KEY,
+  UPDATE_CHECK_ALARM,
+  UPDATE_CHECK_INTERVAL_HOURS,
+} from '@repo/core-engine/constants';
 
 // Document profile keys (for Selbstauskunft generation)
 export const PROFILE_BIRTH_DATE_KEY = 'profileBirthDate' as const;
@@ -99,11 +106,6 @@ export const PROFILE_LANDLORD_EMAIL_KEY = 'profileLandlordEmail' as const;
 // Sync keys
 export const SYNCED_CONTACTED_KEY = 'syncedContactedCount' as const;
 
-// Landlord tracking
-export const CONTACTED_LANDLORDS_KEY = 'contactedLandlords' as const;
-export const DUPLICATE_LANDLORD_TIMEOUT_MS = 300000; // 5 minutes (popup buttons provide reliable interaction)
-export const PENDING_DUPLICATE_DECISION_KEY = 'pendingDuplicateDecision' as const;
-
 /** Generic placeholder names that ImmoScout24 shows instead of real landlord names (lowercased). */
 export const GENERIC_LANDLORD_NAMES: ReadonlySet<string> = new Set([
   'privatangebot',
@@ -118,24 +120,6 @@ export const GENERIC_LANDLORD_PATTERNS: readonly RegExp[] = [
   /^anbieter(?::in)?\s*\[.*\]$/i, // "Anbieter [Informationen]", "Anbieter:in [Details]"
   /\[informationen\]/i, // anything containing "[Informationen]"
 ];
-
-// Queue keys
-export const QUEUE_KEY = 'manualQueue' as const;
-export const QUEUE_PROCESSING_KEY = 'isQueueProcessing' as const;
-export const QUEUE_MAX_RETRIES = 3;
-
-// Pending approval (tenant-recommendation listings requiring user confirmation)
-export const PENDING_APPROVAL_KEY = 'pendingApprovalListings' as const;
-
-// Pending manual review (message filled in form, waiting for user to review/refine/send)
-export const PENDING_MANUAL_REVIEW_KEY = 'pendingManualReview' as const;
-
-// Coming-soon cooldown (premium-restricted listings retried after cooldown expires)
-export const COMING_SOON_COOLDOWN_KEY = 'comingSoonCooldown' as const;
-export const COMING_SOON_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-
-// Blacklist
-export const BLACKLIST_KEY = 'blacklistedListings' as const;
 
 // Conversation keys
 export const CONVERSATIONS_KEY = 'conversations' as const;
@@ -163,16 +147,14 @@ export const ATTACHMENTS_IDB_VERSION = 2;
 export const ATTACHMENTS_META_STORE = 'attachmentMeta' as const;
 export const ATTACHMENTS_BLOBS_STORE = 'attachmentBlobs' as const;
 
-// Timing constants (milliseconds)
+// Timing constants (milliseconds) — TAB_LOAD_TIMEOUT, AI_ANALYSIS_TIMEOUT_MS,
+// and CAPTCHA_SOLVE_TIMEOUT_MS now live in @repo/core-engine/constants.
 export const HUMAN_DELAY_MIN = 1500;
 export const HUMAN_DELAY_MAX = 4000;
-export const TAB_LOAD_TIMEOUT = 15000;
 export const CAPTCHA_WAIT_MS = 3000;
 export const CAPTCHA_POLL_TIMEOUT_MS = 8000;
 export const FORM_LOAD_WAIT_MS = 3000;
 export const REACT_RENDER_WAIT_MS = 3000;
-export const AI_ANALYSIS_TIMEOUT_MS = 30000;
-export const CAPTCHA_SOLVE_TIMEOUT_MS = 15000;
 export const CONTENT_SCRIPT_RETRY_MS = 1000;
 export const RAW_TEXT_CAP = 8000;
 
@@ -192,8 +174,7 @@ export const SETTINGS_ACTIVE_SUBTAB_KEY = 'settingsActiveSubTab' as const;
 // live in @repo/core-engine/constants; GITHUB_REPO is now the descriptor's updateRepo)
 export const UPDATE_DISMISSED_KEY = 'updateDismissedVersion' as const;
 
-// Shared paths & URLs
-export const ICON_PATH = 'icons/icon128.png';
+// Shared paths & URLs (ICON_PATH now lives in @repo/core-engine/constants)
 export const MESSENGER_BASE_URL = 'https://www.immobilienscout24.de/messenger/messages/';
 
 export function getMessengerUrl(conversationId: string): string {

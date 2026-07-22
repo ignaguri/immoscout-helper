@@ -1,8 +1,10 @@
-import { findOrCreateSearchTab, humanDelay, isMonitoring, setSearchTabId, waitForTabLoad } from '@repo/core-engine';
 import { debug, error, log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
+import * as C from './constants';
+import { getDescriptor } from './descriptor-ref';
+import { humanDelay, waitForTabLoad } from './helpers';
 import { enqueueListings, processQueue } from './queue';
-import { syncContactedListings } from './sync';
+import { isMonitoring, setSearchTabId } from './state';
+import { findOrCreateSearchTab } from './tabs';
 
 export interface Listing {
   id: string;
@@ -37,7 +39,11 @@ export async function sendActivityLog(data: Record<string, any>): Promise<void> 
 export async function checkForNewListings(): Promise<void> {
   try {
     await sendActivityLog({ message: `[${new Date().toLocaleTimeString()}] Checking for new listings...` });
-    await syncContactedListings();
+
+    const descriptor = getDescriptor();
+    if (descriptor.capabilities.messenger && descriptor.messenger) {
+      await descriptor.messenger.syncContacted();
+    }
 
     const result = await findOrCreateSearchTab();
 

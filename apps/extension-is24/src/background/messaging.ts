@@ -2,12 +2,11 @@
 // Chains phases from ./phases.ts with duplicate detection from ./duplicates.ts.
 
 import { getAIConfig } from '@repo/ai';
+import { loadNotificationPrefs, safeCloseTab, shouldNotifyWith } from '@repo/core-engine';
 import { debug, error, log } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import { checkDuplicateLandlord } from './duplicates';
-import { safeCloseTab } from './helpers';
 import type { Listing } from './listings';
-import { loadNotificationPrefs, shouldNotifyWith } from './notifications';
 import {
   AbortError,
   ComposeError,

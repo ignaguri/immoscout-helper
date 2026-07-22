@@ -1,22 +1,22 @@
 // Background service worker entry point for ImmoScout24 Auto Reloader
 
-import { error, log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
-import { checkForNewReplies } from './conversations';
-import { handleDuplicateLandlordAlarm } from './duplicates';
-import { scheduleNextAlarm } from './helpers';
-import { checkForNewListings } from './listings';
-import { registerMessageHandler, registerNotificationHandler } from './message-handler';
-import { updateCheckInterval } from './monitoring';
 import {
   isMonitoring,
   messageCountResetTime,
+  scheduleNextAlarm,
   setIsMonitoring,
   setIsProcessingQueue,
   setLastMessageTime,
   setMessageCount,
   setMessageCountResetTime,
-} from './state';
+} from '@repo/core-engine';
+import { error, log } from '@repo/shared/logger';
+import * as C from '../shared/constants';
+import { checkForNewReplies } from './conversations';
+import { handleDuplicateLandlordAlarm } from './duplicates';
+import { checkForNewListings } from './listings';
+import { registerMessageHandler, registerNotificationHandler } from './message-handler';
+import { updateCheckInterval } from './monitoring';
 // Note: setLastMessageTime, setMessageCount, setMessageCountResetTime are still
 // used by the onInstalled handler to reset rate limits on install/reload.
 import { initializeStorage } from './storage';

@@ -1,4 +1,5 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, litellmPayload, trackTokenUsage } from '@repo/ai';
+import { loadNotificationPrefs, shouldNotifyWith } from '@repo/core-engine';
 import { debug, error, log, warn } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import type {
@@ -11,7 +12,6 @@ import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
 import type { ConversationEntry, ConversationMessage } from '../shared/types';
 import { getProfile } from './ai';
 import { sendActivityLog } from './listings';
-import { loadNotificationPrefs, shouldNotifyWith } from './notifications';
 
 export type { ConversationEntry, ConversationMessage };
 

@@ -10,6 +10,7 @@ import {
   PROVIDERS,
   trackTokenUsage,
 } from '@repo/ai';
+import { shouldNotify, waitForTabLoad } from '@repo/core-engine';
 import { error, log, warn } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import {
@@ -21,8 +22,6 @@ import {
   formatListingWithAnalysis,
   parseScoreJSON,
 } from '../shared/prompts';
-import { waitForTabLoad } from './helpers';
-import { shouldNotify } from './notifications';
 
 export interface UserProfile {
   name?: string;

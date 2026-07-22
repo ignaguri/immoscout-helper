@@ -1,7 +1,13 @@
+import {
+  currentCheckInterval,
+  isMonitoring,
+  scheduleNextAlarm,
+  setCurrentCheckInterval,
+  setIsMonitoring,
+  setSearchTabId,
+} from '@repo/core-engine';
 import { error, log } from '@repo/shared/logger';
 import * as C from '../shared/constants';
-import { scheduleNextAlarm } from './helpers';
-import { currentCheckInterval, isMonitoring, setCurrentCheckInterval, setIsMonitoring, setSearchTabId } from './state';
 import { syncContactedListings } from './sync';
 
 export async function updateCheckInterval(): Promise<void> {

@@ -12,6 +12,7 @@
   "dependencies": {
     "@lucide/svelte": "^1.14.0",
     "@repo/ai": "*",
+    "@repo/core-engine": "*",
     "@repo/shared-prompts": "*",
     "@repo/shared": "*",
     "bits-ui": "^2.18.0",

@@ -3,13 +3,24 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "dependencies": {
-    "@repo/shared": "*"
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./constants": {
+      "types": "./src/constants.ts",
+      "default": "./src/constants.ts"
     }
+  },
+  "dependencies": {
+    "@repo/shared": "*"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.2"
   }
 }

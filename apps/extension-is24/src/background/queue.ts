@@ -1,21 +1,21 @@
-import { capSeenListings } from '@repo/shared';
-import { debug, error, log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
-import { humanDelay } from './helpers';
-import { type Listing, sendActivityLog } from './listings';
-import { handleNewListing } from './messaging';
-import { shouldNotify } from './notifications';
-import { getPendingApprovalListings } from './pending-approval';
-import { checkRateLimit } from './rate-limit';
 import {
+  checkRateLimit,
+  humanDelay,
   isMonitoring,
   isProcessingQueue,
   queueAbortRequested,
   setIsProcessingQueue,
   setQueueAbortRequested,
   setUserTriggeredProcessing,
+  shouldNotify,
   userTriggeredProcessing,
-} from './state';
+} from '@repo/core-engine';
+import { capSeenListings } from '@repo/shared';
+import { debug, error, log } from '@repo/shared/logger';
+import * as C from '../shared/constants';
+import { type Listing, sendActivityLog } from './listings';
+import { handleNewListing } from './messaging';
+import { getPendingApprovalListings } from './pending-approval';
 import { checkListingAlreadyContacted } from './sync';
 
 // --- Coming-soon cooldown helpers ---

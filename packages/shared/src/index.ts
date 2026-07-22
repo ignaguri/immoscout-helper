@@ -148,4 +148,9 @@ export interface ReplyRequestBody extends LiteLLMConfig {
   userContext?: string;
 }
 
+export interface RateLimitResult {
+  allowed: boolean;
+  waitTime?: number;
+}
+
 export * from './seen';

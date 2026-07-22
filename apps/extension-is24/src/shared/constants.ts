@@ -1,13 +1,27 @@
+// Engine constants — defined in @repo/core-engine/constants; re-exported here so
+// existing `C.*` references in app code keep resolving.
+export {
+  ACTIVITY_LOG_CAP,
+  ACTIVITY_LOG_KEY,
+  ALARM_NAME,
+  DEFAULT_NOTIFICATION_PREFS,
+  MIN_DELAY_KEY,
+  NOTIFICATION_LABELS,
+  NOTIFICATION_PREFS_KEY,
+  type NotificationEvent,
+  RATE_COUNT_RESET_TIME_KEY,
+  RATE_LAST_MESSAGE_TIME_KEY,
+  RATE_LIMIT_KEY,
+  RATE_MESSAGE_COUNT_KEY,
+  SEARCH_URL_KEY,
+  SEARCH_URLS_KEY,
+} from '@repo/core-engine/constants';
+
 // Storage keys
 export const STORAGE_KEY = 'seenListings' as const;
-export const SEARCH_URL_KEY = 'searchUrl' as const; // legacy single URL
-export const SEARCH_URLS_KEY = 'searchUrls' as const; // multi-URL array
 export const MESSAGE_TEMPLATE_KEY = 'messageTemplate' as const;
 export const CHECK_INTERVAL_KEY = 'checkInterval' as const;
-export const RATE_LIMIT_KEY = 'rateLimit' as const;
-export const MIN_DELAY_KEY = 'minDelay' as const;
 export const MONITORING_STATE_KEY = 'isMonitoring' as const;
-export const ALARM_NAME = 'checkListings' as const;
 
 // Form field keys
 export const FORM_ADULTS_KEY = 'formAdults' as const;
@@ -27,11 +41,6 @@ export const PREMIUM_ACCOUNT_KEY = 'premiumAccount' as const;
 // Stats keys
 export const TOTAL_MESSAGES_SENT_KEY = 'totalMessagesSent' as const;
 export const LAST_CHECK_TIME_KEY = 'lastCheckTime' as const;
-
-// Rate limit persistence keys
-export const RATE_LAST_MESSAGE_TIME_KEY = 'rateLastMessageTime' as const;
-export const RATE_MESSAGE_COUNT_KEY = 'rateMessageCount' as const;
-export const RATE_COUNT_RESET_TIME_KEY = 'rateCountResetTime' as const;
 
 // AI keys — defined in @repo/ai/constants; re-exported here so existing `C.AI_*`,
 // C.LITELLM_DEFAULT_MODEL, and C.AI_MODEL_COOLDOWN_* references keep resolving.
@@ -125,10 +134,6 @@ export const COMING_SOON_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 // Blacklist
 export const BLACKLIST_KEY = 'blacklistedListings' as const;
 
-// Activity log
-export const ACTIVITY_LOG_KEY = 'activityLog' as const;
-export const ACTIVITY_LOG_CAP = 200;
-
 // Conversation keys
 export const CONVERSATIONS_KEY = 'conversations' as const;
 export const CONVERSATIONS_LAST_CHECK_KEY = 'convLastCheck' as const;
@@ -177,40 +182,8 @@ export const MAX_CONVERSATION_SYNC = 2000;
 export const TYPING_CHUNK_MIN = 20;
 export const TYPING_CHUNK_MAX = 49;
 
-// Notification preferences
-export const NOTIFICATION_PREFS_KEY = 'notificationPrefs' as const;
-
 // Popup UI state
 export const SETTINGS_ACTIVE_SUBTAB_KEY = 'settingsActiveSubTab' as const;
-
-export type NotificationEvent =
-  | 'duplicateLandlord'
-  | 'listingSkipped'
-  | 'messageSent'
-  | 'manualReview'
-  | 'newReply'
-  | 'queueComplete'
-  | 'captchaFailed';
-
-export const DEFAULT_NOTIFICATION_PREFS: Record<NotificationEvent, boolean> = {
-  duplicateLandlord: true,
-  listingSkipped: true,
-  messageSent: true,
-  manualReview: true,
-  newReply: true,
-  queueComplete: true,
-  captchaFailed: true,
-};
-
-export const NOTIFICATION_LABELS: Record<NotificationEvent, string> = {
-  duplicateLandlord: 'Duplicate landlord warnings',
-  listingSkipped: 'Skipped listings',
-  messageSent: 'Messages sent',
-  manualReview: 'Manual review alerts',
-  newReply: 'New landlord replies',
-  queueComplete: 'Queue completion',
-  captchaFailed: 'Captcha failures',
-};
 
 // Update checker
 export const GITHUB_REPO = 'ignaguri/immoscout-helper';

@@ -1,4 +1,17 @@
 import { canUseDirect, canUseServer, getAIConfig, getProvider, litellmPayload, trackTokenUsage } from '@repo/ai';
+import {
+  currentCheckInterval,
+  isMonitoring,
+  isProcessingQueue,
+  messageCount,
+  messageCountResetTime,
+  scheduleNextAlarm,
+  setMessageCount,
+  setMessageCountResetTime,
+  setQueueAbortRequested,
+  setUserTriggeredProcessing,
+  waitForTabLoad,
+} from '@repo/core-engine';
 import { debug, error, log, warn } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import { buildConversationText, buildReplyPrompt } from '../shared/prompts';
@@ -12,7 +25,6 @@ import {
   updateConversationDraft,
 } from './conversations';
 import { exportSnapshot as runExportSnapshot } from './exporter';
-import { scheduleNextAlarm, waitForTabLoad } from './helpers';
 import type { Listing } from './listings';
 import { handleNewListing } from './messaging';
 import { startMonitoring, stopMonitoring, updateCheckInterval } from './monitoring';
@@ -24,17 +36,6 @@ import {
   getSnapshotsIndex,
   saveSnapshotById,
 } from './saved-snapshots';
-import {
-  currentCheckInterval,
-  isMonitoring,
-  isProcessingQueue,
-  messageCount,
-  messageCountResetTime,
-  setMessageCount,
-  setMessageCountResetTime,
-  setQueueAbortRequested,
-  setUserTriggeredProcessing,
-} from './state';
 
 type MessageRequest = { action: string; [key: string]: any };
 

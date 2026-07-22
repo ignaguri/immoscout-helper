@@ -2,29 +2,33 @@
 // Each phase is a focused function with explicit parameters.
 
 import { type AIConfig, canUseDirect, canUseServer, getProvider, litellmPayload, trackTokenUsage } from '@repo/ai';
+import {
+  humanDelay,
+  incrementMessageCount,
+  isMonitoring,
+  isProcessingQueue,
+  lastMessageTime,
+  logActivity,
+  messageCount,
+  type NotificationPrefs,
+  rateStateRestored,
+  safeCloseTab,
+  setLastMessageTime,
+  shouldNotifyWith,
+  userTriggeredProcessing,
+  waitForContentScript,
+  waitForTabLoad,
+} from '@repo/core-engine';
 import { debug, error, log, warn } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import { buildShortenPrompt } from '../shared/prompts';
 import type { ManualReviewData } from '../shared/types';
 import { generatePersonalizedMessage } from '../shared/utils';
-import { logActivity } from './activity';
 import { type AIAnalysisResult, type FormValues, lastAIError, tryAIAnalysis, trySolveCaptcha } from './ai';
 import { recordContactedLandlord } from './duplicates';
-import { humanDelay, safeCloseTab, waitForContentScript, waitForTabLoad } from './helpers';
 import { type Listing, sendActivityLog } from './listings';
-import { type NotificationPrefs, shouldNotifyWith } from './notifications';
 import { addToPendingApproval } from './pending-approval';
 import type { QueueItem } from './queue';
-import {
-  incrementMessageCount,
-  isMonitoring,
-  isProcessingQueue,
-  lastMessageTime,
-  messageCount,
-  rateStateRestored,
-  setLastMessageTime,
-  userTriggeredProcessing,
-} from './state';
 
 // ─── Sentinel error types for flow control ───
 

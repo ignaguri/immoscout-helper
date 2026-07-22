@@ -105,11 +105,6 @@ export interface CheckMessageSentResult {
   url: string;
 }
 
-export interface RateLimitResult {
-  allowed: boolean;
-  waitTime?: number;
-}
-
 // Content script message request
 export interface ContentRequest {
   action: string;

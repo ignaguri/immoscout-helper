@@ -1,5 +1,5 @@
 import { debug, log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
+import * as C from './constants';
 import { currentCheckInterval } from './state';
 
 export function getRandomDelay(minMs: number, maxMs: number): number {

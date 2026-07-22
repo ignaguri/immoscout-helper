@@ -33,27 +33,32 @@ export const RATE_LAST_MESSAGE_TIME_KEY = 'rateLastMessageTime' as const;
 export const RATE_MESSAGE_COUNT_KEY = 'rateMessageCount' as const;
 export const RATE_COUNT_RESET_TIME_KEY = 'rateCountResetTime' as const;
 
-// AI keys
-export const AI_MODE_KEY = 'aiMode' as const; // 'direct' | 'server'
-export const AI_PROVIDER_KEY = 'aiProvider' as const; // 'gemini' | 'openai'
-export const AI_ENABLED_KEY = 'aiEnabled' as const;
-export const AI_API_KEY_GEMINI_KEY = 'aiApiKeyGemini' as const;
-export const AI_API_KEY_OPENAI_KEY = 'aiApiKeyOpenai' as const;
-export const AI_LITELLM_CLIENT_ID_KEY = 'aiLitellmClientId' as const;
-export const AI_LITELLM_CLIENT_SECRET_KEY = 'aiLitellmClientSecret' as const;
-export const AI_LITELLM_TOKEN_URL_KEY = 'aiLitellmTokenUrl' as const;
-export const AI_LITELLM_BASE_URL_KEY = 'aiLitellmBaseUrl' as const;
-export const AI_LITELLM_MODEL_KEY = 'aiLitellmModel' as const;
-export { LITELLM_DEFAULT_MODEL } from '@repo/shared';
-export const AI_SERVER_URL_KEY = 'aiServerUrl' as const;
-export const AI_MIN_SCORE_KEY = 'aiMinScore' as const;
-export const AI_ABOUT_ME_KEY = 'aiAboutMe' as const;
-export const AI_CUSTOM_SCORING_PROMPT_KEY = 'aiCustomScoringPrompt' as const;
-export const AI_CUSTOM_MESSAGE_PROMPT_KEY = 'aiCustomMessagePrompt' as const;
-export const AI_LISTINGS_SCORED_KEY = 'aiListingsScored' as const;
-export const AI_LISTINGS_SKIPPED_KEY = 'aiListingsSkipped' as const;
-export const AI_USAGE_PROMPT_TOKENS_KEY = 'aiUsagePromptTokens' as const;
-export const AI_USAGE_COMPLETION_TOKENS_KEY = 'aiUsageCompletionTokens' as const;
+// AI keys — defined in @repo/ai/constants; re-exported here so existing `C.AI_*`,
+// C.LITELLM_DEFAULT_MODEL, and C.AI_MODEL_COOLDOWN_* references keep resolving.
+export {
+  AI_ABOUT_ME_KEY,
+  AI_API_KEY_GEMINI_KEY,
+  AI_API_KEY_OPENAI_KEY,
+  AI_CUSTOM_MESSAGE_PROMPT_KEY,
+  AI_CUSTOM_SCORING_PROMPT_KEY,
+  AI_ENABLED_KEY,
+  AI_LISTINGS_SCORED_KEY,
+  AI_LISTINGS_SKIPPED_KEY,
+  AI_LITELLM_BASE_URL_KEY,
+  AI_LITELLM_CLIENT_ID_KEY,
+  AI_LITELLM_CLIENT_SECRET_KEY,
+  AI_LITELLM_MODEL_KEY,
+  AI_LITELLM_TOKEN_URL_KEY,
+  AI_MIN_SCORE_KEY,
+  AI_MODE_KEY,
+  AI_MODEL_COOLDOWN_BASE_MS,
+  AI_MODEL_COOLDOWN_MAX_MS,
+  AI_PROVIDER_KEY,
+  AI_SERVER_URL_KEY,
+  AI_USAGE_COMPLETION_TOKENS_KEY,
+  AI_USAGE_PROMPT_TOKENS_KEY,
+  LITELLM_DEFAULT_MODEL,
+} from '@repo/ai/constants';
 
 // Profile keys
 export const PROFILE_NAME_KEY = 'profileName' as const;
@@ -101,10 +106,6 @@ export const GENERIC_LANDLORD_PATTERNS: readonly RegExp[] = [
   /^anbieter(?::in)?\s*\[.*\]$/i, // "Anbieter [Informationen]", "Anbieter:in [Details]"
   /\[informationen\]/i, // anything containing "[Informationen]"
 ];
-
-// Model rotation cooldown (exponential backoff: 1m → 2m → 4m → 8m → 15m cap)
-export const AI_MODEL_COOLDOWN_BASE_MS = 60_000; // 1 minute
-export const AI_MODEL_COOLDOWN_MAX_MS = 900_000; // 15 minutes cap
 
 // Queue keys
 export const QUEUE_KEY = 'manualQueue' as const;

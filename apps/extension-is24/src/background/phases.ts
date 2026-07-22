@@ -1,15 +1,8 @@
 // Message-sending phases for the handleNewListing orchestrator.
 // Each phase is a focused function with explicit parameters.
 
+import { type AIConfig, canUseDirect, canUseServer, getProvider, litellmPayload, trackTokenUsage } from '@repo/ai';
 import { debug, error, log, warn } from '@repo/shared/logger';
-import {
-  type AIConfig,
-  canUseDirect,
-  canUseServer,
-  getProvider,
-  litellmPayload,
-  trackTokenUsage,
-} from '../shared/ai-router';
 import * as C from '../shared/constants';
 import { buildShortenPrompt } from '../shared/prompts';
 import type { ManualReviewData } from '../shared/types';

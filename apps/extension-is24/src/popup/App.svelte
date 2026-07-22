@@ -1,11 +1,11 @@
 <script lang="ts">
 import Play from '@lucide/svelte/icons/play';
 import Square from '@lucide/svelte/icons/square';
+import { PROVIDERS } from '@repo/ai';
 import { onMount } from 'svelte';
 import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
 import { cn } from '$lib/utils';
-import { PROVIDERS } from '../shared/ai-router';
 import { ALARM_NAME } from '../shared/constants';
 import type { ActivityLogEntry, ConversationEntry, PendingApprovalItem, QueueItem } from '../shared/types';
 import UpdateBanner from './components/UpdateBanner.svelte';

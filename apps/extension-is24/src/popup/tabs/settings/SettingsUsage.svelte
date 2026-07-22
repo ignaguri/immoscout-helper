@@ -1,6 +1,6 @@
 <script lang="ts">
+import { PROVIDERS } from '@repo/ai';
 import { Button } from '$lib/components/ui/button';
-import { PROVIDERS } from '../../../shared/ai-router';
 import type { PopupSettings } from '../../lib/storage';
 import { resetAiUsage } from '../../lib/storage';
 

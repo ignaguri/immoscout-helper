@@ -3,11 +3,19 @@
 // More engine constants migrate here as further background modules move (Phase 3).
 
 // Search / monitoring
+export const STORAGE_KEY = 'seenListings' as const;
 export const SEARCH_URL_KEY = 'searchUrl' as const; // legacy single URL
 export const SEARCH_URLS_KEY = 'searchUrls' as const; // multi-URL array
+export const CHECK_INTERVAL_KEY = 'checkInterval' as const;
+export const MONITORING_STATE_KEY = 'isMonitoring' as const;
 export const RATE_LIMIT_KEY = 'rateLimit' as const;
 export const MIN_DELAY_KEY = 'minDelay' as const;
 export const ALARM_NAME = 'checkListings' as const;
+
+// Update checker
+export const UPDATE_CHECK_ALARM = 'checkForUpdates' as const;
+export const UPDATE_CHECK_INTERVAL_HOURS = 12;
+export const UPDATE_AVAILABLE_KEY = 'updateAvailable' as const;
 
 // Rate limit persistence keys
 export const RATE_LAST_MESSAGE_TIME_KEY = 'rateLastMessageTime' as const;

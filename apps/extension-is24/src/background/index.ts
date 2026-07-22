@@ -1,26 +1,33 @@
 // Background service worker entry point for ImmoScout24 Auto Reloader
 
 import {
+  checkForUpdate,
   isMonitoring,
   messageCountResetTime,
   scheduleNextAlarm,
+  setActiveDescriptor,
   setIsMonitoring,
   setIsProcessingQueue,
   setLastMessageTime,
   setMessageCount,
   setMessageCountResetTime,
+  setupUpdateAlarm,
+  updateCheckInterval,
 } from '@repo/core-engine';
 import { error, log } from '@repo/shared/logger';
 import * as C from '../shared/constants';
 import { checkForNewReplies } from './conversations';
 import { handleDuplicateLandlordAlarm } from './duplicates';
+import { is24Descriptor } from './is24-descriptor';
 import { checkForNewListings } from './listings';
 import { registerMessageHandler, registerNotificationHandler } from './message-handler';
-import { updateCheckInterval } from './monitoring';
 // Note: setLastMessageTime, setMessageCount, setMessageCountResetTime are still
 // used by the onInstalled handler to reset rate limits on install/reload.
 import { initializeStorage } from './storage';
-import { checkForUpdate, setupUpdateAlarm } from './update-checker';
+
+// Wire the active site descriptor before any engine code reads it (temporary
+// shim until createEngine owns this in Task 3.5).
+setActiveDescriptor(is24Descriptor);
 
 // Open side panel when extension icon is clicked
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });

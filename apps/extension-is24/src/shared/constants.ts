@@ -4,8 +4,10 @@ export {
   ACTIVITY_LOG_CAP,
   ACTIVITY_LOG_KEY,
   ALARM_NAME,
+  CHECK_INTERVAL_KEY,
   DEFAULT_NOTIFICATION_PREFS,
   MIN_DELAY_KEY,
+  MONITORING_STATE_KEY,
   NOTIFICATION_LABELS,
   NOTIFICATION_PREFS_KEY,
   type NotificationEvent,
@@ -15,13 +17,14 @@ export {
   RATE_MESSAGE_COUNT_KEY,
   SEARCH_URL_KEY,
   SEARCH_URLS_KEY,
+  STORAGE_KEY,
+  UPDATE_AVAILABLE_KEY,
+  UPDATE_CHECK_ALARM,
+  UPDATE_CHECK_INTERVAL_HOURS,
 } from '@repo/core-engine/constants';
 
 // Storage keys
-export const STORAGE_KEY = 'seenListings' as const;
 export const MESSAGE_TEMPLATE_KEY = 'messageTemplate' as const;
-export const CHECK_INTERVAL_KEY = 'checkInterval' as const;
-export const MONITORING_STATE_KEY = 'isMonitoring' as const;
 
 // Form field keys
 export const FORM_ADULTS_KEY = 'formAdults' as const;
@@ -185,11 +188,8 @@ export const TYPING_CHUNK_MAX = 49;
 // Popup UI state
 export const SETTINGS_ACTIVE_SUBTAB_KEY = 'settingsActiveSubTab' as const;
 
-// Update checker
-export const GITHUB_REPO = 'ignaguri/immoscout-helper';
-export const UPDATE_CHECK_ALARM = 'checkForUpdates' as const;
-export const UPDATE_CHECK_INTERVAL_HOURS = 12;
-export const UPDATE_AVAILABLE_KEY = 'updateAvailable' as const;
+// Update checker (UPDATE_CHECK_ALARM / UPDATE_CHECK_INTERVAL_HOURS / UPDATE_AVAILABLE_KEY
+// live in @repo/core-engine/constants; GITHUB_REPO is now the descriptor's updateRepo)
 export const UPDATE_DISMISSED_KEY = 'updateDismissedVersion' as const;
 
 // Shared paths & URLs

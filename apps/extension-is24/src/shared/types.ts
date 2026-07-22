@@ -209,12 +209,6 @@ export interface CaptureQueueResponse {
   error?: string;
 }
 
-export interface UpdateInfo {
-  version: string;
-  url: string;
-  checkedAt: number;
-}
-
 // --- Saved listing snapshots ---
 
 export type ExportFormat = 'html' | 'pdf' | 'zip';

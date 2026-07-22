@@ -10,6 +10,9 @@ import {
   setMessageCountResetTime,
   setQueueAbortRequested,
   setUserTriggeredProcessing,
+  startMonitoring,
+  stopMonitoring,
+  updateCheckInterval,
   waitForTabLoad,
 } from '@repo/core-engine';
 import { debug, error, log, warn } from '@repo/shared/logger';
@@ -27,7 +30,6 @@ import {
 import { exportSnapshot as runExportSnapshot } from './exporter';
 import type { Listing } from './listings';
 import { handleNewListing } from './messaging';
-import { startMonitoring, stopMonitoring, updateCheckInterval } from './monitoring';
 import { approvePendingListing, getPendingApprovalListings, skipPendingListing } from './pending-approval';
 import { enqueueListings, processQueue } from './queue';
 import {

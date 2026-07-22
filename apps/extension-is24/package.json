@@ -14,6 +14,7 @@
     "@repo/ai": "*",
     "@repo/core-engine": "*",
     "@repo/shared-prompts": "*",
+    "@repo/site-adapter": "*",
     "@repo/shared": "*",
     "bits-ui": "^2.18.0",
     "clsx": "^2.1.1",

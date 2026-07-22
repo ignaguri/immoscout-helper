@@ -153,4 +153,10 @@ export interface RateLimitResult {
   waitTime?: number;
 }
 
+export interface UpdateInfo {
+  version: string;
+  url: string;
+  checkedAt: number;
+}
+
 export * from './seen';

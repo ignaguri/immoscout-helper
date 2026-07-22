@@ -1,14 +1,8 @@
-import {
-  currentCheckInterval,
-  isMonitoring,
-  scheduleNextAlarm,
-  setCurrentCheckInterval,
-  setIsMonitoring,
-  setSearchTabId,
-} from '@repo/core-engine';
 import { error, log } from '@repo/shared/logger';
-import * as C from '../shared/constants';
-import { syncContactedListings } from './sync';
+import * as C from './constants';
+import { getDescriptor } from './descriptor-ref';
+import { scheduleNextAlarm } from './helpers';
+import { currentCheckInterval, isMonitoring, setCurrentCheckInterval, setIsMonitoring, setSearchTabId } from './state';
 
 export async function updateCheckInterval(): Promise<void> {
   const stored: Record<string, any> = await chrome.storage.local.get([C.CHECK_INTERVAL_KEY]);
@@ -29,15 +23,18 @@ export async function startMonitoring(): Promise<void> {
 
     await updateCheckInterval();
 
-    log('Syncing contacted listings from messenger...');
-    try {
-      const synced = await syncContactedListings();
-      const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
-      log(
-        `[Startup] Seen list has ${(stored[C.STORAGE_KEY] || []).length} entries after messenger sync (${synced} new)`,
-      );
-    } catch (err) {
-      error('Error syncing contacted listings:', err);
+    const descriptor = getDescriptor();
+    if (descriptor.capabilities.messenger && descriptor.messenger) {
+      log('Syncing contacted listings from messenger...');
+      try {
+        const synced = await descriptor.messenger.syncContacted();
+        const stored: Record<string, any> = await chrome.storage.local.get([C.STORAGE_KEY]);
+        log(
+          `[Startup] Seen list has ${(stored[C.STORAGE_KEY] || []).length} entries after messenger sync (${synced} new)`,
+        );
+      } catch (err) {
+        error('Error syncing contacted listings:', err);
+      }
     }
 
     log(`Monitoring started. Will check every ${currentCheckInterval / 1000} seconds.`);

@@ -1,11 +1,7 @@
+import type { UpdateInfo } from '@repo/shared';
 import { error, log } from '@repo/shared/logger';
-import {
-  GITHUB_REPO,
-  UPDATE_AVAILABLE_KEY,
-  UPDATE_CHECK_ALARM,
-  UPDATE_CHECK_INTERVAL_HOURS,
-} from '../shared/constants';
-import type { UpdateInfo } from '../shared/types';
+import { UPDATE_AVAILABLE_KEY, UPDATE_CHECK_ALARM, UPDATE_CHECK_INTERVAL_HOURS } from './constants';
+import { getDescriptor } from './descriptor-ref';
 
 function normalizeVersion(v: string): number[] {
   return v
@@ -40,7 +36,7 @@ export async function checkForUpdate(): Promise<void> {
       return;
     }
 
-    const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+    const response = await fetch(`https://api.github.com/repos/${getDescriptor().updateRepo}/releases/latest`, {
       headers: { Accept: 'application/vnd.github.v3+json' },
     });
 
